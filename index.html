@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#CC0000;--red-dark:#9B0000;
+  --bg:#F5F5F5;--surface:#FFFFFF;--surface-2:#FAFAFA;--surface-3:#F0F0F0;
+  --border:#E5E5E5;--border-hi:#D4D4D4;
+  --text:#1A1A1A;--text-2:#404040;--text-3:#737373;
+  --prereq:#CC0000;--drop-target:rgba(204,0,0,0.04);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:0 2px 8px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.04);
+  --shadow-lg:0 8px 24px rgba(0,0,0,0.08),0 16px 48px rgba(0,0,0,0.04);
+  --radius:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased}
+.header{background:#1A1A1A;padding:1.75rem 2rem 1.5rem;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red)}
+.header::after{content:'';position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(204,0,0,0.06)}
+.header-inner{max-width:1400px;margin:0 auto;position:relative;z-index:1}
+.header h1{font-size:1.55rem;font-weight:700;letter-spacing:-0.03em;color:#fff;display:flex;align-items:center;gap:0.6rem}
+.header h1::before{content:'';display:inline-block;width:4px;height:1.3em;background:var(--red);border-radius:2px}
+.header .subtitle{color:rgba(255,255,255,0.5);font-size:0.8rem;font-weight:400;margin-top:0.2rem;letter-spacing:0.02em;padding-left:1.1rem}
+.header-row{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-top:0.75rem}
+.credit-summary{display:flex;gap:0.5rem;flex-wrap:wrap}
+.credit-box{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.4rem 0.85rem;text-align:center;transition:background 0.2s}
+.credit-box:hover{background:rgba(255,255,255,0.1)}
+.credit-box .cb-label{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.55);font-weight:600}
+.credit-box .cb-value{font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:#fff}
+.cb-value.warning{color:#FCA5A5}.cb-value.ok{color:#86EFAC}
+.toolbar{max-width:1400px;margin:0 auto;padding:0.65rem 2rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--border)}
+.toolbar-label{font-size:0.7rem;color:var(--text-2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
+.toggle-btn{font-family:'Inter',sans-serif;font-size:0.75rem;font-weight:500;padding:0.35rem 0.85rem;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all 0.2s}
+.toggle-btn:hover{background:var(--surface-3);color:var(--text);border-color:var(--border-hi)}.toggle-btn.active{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 2px 8px rgba(204,0,0,0.25)}
+.reset-btn{font-family:'Inter',sans-serif;font-size:0.72rem;font-weight:500;padding:0.35rem 0.85rem;border-radius:20px;border:1px solid transparent;background:transparent;color:var(--text-3);cursor:pointer;transition:all 0.2s}
+.reset-btn:hover{background:var(--surface-3);color:var(--text)}
+.legend{max-width:1400px;margin:0 auto;padding:0.55rem 2rem;display:flex;gap:0.85rem;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:0.35rem;font-size:0.7rem;color:var(--text);font-weight:500}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.prereq-banner{max-width:1400px;margin:0.75rem auto 0;padding:0 2rem}
+.prereq-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--radius);padding:0.65rem 1rem;font-size:0.78rem;color:var(--text-2);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
+.prereq-box strong{color:var(--text)}
+.prereq-tag{font-family:'JetBrains Mono',monospace;font-size:0.7rem;background:var(--surface-2);color:var(--prereq);padding:0.15rem 0.5rem;border-radius:5px;border:1px solid rgba(204,0,0,0.12);font-weight:500}
+.prereq-arrow{color:var(--text-3);font-size:0.85rem}
+.drag-hint{font-size:0.72rem;color:var(--text-2);font-style:italic;max-width:1400px;margin:0.5rem auto 0;padding:0 2rem}
+.validation-bar{max-width:1400px;margin:0.5rem auto 0;padding:0 2rem}
+.validation-msg{padding:0.55rem 0.85rem;border-radius:var(--radius);font-size:0.78rem;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.5rem;font-weight:500}
+.validation-msg.error{background:rgba(204,0,0,0.04);border:1px solid rgba(204,0,0,0.12);color:#991B1B}
+.validation-msg.warn{background:rgba(180,130,20,0.04);border:1px solid rgba(180,130,20,0.12);color:#92400E}
+.validation-msg.ok{background:rgba(22,163,74,0.04);border:1px solid rgba(22,163,74,0.12);color:#166534}
+.main{max-width:1400px;margin:0 auto;padding:1.25rem 2rem 2rem}
+.year-group{margin-bottom:1.5rem}
+.year-label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-2);margin-bottom:0.6rem;padding-left:0.25rem}
+.semester-row{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem}
+.semester{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all 0.25s ease;box-shadow:var(--shadow-sm)}
+.semester:hover{box-shadow:var(--shadow-md)}
+.semester.drop-hover{border-color:var(--red);background:var(--drop-target);box-shadow:0 0 0 3px rgba(204,0,0,0.08)}
+.semester.drop-blocked{border-color:#DC2626;background:rgba(220,38,38,0.03)}
+.sem-header{display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.85rem;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.sem-title{font-size:0.92rem;font-weight:600;letter-spacing:-0.01em}
+.sem-credits{font-family:'JetBrains Mono',monospace;font-size:0.8rem;font-weight:600;color:var(--text);padding:0.2rem 0.55rem;background:var(--surface);border-radius:6px;border:1px solid var(--border)}
+.sem-credits.over{color:#DC2626;border-color:rgba(220,38,38,0.2);background:rgba(220,38,38,0.04)}.sem-credits.under{color:var(--text-2)}
+.sem-courses{padding:0.4rem;min-height:60px;display:flex;flex-direction:column;gap:0.3rem}
+.course{display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:grab;transition:all 0.2s ease;position:relative}
+.course:active{cursor:grabbing}
+.course:hover{background:var(--surface-2);border-color:var(--border-hi);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.course.dragging{opacity:0.35;transform:scale(0.97)}
+.course.prereq-highlight{border-color:var(--prereq);box-shadow:0 0 0 2px rgba(204,0,0,0.12),0 2px 8px rgba(204,0,0,0.08)}
+.course.prereq-highlight::before{content:'prereq';position:absolute;top:-8px;right:8px;font-size:0.56rem;font-family:'JetBrains Mono',monospace;color:var(--prereq);background:var(--surface);padding:0 0.3rem;border-radius:3px;font-weight:600}
+.course.dependent-highlight{border-color:#D97706;box-shadow:0 0 0 2px rgba(217,119,6,0.12),0 2px 8px rgba(217,119,6,0.08)}
+.course.dependent-highlight::before{content:'depends on this';position:absolute;top:-8px;right:8px;font-size:0.56rem;font-family:'JetBrains Mono',monospace;color:#D97706;background:var(--surface);padding:0 0.3rem;border-radius:3px;font-weight:600}
+.course.pickable{cursor:pointer;border-style:dashed;border-color:var(--border-hi)}
+.course.pickable:hover{border-color:var(--red);background:rgba(204,0,0,0.02);border-style:dashed}
+.cat-stripe{width:4px;height:26px;border-radius:2px;flex-shrink:0}
+.course-info{flex:1;min-width:0}
+.course-code{font-family:'JetBrains Mono',monospace;font-size:0.82rem;font-weight:600;color:var(--text);letter-spacing:-0.01em}
+.course-name{font-size:0.78rem;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.course-right{display:flex;flex-direction:column;align-items:flex-end;gap:0.15rem;flex-shrink:0}
+.course-cr{font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:600;color:var(--text)}
+.course-cat-label{font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#fff;padding:0.1rem 0.45rem;border-radius:4px;white-space:nowrap}
+.total-bar{max-width:1400px;margin:0 auto;padding:0 2rem 3rem}
+.total-strip{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);border:1px solid var(--border);margin-top:0.5rem}
+.total-strip div{transition:width 0.4s ease}
+.total-label{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-2);margin-top:0.3rem;flex-wrap:wrap;font-weight:500}
+/* Toast */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:0.7rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:500;z-index:1000;opacity:0;transition:all 0.35s cubic-bezier(0.4,0,0.2,1);box-shadow:var(--shadow-lg);pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:100;display:none;justify-content:center;align-items:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;animation:modalIn 0.25s cubic-bezier(0.4,0,0.2,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(0.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{font-size:1.05rem;font-weight:600;letter-spacing:-0.02em}
+.modal-close{background:var(--surface-2);border:none;font-size:1.1rem;cursor:pointer;color:var(--text-3);padding:0.3rem 0.5rem;border-radius:6px;transition:all 0.15s}
+.modal-close:hover{color:var(--text);background:var(--surface-3)}
+.modal-search{padding:0.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.modal-search input{width:100%;padding:0.55rem 0.85rem;border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:0.85rem;background:var(--surface-2);color:var(--text);outline:none;transition:all 0.2s}
+.modal-search input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,0,0,0.06)}
+.modal-body{overflow-y:auto;padding:0.5rem;flex:1}
+.modal-group{margin-bottom:0.35rem}
+.modal-group-header{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-2);padding:0.4rem 0.75rem;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-item{display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;border-radius:8px;cursor:pointer;transition:all 0.15s}
+.modal-item:hover{background:var(--surface-2)}
+.modal-item .mi-code{font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:600;color:var(--text);min-width:80px}
+.modal-item .mi-name{font-size:0.78rem;color:var(--text-2);flex:1}
+.modal-item .mi-units{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--text-3)}
+.modal-item.disabled{opacity:0.3;cursor:not-allowed}
+.modal-item.disabled:hover{background:transparent}
+.transfer-mode .course{cursor:pointer;position:relative}
+.transfer-mode .course:hover{outline:2px solid #059669;outline-offset:-2px;background:rgba(5,150,105,0.03)}
+.transfer-mode .course:hover::after{content:'Click to transfer';position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:0.62rem;background:#059669;color:#fff;padding:0.1rem 0.5rem;border-radius:4px;white-space:nowrap;z-index:5;font-weight:500}
+.transferred-badge{font-size:0.58rem;background:#059669;color:#fff;padding:0.1rem 0.35rem;border-radius:4px;font-weight:600;margin-left:0.3rem;letter-spacing:0.02em}
+@media(max-width:900px){.semester-row{grid-template-columns:1fr}.header,.main,.toolbar,.legend,.prereq-banner,.validation-bar,.drag-hint,.total-bar{padding-left:1rem;padding-right:1rem}}
+@media print{.toolbar,.reset-btn,.drag-hint{display:none}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}.semester,.course{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="header"><div class="header-inner">
+<h1><span style="color:var(--red);font-weight:700;letter-spacing:-0.02em">Paw Plan</span> <span style="color:rgba(255,255,255,0.25);font-weight:300;margin:0 0.15rem">|</span> Agribusiness Management, BS</h1>
+<div class="subtitle">College of Agriculture & Life Sciences · NC State University · Interactive 4-Year Degree Planner</div>
+<div class="header-row"><div class="credit-summary">
+<div class="credit-box"><div class="cb-label">Total Required</div><div class="cb-value">120</div></div>
+<div class="credit-box"><div class="cb-label">Planned</div><div class="cb-value" id="total-planned">0</div></div>
+<div class="credit-box"><div class="cb-label">Avg / Sem</div><div class="cb-value" id="avg-per-sem">0</div></div>
+<div class="credit-box"><div class="cb-label">Transferred</div><div class="cb-value" id="transfer-cr" style="color:#059669">0</div></div>
+</div></div></div></div>
+
+<div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 0">
+<details id="instructions-panel" open style="background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+<summary style="padding:0.75rem 1rem;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:0.85rem;color:var(--red);user-select:none">&#9432; How to Use This Planner &mdash; Click to expand/collapse</summary>
+<div style="padding:0 1.25rem 1.25rem;font-size:0.82rem;color:var(--text-2);line-height:1.75">
+
+<p style="margin-bottom:0.75rem"><strong style="color:var(--text);font-size:0.88rem">What is this?</strong><br>
+This is an interactive 4-year course planner for the Agribusiness Management, BS degree. It shows all required courses organized by semester with color-coded categories. Use it to <em>plan when to take each course</em> and explore your elective options.</p>
+
+<p style="margin-bottom:0.75rem"><strong style="color:var(--text);font-size:0.88rem">How is this different from my Degree Audit?</strong><br>
+Your <strong>Degree Audit</strong> tells you <em>what requirements you still need</em> &mdash; it's your official checklist. This planner helps you figure out <em>when to take them and in what order</em>. The <strong>Pack Planner</strong> lets you assign courses to semesters but one term at a time. This tool shows all 4 years at a glance with drag-and-drop, prerequisite enforcement, and built-in course pickers. <strong>Use all three together</strong> &mdash; plan here, verify with your audit, finalize in Pack Planner.</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0.65rem;margin-bottom:0.75rem">
+
+<div style="background:var(--surface-2);padding:0.65rem 0.85rem;border-radius:8px;border-left:3px solid var(--red)">
+<strong style="color:var(--text)">&#10112; Pick your courses</strong><br>
+Courses with a <span style="border:1.5px dashed var(--text-3);padding:0.05rem 0.3rem;border-radius:4px;font-size:0.75rem">dashed border</span> have options. Click them to choose from approved lists. This includes slash/or courses (ARE 306/309), electives, natural sciences, humanities, and more.
+</div>
+
+<div style="background:var(--surface-2);padding:0.65rem 0.85rem;border-radius:8px;border-left:3px solid #2563EB">
+<strong style="color:var(--text)">&#10113; Drag to rearrange</strong><br>
+Drag any course to a different semester. The planner blocks moves that violate prerequisites and warns about overloaded semesters. Hover a course to see its prereq chain highlighted.
+</div>
+
+<div style="background:var(--surface-2);padding:0.65rem 0.85rem;border-radius:8px;border-left:3px solid #059669">
+<strong style="color:var(--text)">&#10114; Mark transfer credit</strong><br>
+Have AP/IB or transfer credit? Click <strong style="color:#059669">Transfer Mode</strong>, then click any course you've already completed. It moves to the Transfer Credit section and still counts toward 120 hours. Click it again to restore.
+</div>
+
+<div style="background:var(--surface-2);padding:0.65rem 0.85rem;border-radius:8px;border-left:3px solid #A16207">
+<strong style="color:var(--text)">&#10115; Save &amp; share your work</strong><br>
+Click <strong style="color:#059669">&darr; Save Plan</strong> to download your plan as a file. Load it later with <strong style="color:#2563EB">&uarr; Load Plan</strong>. You can email the saved file to your advisor for review.
+</div>
+
+</div>
+
+<p style="margin-bottom:0.4rem"><strong style="color:var(--text)">Toolbar buttons:</strong></p>
+<div style="font-size:0.78rem;color:var(--text-2);line-height:1.9;margin-bottom:0.5rem">
+<strong>Prereq Highlights</strong> &mdash; Hover any course to see what it requires and what depends on it.<br>
+<strong>Validate Plan</strong> &mdash; Checks for prereq violations, overloaded/underloaded semesters, and total credit count.<br>
+<strong style="color:#7C3AED">&#8630; Undo</strong> &mdash; Made a mistake? Click Undo to reverse your last action &mdash; works for picks, drags, and transfers (up to 30 steps).<br>
+<strong>Summer Courses</strong> &mdash; Four summer sections at the bottom (one per year). Drag courses there to lighten your fall/spring load.<br>
+<strong>Reset to Default</strong> &mdash; Restores the original recommended plan (clears all your changes).
+</div>
+
+<p style="font-size:0.78rem;color:#B45309;margin:0"><strong>&#9888; Important:</strong> This planner is an advising tool, not an official university system. Always confirm your plan against your Degree Audit and consult with your advisor before registering.</p>
+
+</div>
+</details>
+</div>
+<div class="toolbar">
+<span class="toolbar-label">Tools:</span>
+<button class="toggle-btn active" id="prereq-toggle">Prereq Highlights</button>
+<button class="toggle-btn" id="validate-toggle">Validate Plan</button>
+<button class="toggle-btn" id="transfer-toggle" style="background:#059669;color:#fff">Transfer Mode</button>
+<button class="reset-btn" id="undo-btn" style="background:#7C3AED;border-color:#7C3AED;color:#fff;opacity:0.4" disabled>&#8630; Undo</button>
+<button class="reset-btn" id="reset-btn">&circlearrowleft; Reset to Default</button>
+<button class="reset-btn" id="save-btn" style="background:#059669;border-color:#059669;color:#fff">&darr; Save Plan</button>
+<button class="reset-btn" id="load-btn" style="background:#2563EB;border-color:#2563EB;color:#fff">&uarr; Load Plan</button>
+<input type="file" id="load-file" accept=".json" style="display:none">
+</div>
+<div class="legend" id="legend"></div>
+<div class="prereq-banner"><div class="prereq-box">
+<strong>Key Chains:</strong>
+<span class="prereq-tag">ARE 201</span><span class="prereq-arrow">&rarr;</span>
+<span class="prereq-tag">EC/ARE 301</span><span class="prereq-arrow">&rarr;</span>
+<span class="prereq-tag">ARE 336</span><span class="prereq-arrow">&rarr;</span>
+<span class="prereq-tag">ARE 433</span>
+<span style="color:var(--text-3);margin-left:0.5rem">|</span>
+<span class="prereq-tag">ARE 201</span><span style="color:var(--text-3)">+</span>
+<span class="prereq-tag">MA 121/131/141</span><span class="prereq-arrow">&rarr;</span>
+<span class="prereq-tag">EC/ARE 301</span>
+</div></div>
+<div class="drag-hint">Drag courses between semesters (prereqs enforced). Click dashed-border courses to pick from approved lists.</div>
+<div class="drag-hint" id="transfer-hint" style="display:none;color:#059669;font-style:normal;font-weight:600;background:rgba(5,150,105,0.08);padding:0.6rem 1rem;border-radius:6px;border:1px solid rgba(5,150,105,0.2);margin-top:0.4rem">&#9654; Transfer Mode ON — Click any course to move it to the Transfer Credit section below. Transferred courses still count toward your 120 credits. Click a transferred course to restore it. Click "Transfer Mode" again to exit.</div>
+<div class="validation-bar" id="validation-bar"></div>
+<div id="verify-bar" style="max-width:1400px;margin:0.5rem auto 0;padding:0 2rem"></div>
+<div class="main" id="main"></div>
+<div class="total-bar">
+<div class="total-strip" id="total-strip"></div>
+<div class="total-label"><span id="strip-label"></span><span>120 credits required</span></div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="modal-overlay">
+<div class="modal">
+<div class="modal-header"><h2 id="modal-title">Select Course</h2><button class="modal-close" id="modal-close">&times;</button></div>
+<div class="modal-search"><input type="text" id="modal-search-input" placeholder="Search by course code or name..."></div>
+<div class="modal-body" id="modal-body"></div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+var CATEGORIES={
+orientation:{label:"Orientation",color:"#B45309"},
+comm:{label:"Comm & Tech",color:"#0E7490"},
+math:{label:"Math Sciences",color:"#7C3AED"},
+natsci:{label:"Natural Sciences",color:"#15803D"},
+dept:{label:"Dept Core",color:"#DC2626"},
+restricted:{label:"Tech / Dept Elec",color:"#A16207"},
+gep:{label:"GEP",color:"#1D4ED8"},
+free:{label:"Free Elective",color:"#57534E"}
+};
+
+var PREREQS={
+"ARE 336":["ARE 201","EC/ARE 301"],
+"EC/ARE 301":["ARE 201","MA 121/131/141"],
+"ARE 433":["ARE 201","EC/ARE 301","ARE 336"],
+"ARE 303/304":["ARE 201"],
+"ARE 311/312":["ARE 201"],
+"ARE 321/323/BUS 320":["ARE 201"],
+"ARE 306/309":["ARE 201"]
+};
+
+// Pickable course lists - abbreviated for size, grouped by subject
+var HUM_COURSES=[
+{g:"AFS",courses:[{c:"AFS 240",n:"African Civilization"},{c:"AFS 241",n:"Intro to African American Studies"},{c:"AFS 248",n:"Survey of African-American Lit"},{c:"AFS 275",n:"Intro History South & East Africa"},{c:"AFS 276",n:"Intro History West Africa"},{c:"AFS 342",n:"Intro to the African Diaspora"},{c:"AFS 343",n:"African American Religions"},{c:"AFS 346",n:"Black Popular Culture"},{c:"AFS 372",n:"African-American Hist Through Civil War"},{c:"AFS 373",n:"African-American Hist Since 1865"},{c:"AFS 442",n:"Issues in the African Diaspora"},{c:"AFS 448",n:"African-American Literature"},{c:"AFS 455",n:"History of the Civil Rights Movement"},{c:"AFS 470",n:"The Red Record & Birth of a Nation"}]},
+{g:"COM",courses:[{c:"COM 211",n:"Argumentation and Advocacy"},{c:"COM 289",n:"Science Communication"},{c:"COM 371",n:"Great Speakers & Speeches"},{c:"COM 395",n:"Studies in Rhetoric & Digital Media"}]},
+{g:"ENG",courses:[{c:"ENG 206",n:"Studies In Drama"},{c:"ENG 207",n:"Studies in Poetry"},{c:"ENG 208",n:"Studies In Fiction"},{c:"ENG 209",n:"Intro to Shakespeare"},{c:"ENG 219",n:"Great Works Non-Western Lit"},{c:"ENG 220",n:"Great Works Western Lit"},{c:"ENG 221",n:"Lit of the Western World I"},{c:"ENG 222",n:"Lit of the Western World II"},{c:"ENG 232",n:"Literature and Medicine"},{c:"ENG 246",n:"Literature of the Holocaust"},{c:"ENG 248",n:"Survey of African-American Lit"},{c:"ENG 249",n:"Native American Literature"},{c:"ENG 251",n:"Major British Writers"},{c:"ENG 252",n:"Major American Writers"},{c:"ENG 261",n:"English Literature I"},{c:"ENG 262",n:"English Literature II"},{c:"ENG 265",n:"American Literature I"},{c:"ENG 266",n:"American Literature II"},{c:"ENG 282",n:"Introduction to Film"},{c:"ENG 305",n:"Women and Literature"},{c:"ENG 326",n:"History of the English Language"},{c:"ENG 339",n:"Literature and Technology"},{c:"ENG 340",n:"Literature, Art, and Society"},{c:"ENG 341",n:"Literature and Science"},{c:"ENG 370",n:"American Fiction 20th C"},{c:"ENG 377",n:"Fantasy"},{c:"ENG 380",n:"Modern Drama"},{c:"ENG 392",n:"Major World Author"},{c:"ENG 399",n:"Contemporary Literature"},{c:"ENG 420",n:"Major American Authors"},{c:"ENG 448",n:"African-American Literature"},{c:"ENG 476",n:"Southern Literature"}]},
+{g:"HI",courses:[{c:"HI 207",n:"Ancient Mediterranean World"},{c:"HI 208",n:"The Middle Ages"},{c:"HI 209",n:"Renaissance to Revolution"},{c:"HI 210",n:"Modern Europe 1815-Present"},{c:"HI 253",n:"Early U.S. History"},{c:"HI 254",n:"Modern U.S. History"},{c:"HI 263",n:"Asian Civilizations to 1800"},{c:"HI 264",n:"Modern Asia 1800-Present"},{c:"HI 270",n:"Modern Middle East"},{c:"HI 305",n:"Frauds & Mysteries of the Past"},{c:"HI 320",n:"Religion in American History"},{c:"HI 324",n:"History of Common Law"},{c:"HI 332",n:"Germany and the World Wars"},{c:"HI 335",n:"The World at War"},{c:"HI 340",n:"History of Agriculture"},{c:"HI 342",n:"Global Environmental History"},{c:"HI 345",n:"American Popular Culture"},{c:"HI 350",n:"American Military History"},{c:"HI 354",n:"Rise of the American Empire"},{c:"HI 360",n:"U.S. Agricultural History"},{c:"HI 361",n:"Global History American Food"},{c:"HI 364",n:"History of North Carolina"},{c:"HI 365",n:"The American West"},{c:"HI 366",n:"Native American History"},{c:"HI 372",n:"African-American Hist Through Civil War"},{c:"HI 373",n:"African-American Hist Since 1865"},{c:"HI 382",n:"History of Capitalism in America"},{c:"HI 455",n:"History Civil Rights Movement"}]},
+{g:"PHI",courses:[{c:"PHI 205",n:"Introduction to Philosophy"},{c:"PHI 210",n:"Puzzles and Paradoxes"},{c:"PHI 212",n:"Ethical Problems in the Law"},{c:"PHI 214",n:"Issues in Business Ethics"},{c:"PHI 221",n:"Contemporary Moral Issues"},{c:"PHI 227",n:"Data Ethics"},{c:"PHI 300",n:"Ancient Philosophy"},{c:"PHI 305",n:"Philosophy of Religion"},{c:"PHI 309",n:"Political Philosophy"},{c:"PHI 310",n:"Existentialism"},{c:"PHI 312",n:"Philosophy of Law"},{c:"PHI 325",n:"Bio-Medical Ethics"},{c:"PHI 340",n:"Philosophy of Science"},{c:"PHI 375",n:"Ethics"},{c:"PHI 425",n:"Intro to Cognitive Science"}]},
+{g:"REL",courses:[{c:"REL 200",n:"Intro to the Study of Religion"},{c:"REL 210",n:"Religious Traditions of the World"},{c:"REL 220",n:"Religion in the Contemporary World"},{c:"REL 230",n:"Asian Religions"},{c:"REL 240",n:"Religion and Popular Culture"},{c:"REL 311",n:"Intro to the Old Testament"},{c:"REL 312",n:"Intro to the New Testament"},{c:"REL 317",n:"Christianity"},{c:"REL 320",n:"Religion in American History"},{c:"REL 331",n:"The Hindu Tradition"},{c:"REL 332",n:"The Buddhist Traditions"},{c:"REL 340",n:"Islam"},{c:"REL 350",n:"Judaism"}]},
+{g:"PS",courses:[{c:"PS 361",n:"Intro to Political Theory"},{c:"PS 362",n:"American Political Thought"}]},
+{g:"WGS",courses:[{c:"WGS 200",n:"Intro to Women's & Gender Studies"},{c:"WGS 305",n:"Women and Literature"},{c:"WGS 390",n:"Queer Theory"}]},
+{g:"FL/WL",courses:[{c:"WL 210",n:"Global Literature and Culture"},{c:"WL 219",n:"Great Works Non-Western Lit"},{c:"WL 220",n:"Great Works Western Lit"},{c:"WLCL 210",n:"Classical Mythology"},{c:"WLCL 222",n:"Ancient Roots of American Democracy"},{c:"WLSP 340",n:"Intro Hispanic Lit & Cultures"}]},
+{g:"Other",courses:[{c:"HA 201",n:"History of Art: Caves to Renaissance"},{c:"HA 202",n:"History of Art: Renaissance to 20th C"},{c:"MUS 105",n:"Intro to Music in Western Society"},{c:"MUS 206",n:"America's Music"},{c:"MUS 260",n:"History of Jazz"},{c:"THE 103",n:"Introduction to the Theatre"},{c:"ID 244",n:"History of Industrial Design"},{c:"HSS 201",n:"Critical Thinking in American Life"},{c:"HUM 295",n:"Humanities Special Topics"}]}
+];
+
+var SOCSCI_COURSES=[
+{g:"PSY",courses:[{c:"PSY 200",n:"Introduction to Psychology"},{c:"PSY 208",n:"Psychobiology of Success"},{c:"PSY 311",n:"Social Psychology"},{c:"PSY 376",n:"Developmental Psychology"},{c:"PSY 406",n:"Psychology of Gender"},{c:"PSY 441",n:"Environmental Psychology"},{c:"PSY 442",n:"Psychology and Law"}]},
+{g:"SOC",courses:[{c:"SOC 202",n:"Principles of Sociology"},{c:"SOC 203",n:"Current Social Problems"},{c:"SOC 204",n:"Sociology of Family"},{c:"SOC 205",n:"Jobs and Work"},{c:"SOC 206",n:"Social Deviance"},{c:"SOC 212",n:"Race in America"},{c:"SOC 241",n:"Sociology of Ag & Rural Society"},{c:"SOC 304",n:"Gender and Society"},{c:"SOC 305",n:"Racial and Ethnic Relations"},{c:"SOC 306",n:"Criminology"},{c:"SOC 350",n:"Food and Society"}]},
+{g:"PS",courses:[{c:"PS 201",n:"American Politics and Government"},{c:"PS 202",n:"State and Local Government"},{c:"PS 231",n:"Intro to International Relations"},{c:"PS 236",n:"Issues in Global Politics"},{c:"PS 301",n:"The Presidency and Congress"},{c:"PS 302",n:"Campaigns and Elections"},{c:"PS 310",n:"Public Policy"},{c:"PS 314",n:"Science, Tech & Public Policy"},{c:"PS 320",n:"U.S. Environmental Law & Politics"},{c:"PS 331",n:"U.S. Foreign Policy"},{c:"PS 336",n:"Global Environmental Politics"}]},
+{g:"ANT",courses:[{c:"ANT 251",n:"Intro to Biological Anthropology"},{c:"ANT 252",n:"Intro to Cultural Anthropology"},{c:"ANT 253",n:"Introduction to Archaeology"},{c:"ANT 261",n:"Technology in Society & Culture"},{c:"ANT 310",n:"Native Peoples of North America"},{c:"ANT 370",n:"Intro to Forensic Anthropology"}]},
+{g:"COM",courses:[{c:"COM 112",n:"Interpersonal Communication"},{c:"COM 289",n:"Science Communication"},{c:"COM 292",n:"Language, Communication, & Culture"}]},
+{g:"EC/ARE",courses:[{c:"EC 202",n:"Principles of Macroeconomics"},{c:"ARE 309",n:"Environmental Law & Econ Policy"},{c:"ARE 311",n:"Agricultural Markets"},{c:"ARE 433",n:"U.S. Agricultural Policy"}]},
+{g:"GEO",courses:[{c:"GEO 200",n:"Principles of Geography"},{c:"GEO 220",n:"Cultural Geography"}]},
+{g:"EDP",courses:[{c:"EDP 304",n:"Educational Psychology"},{c:"EDP 370",n:"Applied Child Development"}]},
+{g:"Other",courses:[{c:"AEE 323",n:"Leadership Development in Ag"},{c:"MIE 209",n:"Survey of Entrepreneurship"},{c:"NR 219",n:"Natural Resource Markets"},{c:"PRT 152",n:"Intro to Parks & Recreation"},{c:"SW 300",n:"Research Methods in Social Work"},{c:"ENG 210",n:"Intro to Language & Linguistics"}]}
+];
+
+var GEP_ELEC_COURSES=[
+{g:"Sciences",courses:[{c:"BIO 105",n:"Biology in the Modern World"},{c:"BIO 181",n:"Intro Biology: Ecology & Evolution"},{c:"BIO 183",n:"Intro Biology: Cellular & Molecular"},{c:"CH 100",n:"Chemistry and Society"},{c:"ES 100",n:"Intro to Environmental Sciences"},{c:"ES 200",n:"Climate Change & Sustainability"},{c:"ES 300",n:"Energy and Environment"},{c:"GN 301",n:"Genetics in Human Affairs"},{c:"MEA 100",n:"Earth System Science"},{c:"MEA 130",n:"Intro to Weather & Climate"},{c:"MEA 200",n:"Intro to Oceanography"},{c:"PB 200",n:"Plant Life"},{c:"PY 131",n:"Conceptual Physics"},{c:"TOX 201",n:"Poisons, People & Environment"}]},
+{g:"Social Sciences",courses:[{c:"PSY 200",n:"Introduction to Psychology"},{c:"PSY 311",n:"Social Psychology"},{c:"PSY 376",n:"Developmental Psychology"},{c:"SOC 202",n:"Principles of Sociology"},{c:"SOC 203",n:"Current Social Problems"},{c:"SOC 241",n:"Sociology of Ag & Rural Society"},{c:"SOC 350",n:"Food and Society"},{c:"PS 201",n:"American Politics & Government"},{c:"PS 231",n:"Intro to International Relations"},{c:"ANT 252",n:"Intro to Cultural Anthropology"},{c:"GEO 200",n:"Principles of Geography"},{c:"EC 201",n:"Principles of Microeconomics"},{c:"EC 202",n:"Principles of Macroeconomics"}]},
+{g:"Humanities",courses:[{c:"ENG 208",n:"Studies In Fiction"},{c:"ENG 252",n:"Major American Writers"},{c:"ENG 282",n:"Introduction to Film"},{c:"HI 253",n:"Early U.S. History"},{c:"HI 254",n:"Modern U.S. History"},{c:"HI 340",n:"History of Agriculture"},{c:"HI 360",n:"U.S. Agricultural History"},{c:"PHI 205",n:"Introduction to Philosophy"},{c:"PHI 214",n:"Issues in Business Ethics"},{c:"PHI 221",n:"Contemporary Moral Issues"},{c:"PHI 375",n:"Ethics"},{c:"REL 200",n:"Intro to Study of Religion"},{c:"REL 210",n:"Religious Traditions of the World"}]},
+{g:"Arts",courses:[{c:"ARC 140",n:"Experiencing Architecture"},{c:"ARS 351",n:"Arts, Ideas and Values"},{c:"DAN 122",n:"Dance and Society"},{c:"ENG 282",n:"Introduction to Film"},{c:"GD 203",n:"History of Graphic Design"},{c:"HA 201",n:"History of Art: Caves to Renaissance"},{c:"HA 202",n:"History of Art: Renaissance to 20th C"},{c:"MUS 105",n:"Intro to Music in Western Society"},{c:"MUS 206",n:"America's Music"},{c:"MUS 260",n:"History of Jazz"},{c:"THE 103",n:"Introduction to the Theatre"}]},
+{g:"Agriculture & Life Sci",courses:[{c:"AEC 203",n:"Intro to Honey Bee & Beekeeping"},{c:"AEE 208",n:"Agricultural Biotechnology"},{c:"ANS 105",n:"Intro to Companion Animal Science"},{c:"CS 213",n:"Crop Science"},{c:"CS 230",n:"Intro to Agroecology"},{c:"ENT 201",n:"Insects and People"},{c:"FOR 248",n:"Forest History, Tech & Society"},{c:"FS 201",n:"Introduction to Food Science"},{c:"FS 221",n:"Discover: Chocolate, Coffee & Tea"},{c:"FS 301",n:"Intro to Human Nutrition"},{c:"FW 221",n:"Conservation of Natural Resources"},{c:"HS 200",n:"Home Horticulture"},{c:"HS 201",n:"World of Horticulture"},{c:"PB 205",n:"Our Green World"},{c:"PO 212",n:"Poultry & People"},{c:"SSC 200",n:"Soil Science"}]},
+{g:"Business & Econ",courses:[{c:"ARE 201",n:"Intro to AG & Resource Econ"},{c:"ARE 336",n:"Intro Resource & Enviro Econ"},{c:"MIE 201",n:"Introduction to Business"},{c:"MIE 209",n:"Survey of Entrepreneurship"},{c:"MIE 309",n:"Entrepreneurship Skills for Non-Majors"},{c:"M 380",n:"Doing Business Globally"}]},
+{g:"Math & Stats",courses:[{c:"MA 103",n:"Topics in Contemporary Math"},{c:"MA 105",n:"Mathematics of Finance"},{c:"MA 114",n:"Intro to Finite Math"},{c:"MA 121",n:"Elements of Calculus"},{c:"MA 141",n:"Calculus I"},{c:"ST 101",n:"Statistics by Example"},{c:"ST 311",n:"Introduction to Statistics"},{c:"LOG 201",n:"Logic"}]},
+{g:"Interdisciplinary",courses:[{c:"IDS 201",n:"Environmental Ethics"},{c:"IDS 203",n:"Humans and the Environment"},{c:"IDS 220",n:"Science & Art of Happiness"},{c:"IS 200",n:"Intro to International Studies"},{c:"STS 214",n:"Intro to Science, Tech & Society"},{c:"STS 301",n:"Science and Civilization"},{c:"STS 322",n:"Technological Catastrophes"},{c:"STS 323",n:"World Population & Food"}]},
+{g:"Health & PE",courses:[{c:"HESF 101",n:"Fitness and Wellness"},{c:"HESF 102",n:"Fitness Walking"},{c:"HESF 104",n:"Swim Conditioning"},{c:"HESF 105",n:"Aerobics & Body Conditioning"},{c:"HESS 237",n:"Weight Training"},{c:"HESS 245",n:"Golf"},{c:"HEST 261",n:"Basketball"},{c:"HEST 266",n:"Ultimate Frisbee"},{c:"PRT 200",n:"Health, Wellness & Happiness"}]}
+];
+
+var SLASH_COURSES={
+"are306":[{c:"ARE 306",n:"Agricultural Law"},{c:"ARE 309",n:"Environmental Law & Econ Policy"}],
+"are303":[{c:"ARE 303",n:"Farm Business Management"},{c:"ARE 304",n:"Agricultural Management"}],
+"are312":[{c:"ARE 311",n:"Agricultural Markets"},{c:"ARE 312",n:"Agribusiness Marketing"}],
+"are321":[{c:"ARE 321",n:"AG Financial Management"},{c:"ARE 323",n:"AG Financial Analysis"},{c:"BUS 320",n:"Principles of Finance"}],
+"com112":[{c:"COM 112",n:"Interpersonal Communication"},{c:"COM 211",n:"Argumentation and Advocacy"},{c:"COM 226",n:"Communication course"},{c:"ENG 332",n:"Communication for Engineering & Technology"}],
+"bio":[{c:"BIO 105 + BIO 106",n:"Biology in the Modern World + Lab (3+1 cr)"},{c:"BIO 181",n:"Intro Biology: Ecology & Evolution (4 cr)"},{c:"PB 200",n:"Plant Life (4 cr)"}],
+"math1":[{c:"MA 121",n:"Elements of Calculus"},{c:"MA 131",n:"Calculus for Life & Mgmt Sci A"},{c:"MA 141",n:"Calculus I"}],
+"math2":[{c:"MA 114",n:"Intro to Finite Mathematics"},{c:"MA 231",n:"Calculus for Life & Mgmt Sci B"},{c:"MA 241",n:"Calculus II"},{c:"ST 311",n:"Introduction to Statistics"},{c:"ST 350",n:"Statistics"},{c:"BUS 350",n:"Business Statistics"}],
+"st311":[{c:"ST 311",n:"Introduction to Statistics"},{c:"ST 350",n:"Statistics"},{c:"BUS 350",n:"Business Statistics"},{c:"MA 114",n:"Intro to Finite Mathematics"},{c:"MA 231",n:"Calculus for Life & Mgmt Sci B"},{c:"MA 241",n:"Calculus II"}],
+"natsci4":[{c:"CH 100",n:"Chemistry and Society (4 cr)"},{c:"CH 101 + CH 102",n:"Chemistry + Gen Chem Lab (3+1 = 4 cr)"},{c:"CH 201 + CH 202",n:"Quantitative Chemistry + Lab (3+1 = 4 cr)"},{c:"MEA 100",n:"Earth System Science (4 cr)"},{c:"MEA 101 + MEA 110",n:"Geology I + Lab (3+1 = 4 cr)"},{c:"MEA 130 + MEA 135",n:"Weather & Climate + Lab (3+1 = 4 cr)"},{c:"MEA 150",n:"Environmental Issues in Water Resources (4 cr)"},{c:"PY 131",n:"Conceptual Physics (4 cr)"},{c:"PY 205",n:"Physics for Engineers & Scientists I (4 cr)"},{c:"PY 208",n:"Physics for Engineers & Scientists II (4 cr)"},{c:"PY 211",n:"College Physics I (4 cr)"},{c:"PY 212",n:"College Physics II (4 cr)"}],
+"natsci3":[{c:"CH 101",n:"Chemistry - A Molecular Science (3 cr)"},{c:"CH 201",n:"Chemistry - A Quantitative Science (3 cr)"},{c:"CH 220",n:"Introductory Organic Chemistry (3 cr)"},{c:"CH 221",n:"Organic Chemistry I (3 cr)"},{c:"MEA 101",n:"Geology I: Physical (3 cr)"},{c:"MEA 130",n:"Intro to Weather & Climate (3 cr)"},{c:"MEA 200",n:"Intro to Oceanography (3 cr)"}],
+"hesf1":[{c:"HESF 100",n:"Cross Training (2 cr)"},{c:"HESF 101",n:"Fitness and Wellness (1 cr)"},{c:"HESF 102",n:"Fitness Walking (1 cr)"},{c:"HESF 103",n:"Water Aerobics (1 cr)"},{c:"HESF 104",n:"Swim Conditioning (1 cr)"},{c:"HESF 105",n:"Aerobics & Body Conditioning (1 cr)"},{c:"HESF 106",n:"Triathlon (1 cr)"},{c:"HESF 107",n:"Run Conditioning (1 cr)"},{c:"HESF 108",n:"Water Step Aerobics (1 cr)"},{c:"HESF 109",n:"Step Aerobics (1 cr)"},{c:"HESF 110",n:"Adapted Fitness & Wellness (1 cr)"},{c:"HESF 111",n:"Indoor Group Cycling (1 cr)"},{c:"HESF 112",n:"Fitness Kickboxing (1 cr)"},{c:"HESF 113",n:"High Intensity Conditioning (1 cr)"},{c:"HESF 114",n:"Functional Training (1 cr)"},{c:"HESF 115",n:"Wellness and Resilience (2 cr)"}],
+"hesf2":[{c:"HESF 100",n:"Cross Training (2 cr)"},{c:"HESF 101",n:"Fitness and Wellness (1 cr)"},{c:"HESF 102",n:"Fitness Walking (1 cr)"},{c:"HESF 103",n:"Water Aerobics (1 cr)"},{c:"HESF 104",n:"Swim Conditioning (1 cr)"},{c:"HESF 105",n:"Aerobics & Body Conditioning (1 cr)"},{c:"HESF 107",n:"Run Conditioning (1 cr)"},{c:"HESF 108",n:"Water Step Aerobics (1 cr)"},{c:"HESF 109",n:"Step Aerobics (1 cr)"},{c:"HESF 110",n:"Adapted Fitness & Wellness (1 cr)"},{c:"HESF 111",n:"Indoor Group Cycling (1 cr)"},{c:"HESF 112",n:"Fitness Kickboxing (1 cr)"},{c:"HESF 113",n:"High Intensity Conditioning (1 cr)"},{c:"HESF 114",n:"Functional Training (1 cr)"},{c:"HESF 115",n:"Wellness and Resilience (2 cr)"},{c:"DAN 202",n:"Introduction to Hula Hooping (1 cr)"},{c:"DAN 227",n:"African Dance I (1 cr)"},{c:"DAN 228",n:"African Dance II (1 cr)"},{c:"DAN 240",n:"Social Dance (1 cr)"},{c:"DAN 241",n:"Social Dance II (1 cr)"},{c:"DAN 260",n:"Hip-hop Dance (1 cr)"},{c:"DAN 261",n:"Hip-hop Dance II (1 cr)"},{c:"DAN 263",n:"Tap Dance (1 cr)"},{c:"DAN 264",n:"Ballet I (1 cr)"},{c:"DAN 265",n:"Ballet II (1 cr)"},{c:"DAN 273",n:"Jazz Dance I (1 cr)"},{c:"DAN 274",n:"Modern Dance I (1 cr)"},{c:"DAN 275",n:"Modern Dance II (1 cr)"},{c:"DAN 276",n:"Jazz Dance II (1 cr)"},{c:"DAN 279",n:"Yoga I (1 cr)"},{c:"DAN 280",n:"Yoga II (2 cr)"},{c:"DAN 281",n:"Pilates (1 cr)"},{c:"DAN 285",n:"Advanced Dance Techniques (1 cr)"},{c:"HES 195",n:"Special Topics in HES (1 cr)"},{c:"HES 279",n:"Yoga I (1 cr)"},{c:"HES 295",n:"HES Special Topics GEP (3 cr)"},{c:"HESA 214",n:"Beginning Swimming (1 cr)"},{c:"HESA 215",n:"Advanced Beginning Swimming (1 cr)"},{c:"HESA 221",n:"Intermediate Swimming (1 cr)"},{c:"HESA 226",n:"Skin and Scuba Diving I (2 cr)"},{c:"HESA 227",n:"Skin & Scuba Diving II (2 cr)"},{c:"HESA 229",n:"Scuba Leadership (2 cr)"},{c:"HESA 231",n:"Scientific Diving (3 cr)"},{c:"HESO 255",n:"Canoeing (1 cr)"},{c:"HESO 257",n:"Backpacking (1 cr)"},{c:"HESO 258",n:"Rock Climbing 1 (1 cr)"},{c:"HESO 259",n:"Rock Climbing 2 (1 cr)"},{c:"HESO 262",n:"Whitewater Canoeing (1 cr)"},{c:"HESO 263",n:"Whitewater Kayaking (1 cr)"},{c:"HESO 276",n:"Whitewater Rafting (1 cr)"},{c:"HESO 277",n:"Mountain Biking (1 cr)"},{c:"HESO 278",n:"Fly-Fishing (1 cr)"},{c:"HESO 283",n:"Mountaineering (2 cr)"},{c:"HESO 284",n:"Sea Kayaking (1 cr)"},{c:"HESR 242",n:"Badminton (1 cr)"},{c:"HESR 249",n:"Tennis I (1 cr)"},{c:"HESR 250",n:"Tennis II (1 cr)"},{c:"HESR 255",n:"Pickleball (1 cr)"},{c:"HESR 256",n:"Racquetball (1 cr)"},{c:"HESS 237",n:"Weight Training (1 cr)"},{c:"HESS 239",n:"Self Defense (1 cr)"},{c:"HESS 243",n:"Bowling (1 cr)"},{c:"HESS 245",n:"Golf (1 cr)"},{c:"HESS 251",n:"Target Archery (1 cr)"},{c:"HESS 253",n:"Target Archery II (1 cr)"},{c:"HEST 216",n:"Soccer (1 cr)"},{c:"HEST 261",n:"Basketball (1 cr)"},{c:"HEST 266",n:"Ultimate Frisbee (1 cr)"},{c:"HEST 267",n:"Flag Football (1 cr)"},{c:"HEST 269",n:"Volleyball I (1 cr)"},{c:"HEST 270",n:"Volleyball II (1 cr)"}],
+"are4xx":[{c:"ARE 404",n:"Advanced Agribusiness Management"},{c:"ARE 412",n:"Advanced Agribusiness Marketing"},{c:"ARE 413",n:"Applied Agribusiness Marketing"},{c:"ARE 415",n:"Intro to Commodity Futures Markets"},{c:"ARE 420",n:"Taxation in Ag, Production & Agribusiness"},{c:"ARE 425",n:"Contracts & Organizations in Agriculture"},{c:"ARE 444",n:"Ethics in Agribusiness"},{c:"ARE 448",n:"International Agricultural Trade"},{c:"ARE 455",n:"Agribusiness Analytics"},{c:"ARE 470",n:"Agribusiness Entrepreneurship Clinical Skills"},{c:"ARE 475",n:"Food Policy"},{c:"ARE 494",n:"Agribusiness Study Abroad (1-6 cr)"},{c:"ARE 495",n:"Special Topics in ARE (1-6 cr)"},{c:"ARE 515",n:"Intro to Commodity Futures Markets"}],
+"are3xx":[{c:"ARE 301",n:"Intermediate Microeconomics"},{c:"ARE 303",n:"Farm Management"},{c:"ARE 304",n:"Agribusiness Management"},{c:"ARE 306",n:"Agricultural Law"},{c:"ARE 309",n:"Environmental Law & Econ Policy"},{c:"ARE 311",n:"Agricultural Markets"},{c:"ARE 312",n:"Agribusiness Marketing"},{c:"ARE 321",n:"Agricultural Financial Management"},{c:"ARE 323",n:"Agribusiness Finance"},{c:"ARE 332",n:"Human Resource Mgmt for Agribusiness"},{c:"ARE 336",n:"Intro to Resource & Environmental Econ"},{c:"ARE 345",n:"Global Agribusiness Management"},{c:"ARE 370",n:"Agribusiness New Venture Development"},{c:"ARE 395",n:"Special Topics in ARE 300-level (1-6 cr)"},{c:"ARE 404",n:"Advanced Agribusiness Management"},{c:"ARE 412",n:"Advanced Agribusiness Marketing"},{c:"ARE 413",n:"Applied Agribusiness Marketing"},{c:"ARE 415",n:"Intro to Commodity Futures Markets"},{c:"ARE 420",n:"Taxation in Ag, Production & Agribusiness"},{c:"ARE 425",n:"Contracts & Organizations in Agriculture"},{c:"ARE 444",n:"Ethics in Agribusiness"},{c:"ARE 448",n:"International Agricultural Trade"},{c:"ARE 455",n:"Agribusiness Analytics"},{c:"ARE 470",n:"Agribusiness Entrepreneurship Clinical Skills"},{c:"ARE 475",n:"Food Policy"},{c:"ARE 494",n:"Agribusiness Study Abroad (1-6 cr)"},{c:"ARE 495",n:"Special Topics in ARE (1-6 cr)"},{c:"ARE 515",n:"Intro to Commodity Futures Markets"},{c:"EC 301",n:"Intermediate Microeconomics"},{c:"EC 336",n:"Intro to Resource & Environmental Econ"}]
+};
+
+var IDS_COURSES=[
+{g:"IDS / Environment",courses:[{c:"IDS 201",n:"Environmental Ethics (3 cr)"},{c:"IDS 203",n:"Humans and the Environment (3 cr)"},{c:"IDS 220",n:"Science & Art of Happiness (3 cr)"},{c:"IDS 310",n:"Animals in Global Community (3 cr)"},{c:"ES 100",n:"Intro to Environmental Sciences (3 cr)"},{c:"ES 150",n:"Water and the Environment (3 cr)"},{c:"ES 200",n:"Climate Change & Sustainability (3 cr)"},{c:"ES 300",n:"Energy and Environment (3 cr)"},{c:"ENV 101",n:"Exploring the Environment (2 cr)"},{c:"ENV 250",n:"Diversity & Environmental Justice (3 cr)"}]},
+{g:"Science & Tech Studies",courses:[{c:"STS 214",n:"Intro to Science, Tech & Society (3 cr)"},{c:"STS 257",n:"Technology in the Arts (3 cr)"},{c:"STS 301",n:"Science and Civilization (3 cr)"},{c:"STS 302",n:"Contemporary Science, Tech & Human Values (3 cr)"},{c:"STS 304",n:"Ethical Dimensions of Progress (3 cr)"},{c:"STS 310",n:"Science, Psi, Sasquatch & Spirits (3 cr)"},{c:"STS 315",n:"Feminist Futures (3 cr)"},{c:"STS 320",n:"Cycling Cities (3 cr)"},{c:"STS 322",n:"Technological Catastrophes (3 cr)"},{c:"STS 323",n:"World Population & Food Prospects (3 cr)"},{c:"STS 325",n:"Bio-Medical Ethics (3 cr)"},{c:"STS 402",n:"Peace & War in the Nuclear Age (3 cr)"},{c:"STS 405",n:"Technology & American Culture (3 cr)"},{c:"STS 471",n:"Darwinism & Christianity (3 cr)"}]},
+{g:"History / Humanities",courses:[{c:"HI 240",n:"Intro to Visual Culture (3 cr)"},{c:"HI 305",n:"Frauds & Mysteries of the Past (3 cr)"},{c:"HI 321",n:"Scientific Revolution (3 cr)"},{c:"HI 322",n:"Rise of Modern Science (3 cr)"},{c:"HI 341",n:"Technology in History (3 cr)"},{c:"HI 342",n:"Global Environmental History (3 cr)"},{c:"HI 361",n:"Global History American Food (3 cr)"},{c:"HI 382",n:"History of Capitalism (3 cr)"},{c:"HI 440",n:"American Environmental History (3 cr)"},{c:"HI 481",n:"History of the Life Sciences (3 cr)"},{c:"HI 485",n:"History of American Technology (3 cr)"},{c:"PHI 210",n:"Puzzles and Paradoxes (3 cr)"},{c:"PHI 212",n:"Ethical Problems in the Law (3 cr)"},{c:"PHI 227",n:"Data Ethics (3 cr)"},{c:"PHI 325",n:"Bio-Medical Ethics (3 cr)"},{c:"PHI 340",n:"Philosophy of Science (3 cr)"},{c:"PHI 425",n:"Intro to Cognitive Science (3 cr)"},{c:"PHI 440",n:"The Scientific Method (3 cr)"}]},
+{g:"Agriculture & Life Sci",courses:[{c:"AEC 203",n:"Intro Honey Bee & Beekeeping (3 cr)"},{c:"AEC 245",n:"Practicing Conservation Ecology (3 cr)"},{c:"AEC 260",n:"Global Change Ecology (3 cr)"},{c:"AEE 208",n:"Agricultural Biotechnology (3 cr)"},{c:"ARE 336",n:"Intro Resource & Enviro Econ (3 cr)"},{c:"CS 230",n:"Intro to Agroecology (3 cr)"},{c:"ENT 201",n:"Insects and People (3 cr)"},{c:"FOR 248",n:"Forest History, Tech & Society (3 cr)"},{c:"FW 221",n:"Conservation of Natural Resources (3 cr)"},{c:"NTR 210",n:"Intro Community Food Security (3 cr)"},{c:"NTR 211",n:"Eating through American History (3 cr)"},{c:"PB 213",n:"Plants and Civilization (3 cr)"},{c:"PB 219",n:"Plants in Folklore, Myth & Religion (3 cr)"},{c:"PO 325",n:"Aspects of Animal Welfare (3 cr)"},{c:"SSC 185",n:"Land and Life (3 cr)"},{c:"ZO 233",n:"Human-Animal Interactions (3 cr)"}]},
+{g:"Other / Interdisciplinary",courses:[{c:"ANT 261",n:"Technology in Society & Culture (3 cr)"},{c:"BAE 210",n:"Leadership & Ethics in Sci, Tech & Ag (3 cr)"},{c:"BIT 214",n:"Biotechnology & Sustainability (3 cr)"},{c:"COM 215",n:"Free Press: Fake News & Conspiracies (3 cr)"},{c:"COM 289",n:"Science Communication (3 cr)"},{c:"CSC 281",n:"Foundations Interactive Game Design (3 cr)"},{c:"DSA 201",n:"Intro to R/Python for Data Science (1 cr)"},{c:"GIS 205",n:"Spatial Thinking with GIS (3 cr)"},{c:"IS 200",n:"Intro to International Studies (3 cr)"},{c:"MB 200",n:"Plagues that Changed the World (3 cr)"},{c:"MIE 201",n:"Intro to Business (3 cr)"},{c:"PCC 274",n:"Intro to Forensic Science (3 cr)"},{c:"PSY 208",n:"Psychobiology of Success (3 cr)"},{c:"PSY 441",n:"Environmental Psychology (3 cr)"},{c:"REL 471",n:"Darwinism & Christianity (3 cr)"},{c:"SW 260",n:"Intro to Gerontology (3 cr)"}]},
+{g:"IDS Perspectives 2",courses:[{c:"BCH 220",n:"Role of Biotechnology in Society (3 cr)"},{c:"CSC 110",n:"Computer Science Principles (3 cr)"},{c:"GN 301",n:"Genetics in Human Affairs (3 cr)"},{c:"GOH 201",n:"Foundations Global One Health (3 cr)"},{c:"GOH 302",n:"Global One Health Applications (3 cr)"},{c:"ID 244",n:"History of Industrial Design (3 cr)"},{c:"IDS 210",n:"Intro to American Studies (3 cr)"},{c:"M 380",n:"Doing Business Globally (3 cr)"},{c:"MEA 260",n:"Human Dimensions of Climate Change (3 cr)"},{c:"MIE 309",n:"Entrepreneurship Skills (3 cr)"},{c:"MUS 200",n:"Understanding Music: Global Perspectives (3 cr)"},{c:"PO 212",n:"Poultry & People (3 cr)"},{c:"PP 232",n:"Big Data in Your Pocket (3 cr)"},{c:"SLC 350",n:"Leadership & Negotiation (3 cr)"},{c:"SOC 207",n:"Language and Society (3 cr)"}]}
+];
+
+var FREE_EXCLUDED=["ARE 201","ARE 201A","BIO 105","BIO 106","BIO 181","BIO 183","EC 201","EC 205","ENG 101","MA 101","MA 103","MA 103A","MA 121","MA 131","MA 132","MA 141","WLCH 101","WLFR 101","WLGE 101","WLGR 101","WLHU 101","WLIT 101","WLJA 101","WLLA 101","WLPO 101","WLRU 101","WLSP 101","WLSP 105"];
+
+// Technical elective valid prefixes (from CALS approved list)
+var TECH_PREFIXES=["AEC","AEE","AEHS","ANS","BAE","BAET","BBS","BCH","BEC","BIO","BIT","BMA","BME","BSC","CE","CH","CHE","CS","CSSC","ECE","ECG","ENT","ES","ET","FM","FOR","FS","FSA","FW","GES","GIS","GN","HS","IDS","MA","MB","MEA","MSE","NE","NR","NTR","PB","PHY","PO","PP","PRT","PSC","PSE","PY","SMT","SSC","ST","TE","TOX","USC","VMP","ZO"];
+var TECH_ELECTIVE_LIST=[
+{g:"AEC - Applied Ecology",courses:[
+{c:"AEC 203",n:"Intro to Honey Bee & Beekeeping (3)"},{c:"AEC 360",n:"Ecology (4)"},{c:"AEC 380",n:"Water Resources (3)"},{c:"AEC 409",n:"Ecology & Conservation Freshwater Invertebrates (4)"},{c:"AEC 419",n:"Freshwater Ecology (4)"},{c:"AEC 420",n:"Intro Fisheries Science (3)"},{c:"AEC 423",n:"Intro Fisheries Sciences Lab (1)"},{c:"AEC 441",n:"Biology of Fishes (3)"},{c:"AEC 442",n:"Biology of Fishes Lab (1)"},{c:"AEC 460",n:"Field Ecology & Methods (4)"},{c:"AEC 509",n:"Ecology & Conservation Freshwater Invertebrates (4)"},{c:"AEC 515",n:"Fish Physiology (3)"},{c:"AEC 519",n:"Freshwater Ecology (4)"},{c:"AEC 761",n:"Conservation & Climate Science (3)"}]},
+{g:"AEE - Ag & Extension Education",courses:[
+{c:"AEE 101",n:"Intro Career & Technical Ed (1)"},{c:"AEE 103",n:"Fundamentals of Ag & Extension Ed (1)"},{c:"AEE 208",n:"Ag Biotechnology Issues (3)"},{c:"AEE 226",n:"Computer Applications in Ag (3)"},{c:"AEE 230",n:"Intro to Cooperative Extension (3)"},{c:"AEE 303",n:"Admin & Supervision Student Orgs (3)"},{c:"AEE 311",n:"Communication Methods & Media (3)"},{c:"AEE 322",n:"Experiential Learning in Ag (3)"},{c:"AEE 323",n:"Leadership Development (3)"},{c:"AEE 325",n:"Planning & Delivering Non-Formal Ed (3)"},{c:"AEE 326",n:"Teaching Diverse Learners (3)"},{c:"AEE 327",n:"Conducting Summer Programs (1)"},{c:"AEE 350",n:"Personal Leadership Development (3)"},{c:"AEE 360",n:"Developing Team Leadership (3)"},{c:"AEE 423",n:"Practicum in Ag Extension (8)"},{c:"AEE 424",n:"Planning Ag Ed Programs (3)"},{c:"AEE 426",n:"Methods of Teaching Ag (3)"},{c:"AEE 427",n:"Student Teaching in Ag (8)"},{c:"AEE 433",n:"Leadership & Mgmt of Volunteers (3)"},{c:"AEE 435",n:"Professional Presentations (3)"},{c:"AEE 460",n:"Organizational Leadership (3)"},{c:"AEE 478",n:"Advanced Issues Extension Ed (3)"},{c:"AEE 490",n:"Seminar in Ag & Extension Ed (3)"},{c:"AEE 491",n:"Seminar in Ag Ed (1)"},{c:"AEE 492",n:"External Learning Experience (1-6)"},{c:"AEE 493",n:"Special Problems (1-6)"},{c:"AEE 495",n:"Special Topics (1-3)"},{c:"AEE 501",n:"Foundations of Ag & Extension Ed (3)"},{c:"AEE 507",n:"Comparative Ag & Extension Ed (3)"},{c:"AEE 526",n:"Info Technologies (3)"},{c:"AEE 533",n:"Leadership & Mgmt Volunteers (3)"}]},
+{g:"ANS - Animal Science",courses:[
+{c:"ANS 105",n:"Intro Companion Animal Science (3)"},{c:"ANS 108",n:"Small Ruminant Production (3)"},{c:"ANS 110",n:"Intro Equine Science (3)"},{c:"ANS 150",n:"Intro Animal Science (3)"},{c:"ANS 151",n:"Intro Animal Science Lab (1)"},{c:"ANS 201",n:"Techniques of Animal Care (2)"},{c:"ANS 205",n:"Physiology of Domestic Animals (3)"},{c:"ANS 206",n:"Anatomy Domestic Animals Lab (1)"},{c:"ANS 208",n:"Ag Biotechnology Issues (3)"},{c:"ANS 211",n:"Safety & Ethics Animal Science (2)"},{c:"ANS 215",n:"Agricultural Genetics (3)"},{c:"ANS 220",n:"Reproductive Physiology (3)"},{c:"ANS 221",n:"Reproductive Physiology Lab (1)"},{c:"ANS 225",n:"Principles Animal Nutrition (3)"},{c:"ANS 230",n:"Animal Nutrition (3)"},{c:"ANS 231",n:"Animal Nutrition Lab (1)"},{c:"ANS 240",n:"Livestock Merchandising (3)"},{c:"ANS 241",n:"Intro Meat & Poultry Processing (3)"},{c:"ANS 242",n:"Value Added Meat Processing (3)"},{c:"ANS 243",n:"Meat Safety & Quality Systems (3)"},{c:"ANS 309",n:"Livestock Evaluation (3)"},{c:"ANS 322",n:"Muscle Foods & Eggs (3)"},{c:"ANS 324",n:"Milk & Dairy Products (3)"},{c:"ANS 330",n:"Laboratory Animal Science (3)"},{c:"ANS 395",n:"Study Abroad (1-6)"},{c:"ANS 400",n:"Companion Animal Mgmt (3)"},{c:"ANS 402",n:"Beef Cattle Mgmt (3)"},{c:"ANS 403",n:"Swine Mgmt (3)"},{c:"ANS 404",n:"Dairy Cattle Mgmt (3)"},{c:"ANS 407",n:"Livestock Grazing Mgmt (3)"},{c:"ANS 410",n:"Equine Breeding Farm Mgmt (3)"},{c:"ANS 411",n:"Growing & Performance Horses (3)"},{c:"ANS 415",n:"Comparative Nutrition (3)"},{c:"ANS 425",n:"Feed Manufacturing Technology (3)"},{c:"ANS 435",n:"Stress Physiology Animals (3)"},{c:"ANS 437",n:"Precision Livestock Farming (3)"},{c:"ANS 440",n:"Animal Genetic Improvement (3)"},{c:"ANS 452",n:"Comparative Reproductive Physiology (3)"},{c:"ANS 453",n:"Physiology & Genetics Growth (3)"},{c:"ANS 454",n:"Lactation, Milk & Nutrition (3)"},{c:"ANS 492",n:"Professional Internship (1-3)"},{c:"ANS 493",n:"Research Experience (1-3)"},{c:"ANS 495",n:"Special Topics (1-3)"}]},
+{g:"BAE - Biological & Ag Engineering",courses:[
+{c:"BAE 200",n:"Computer Methods (2)"},{c:"BAE 202",n:"Intro BAE Methods (4)"},{c:"BAE 210",n:"Leadership & Ethics (3)"},{c:"BAE 322",n:"Intro Food Process Engineering (3)"},{c:"BAE 325",n:"Introductory Geomatics (3)"},{c:"BAE 376",n:"Watershed Assessment (3)"},{c:"BAE 401",n:"Sensors & Controls (3)"},{c:"BAE 435",n:"Precision Ag Technology (3)"},{c:"BAE 455",n:"R Coding Data Mgmt (3)"},{c:"BAE 472",n:"Irrigation & Drainage (3)"},{c:"BAE 473",n:"Hydrologic & Water Quality Modeling (3)"},{c:"BAE 474",n:"Ecological Engineering (3)"},{c:"BAE 478",n:"Circular Manure Management (3)"},{c:"BAE 481",n:"Structures & Environment (3)"},{c:"BAE 486",n:"Aquacultural Engineering (3)"},{c:"BAE 488",n:"Postharvest Engineering (3)"},{c:"BAE 495",n:"Special Topics (1-3)"}]},
+{g:"BIO - Biology",courses:[
+{c:"BIO 105",n:"Biology in Modern World (3)"},{c:"BIO 106",n:"Biology Modern World Lab (1)"},{c:"BIO 181",n:"Introductory Biology (4)"},{c:"BIO 183",n:"Cellular & Molecular Biology (4)"},{c:"BIO 214",n:"Cellular & Molecular Biology (3)"},{c:"BIO 230",n:"Science of Studying Dinosaurs (3)"},{c:"BIO 240",n:"Human Anatomy & Physiology A (3)"},{c:"BIO 245",n:"Human Anatomy & Physiology B (3)"},{c:"BIO 270",n:"Intro to Evolution (3)"},{c:"BIO 310",n:"Quantitative Approaches (3)"},{c:"BIO 315",n:"General Parasitology (3)"},{c:"BIO 330",n:"Evolutionary Biology (3)"},{c:"BIO 361",n:"Developmental Biology (3)"},{c:"BIO 404",n:"Epidemiology & Statistics (3)"},{c:"BIO 405",n:"Functional Histology (3)"},{c:"BIO 414",n:"Cell Biology (3)"},{c:"BIO 416",n:"Cancer Cell Biology (3)"},{c:"BIO 424",n:"Endocrinology (3)"},{c:"BIO 432",n:"Evolutionary Medicine (3)"},{c:"BIO 440",n:"Human Animal: Evolutionary Perspective (3)"},{c:"BIO 488",n:"Neurobiology (3)"}]},
+{g:"CH - Chemistry",courses:[
+{c:"CH 100",n:"Chemistry & Society (4)"},{c:"CH 101",n:"Chemistry - A Molecular Science (3)"},{c:"CH 102",n:"General Chemistry Lab (1)"},{c:"CH 201",n:"Chemistry - A Quantitative Science (3)"},{c:"CH 202",n:"Quantitative Chemistry Lab (1)"},{c:"CH 220",n:"Introductory Organic Chemistry (3)"},{c:"CH 221",n:"Organic Chemistry I (3)"},{c:"CH 222",n:"Organic Chemistry I Lab (1)"},{c:"CH 223",n:"Organic Chemistry II (3)"},{c:"CH 224",n:"Organic Chemistry II Lab (1)"},{c:"CH 315",n:"Quantitative Analysis (3)"},{c:"CH 331",n:"Introductory Physical Chemistry (4)"},{c:"CH 345",n:"Chemistry & War (3)"},{c:"CH 401",n:"Systematic Inorganic Chemistry I (3)"},{c:"CH 431",n:"Physical Chemistry I (3)"},{c:"CH 441",n:"Forensic Chemistry (3)"}]},
+{g:"CS - Crop Science",courses:[
+{c:"CS 200",n:"Intro Turfgrass Management (4)"},{c:"CS 211",n:"Plant Genetics (3)"},{c:"CS 213",n:"Crop Science (3)"},{c:"CS 224",n:"Seeds, Biotechnology & Societies (3)"},{c:"CS 230",n:"Intro to Agroecology (3)"},{c:"CS 400",n:"Turf Cultural Systems (3)"},{c:"CS 410",n:"Community Food Systems (3)"},{c:"CS 413",n:"Plant Breeding (3)"},{c:"CS 414",n:"Weed Science (4)"},{c:"CS 415",n:"Integrated Pest Management (3)"},{c:"CS 430",n:"Advanced Agroecology (4)"}]},
+{g:"ENT - Entomology",courses:[
+{c:"ENT 201",n:"Insects & People (3)"},{c:"ENT 207",n:"Insects & Human Disease (3)"},{c:"ENT 305",n:"Intro Forensic Entomology (3)"},{c:"ENT 401",n:"Honey Bee Biology & Mgmt (3)"},{c:"ENT 425",n:"General Entomology (3)"},{c:"ENT 495",n:"Special Topics (1-3)"},{c:"ENT 502",n:"Insect Diversity (4)"},{c:"ENT 520",n:"Insect Behavior (3)"},{c:"ENT 550",n:"Fundamentals Arthropod Mgmt (3)"}]},
+{g:"ES - Environmental Sciences",courses:[
+{c:"ES 100",n:"Intro Environmental Sciences (3)"},{c:"ES 113",n:"Earth from Space (3)"},{c:"ES 150",n:"Water & the Environment (3)"},{c:"ES 200",n:"Climate Change & Sustainability (3)"},{c:"ES 300",n:"Energy & Environment (3)"},{c:"ES 400",n:"Analysis Environmental Issues (3)"},{c:"ES 425",n:"Water Quality & Health (3)"},{c:"ES 433",n:"GMOs for Conservation (3)"},{c:"ES 495",n:"Special Topics (1-6)"}]},
+{g:"FOR - Forestry",courses:[
+{c:"FOR 248",n:"Forest History, Technology & Society (3)"},{c:"FOR 252",n:"Intro Forest Science (3)"},{c:"FOR 260",n:"Forest Ecology (4)"},{c:"FOR 318",n:"Forest Pathology (3)"},{c:"FOR 319",n:"Forest Economics (3)"},{c:"FOR 353",n:"GIS & Remote Sensing (3)"},{c:"FOR 401",n:"Dendrology (4)"},{c:"FOR 404",n:"Theory of Silviculture (4)"},{c:"FOR 414",n:"World Forestry (3)"},{c:"FOR 420",n:"Watershed & Wetlands Hydrology (4)"},{c:"FOR 472",n:"Forest Soils (4)"}]},
+{g:"FS - Food Science",courses:[
+{c:"FS 201",n:"Intro Food Science (3)"},{c:"FS 221",n:"Chocolate, Coffee & Tea (3)"},{c:"FS 250",n:"Basics Food Safety & Quality (3)"},{c:"FS 301",n:"Intro Human Nutrition (3)"},{c:"FS 322",n:"Muscle Foods & Eggs (3)"},{c:"FS 324",n:"Milk & Dairy Products (3)"},{c:"FS 330",n:"Science of Food Preparation (3)"},{c:"FS 352",n:"Intro Microbiological Food Safety (3)"},{c:"FS 401",n:"Advanced Nutrition & Metabolism (3)"},{c:"FS 402",n:"Chemistry of Food (4)"},{c:"FS 405",n:"Food Microbiology (3)"},{c:"FS 416",n:"Quality Control (3)"},{c:"FS 421",n:"Food Preservation (3)"},{c:"FS 444",n:"Food Ingredient Functionality (3)"},{c:"FS 445",n:"Food Product Development (4)"},{c:"FS 453",n:"Food Laws & Regulations (3)"}]},
+{g:"FW - Fisheries & Wildlife",courses:[
+{c:"FW 221",n:"Conservation Natural Resources (3)"},{c:"FW 311",n:"Piedmont Wildlife Ecology (3)"},{c:"FW 333",n:"Conservation Biology in Practice (3)"},{c:"FW 353",n:"Wildlife Management (3)"},{c:"FW 373",n:"Vertebrate Natural History (3)"},{c:"FW 402",n:"Genetics Wildlife Mgmt (3)"},{c:"FW 403",n:"Urban Wildlife Mgmt (3)"},{c:"FW 404",n:"Wildlife Habitat Mgmt (3)"},{c:"FW 413",n:"Herpetology (4)"},{c:"FW 444",n:"Mammalogy (3)"},{c:"FW 453",n:"Principles Wildlife Science (4)"},{c:"FW 465",n:"African Ecology & Conservation (4)"}]},
+{g:"GN - Genetics",courses:[
+{c:"GN 301",n:"Genetics in Human Affairs (3)"},{c:"GN 311",n:"Principles of Genetics (4)"},{c:"GN 421",n:"Molecular Genetics (3)"},{c:"GN 423",n:"Population & Evolutionary Genetics (3)"},{c:"GN 427",n:"Introductory Bioinformatics (3)"},{c:"GN 428",n:"Intro Machine Learning Biology (3)"},{c:"GN 441",n:"Human & Biomedical Genetics (3)"},{c:"GN 450",n:"Conservation Genetics (3)"},{c:"GN 451",n:"Genome Science (3)"},{c:"GN 453",n:"Personal Genomics (3)"}]},
+{g:"HS - Horticultural Science",courses:[
+{c:"HS 200",n:"Home Horticulture (3)"},{c:"HS 201",n:"World of Horticulture (3)"},{c:"HS 242",n:"Landscape Design Intro (3)"},{c:"HS 275",n:"Floral Design (3)"},{c:"HS 301",n:"Plant Propagation (4)"},{c:"HS 400",n:"Residential Landscaping (4)"},{c:"HS 410",n:"Community Food Systems (3)"},{c:"HS 431",n:"Vegetable Production (4)"},{c:"HS 432",n:"Intro Permaculture (3)"},{c:"HS 440",n:"Greenhouse Management (3)"},{c:"HS 451",n:"Plant Nutrition (3)"},{c:"HS 462",n:"Postharvest Physiology (3)"},{c:"HS 495",n:"Special Topics (1-6)"}]},
+{g:"MB - Microbiology",courses:[
+{c:"MB 200",n:"Plagues that Changed the World (3)"},{c:"MB 251",n:"General Microbiology (3)"},{c:"MB 252",n:"General Microbiology Lab (1)"},{c:"MB 311",n:"Medical Microbiology (3)"},{c:"MB 405",n:"Food Microbiology (3)"},{c:"MB 414",n:"Microbial Metabolic Regulation (3)"},{c:"MB 435",n:"Bacterial Pathogenesis (3)"},{c:"MB 441",n:"Immunology (3)"},{c:"MB 451",n:"Microbial Diversity (3)"},{c:"MB 455",n:"Microbial Biotechnology (3)"},{c:"MB 461",n:"Molecular Virology (3)"},{c:"MB 470",n:"Emerging Infectious Diseases (3)"},{c:"MB 479",n:"Microbial Symbiosis & Microbiomes (3)"}]},
+{g:"MEA - Marine, Earth & Atmospheric",courses:[
+{c:"MEA 100",n:"Earth System Science (4)"},{c:"MEA 101",n:"Geology I: Physical (3)"},{c:"MEA 130",n:"Intro Weather & Climate (3)"},{c:"MEA 200",n:"Intro Oceanography (3)"},{c:"MEA 215",n:"Intro Atmospheric Sciences (4)"},{c:"MEA 220",n:"Marine Biology (3)"},{c:"MEA 240",n:"Planets of Our Solar System (3)"},{c:"MEA 250",n:"Intro Coastal Environments (3)"},{c:"MEA 252",n:"Biology of Marine Mammals (3)"},{c:"MEA 260",n:"Human Dimensions Climate Change (3)"},{c:"MEA 300",n:"Environmental Geology (4)"},{c:"MEA 305",n:"Catastrophic Earth (3)"},{c:"MEA 350",n:"Marine Conservation Biology (3)"},{c:"MEA 412",n:"Atmospheric Physics (3)"},{c:"MEA 415",n:"Climate Dynamics (3)"},{c:"MEA 443",n:"Synoptic Weather Analysis (4)"},{c:"MEA 449",n:"Biological Oceanography (3)"},{c:"MEA 460",n:"Physical Oceanography (3)"}]},
+{g:"NR - Natural Resources",courses:[
+{c:"NR 203",n:"Humans & the Environment (3)"},{c:"NR 219",n:"Natural Resource Markets (3)"},{c:"NR 300",n:"Natural Resource Measurements (4)"},{c:"NR 400",n:"Natural Resource Management (4)"},{c:"NR 406",n:"Conservation Biological Diversity (3)"},{c:"NR 414",n:"Geospatial Analytics (3)"},{c:"NR 420",n:"Watershed & Wetlands Hydrology (4)"},{c:"NR 421",n:"Wetland Science & Mgmt (3)"},{c:"NR 425",n:"Water Quality & Health (3)"},{c:"NR 460",n:"Renewable Natural Resource Mgmt (3)"},{c:"NR 484",n:"Environmental Impact Assessment (4)"}]},
+{g:"NTR - Nutrition",courses:[
+{c:"NTR 210",n:"Intro Community Food Security (3)"},{c:"NTR 211",n:"Eating through American History (3)"},{c:"NTR 220",n:"Food & Culture (3)"},{c:"NTR 301",n:"Intro Human Nutrition (3)"},{c:"NTR 302",n:"Intro Nutrition Research (3)"},{c:"NTR 310",n:"Food Insecurity & Federal Programs (3)"},{c:"NTR 330",n:"Public Health Nutrition (3)"},{c:"NTR 401",n:"Advanced Nutrition & Metabolism (3)"},{c:"NTR 419",n:"Human Nutrition & Chronic Disease (3)"},{c:"NTR 425",n:"Feed Manufacturing Technology (3)"},{c:"NTR 440",n:"Child & Adolescent Nutrition (3)"},{c:"NTR 460",n:"Nutrition for the Older Adult (3)"},{c:"NTR 490",n:"Senior Capstone Nutrition (4)"}]},
+{g:"PB - Plant Biology",courses:[
+{c:"PB 200",n:"Plant Life (4)"},{c:"PB 205",n:"Our Green World (3)"},{c:"PB 208",n:"Ag Biotechnology Issues (3)"},{c:"PB 213",n:"Plants & Civilization (3)"},{c:"PB 215",n:"Medicinal Plants (3)"},{c:"PB 219",n:"Plants in Folklore, Myth & Religion (3)"},{c:"PB 250",n:"Plant Biology (4)"},{c:"PB 277",n:"Space Biology (3)"},{c:"PB 321",n:"Whole Plant Physiology (3)"},{c:"PB 345",n:"Economic Botany (3)"},{c:"PB 360",n:"Ecology (4)"},{c:"PB 400",n:"Plant Diversity & Evolution (4)"},{c:"PB 403",n:"Systematic Botany (4)"},{c:"PB 421",n:"Plant Physiology (3)"},{c:"PB 450",n:"Plant Ecology (3)"},{c:"PB 480",n:"Intro Plant Biotechnology (3)"}]},
+{g:"PO - Poultry Science",courses:[
+{c:"PO 201",n:"Poultry Science & Production (3)"},{c:"PO 212",n:"Poultry & People (3)"},{c:"PO 215",n:"Applied Avian Nutrition (3)"},{c:"PO 322",n:"Muscle Foods & Eggs (3)"},{c:"PO 325",n:"Aspects of Animal Welfare (3)"},{c:"PO 401",n:"Poultry Diseases (4)"},{c:"PO 404",n:"Avian Anatomy & Physiology (4)"},{c:"PO 415",n:"Comparative Nutrition (3)"},{c:"PO 425",n:"Feed Manufacturing Technology (3)"},{c:"PO 433",n:"Poultry Processing & Products (3)"}]},
+{g:"PY - Physics",courses:[
+{c:"PY 123",n:"Stellar & Galactic Astronomy (3)"},{c:"PY 124",n:"Solar System Astronomy (3)"},{c:"PY 131",n:"Conceptual Physics (4)"},{c:"PY 201",n:"University Physics I (4)"},{c:"PY 202",n:"University Physics II (4)"},{c:"PY 205",n:"Physics for Engineers I (4)"},{c:"PY 208",n:"Physics for Engineers II (4)"},{c:"PY 211",n:"College Physics I (4)"},{c:"PY 212",n:"College Physics II (4)"},{c:"PY 301",n:"Intro Quantum Mechanics (3)"},{c:"PY 407",n:"Intro Modern Physics (3)"}]},
+{g:"SSC - Soil Science",courses:[
+{c:"SSC 185",n:"Land & Life (3)"},{c:"SSC 200",n:"Soil Science (3)"},{c:"SSC 201",n:"Soil Science Lab (1)"},{c:"SSC 332",n:"Environmental Soil Microbiology (3)"},{c:"SSC 341",n:"Soil Fertility & Nutrient Mgmt (3)"},{c:"SSC 427",n:"Biological Approaches Sustainable Soil (3)"},{c:"SSC 440",n:"GIS in Soil Science & Ag (3)"},{c:"SSC 442",n:"Soil & Environmental Biogeochemistry (3)"},{c:"SSC 452",n:"Soil Classification (4)"},{c:"SSC 455",n:"Soils, Environmental Quality (3)"},{c:"SSC 461",n:"Soil Physical Properties (3)"},{c:"SSC 470",n:"Wetland Soils (3)"}]},
+{g:"TOX - Toxicology",courses:[
+{c:"TOX 201",n:"Poisons, People & Environment (3)"},{c:"TOX 400",n:"Undergraduate Seminar (1)"},{c:"TOX 401",n:"Principles of Toxicology (4)"},{c:"TOX 415",n:"Environmental Toxicology & Chemistry (4)"}]},
+{g:"ZO - Zoology",courses:[
+{c:"ZO 233",n:"Human-Animal Interactions (3)"},{c:"ZO 250",n:"Animal Anatomy & Physiology (4)"},{c:"ZO 317",n:"Primate Ecology & Evolution (3)"},{c:"ZO 333",n:"Captive Animal Biology (3)"},{c:"ZO 350",n:"Animal Phylogeny & Diversity (4)"},{c:"ZO 402",n:"Invertebrate Biology (4)"},{c:"ZO 410",n:"Intro Animal Behavior (3)"},{c:"ZO 486",n:"Capstone in Zoology (3)"}]},
+{g:"Other",courses:[
+{c:"IDS 203",n:"Humans & the Environment (3)"},{c:"MA 315",n:"Math Methods Atmospheric Sciences (4)"},{c:"ST 404",n:"Epidemiology & Statistics (3)"},{c:"PRT 203",n:"Humans & the Environment (3)"},{c:"PRT 449",n:"Human Dimensions Natural Resources (3)"},{c:"PRT 450",n:"Sustaining Natural Resources (3)"}]}
+];
+
+// Departmental elective valid prefixes (ARE, ACC, BUS, EC, MIE, MBA, M, PRT, ST, TTM + all technical)
+var DEPT_PREFIXES=["ACC","ARE","BUS","EC","M","MA","MBA","MIE","MSE","PRT","ST","TTM"];
+var DEPT_OR_TECH_PREFIXES=TECH_PREFIXES.concat(DEPT_PREFIXES);
+
+// Valid departmental elective codes (exact match)
+var DEPT_VALID_CODES=["ACC 200","ACC 210","ACC 220","ACC 230","ACC 280","ACC 295","ACC 310","ACC 311","ACC 330","ACC 340","ACC 411","ACC 420","ACC 440","ACC 450","ACC 451","ACC 452","ACC 453","ACC 458","ACC 459","ACC 460","ACC 495","ACC 498","ACC 499","ACC 508","ACC 510","ACC 519","ACC 520","ACC 530","ACC 533","ACC 534","ACC 535","ACC 538","ACC 540","ACC 544","ACC 545","ACC 550","ACC 571","ACC 572","ACC 580","ACC 588","ACC 590","ARE 215","ARE 260","ARE 270","ARE 290","ARE 295","ARE 301","ARE 303","ARE 304","ARE 306","ARE 309","ARE 311","ARE 312","ARE 321","ARE 323","ARE 332","ARE 336","ARE 345","ARE 370","ARE 395","ARE 404","ARE 412","ARE 413","ARE 415","ARE 420","ARE 425","ARE 433","ARE 444","ARE 448","ARE 455","ARE 470","ARE 475","ARE 490","ARE 492","ARE 493","ARE 494","ARE 495","ARE 515","ARE 590","BUS 225","BUS 295","BUS 320","BUS 340","BUS 350","BUS 351","BUS 360","BUS 370","BUS 420","BUS 422","BUS 423","BUS 425","BUS 426","BUS 427","BUS 428","BUS 429","BUS 440","BUS 441","BUS 442","BUS 443","BUS 444","BUS 449","BUS 458","BUS 459","BUS 460","BUS 461","BUS 462","BUS 463","BUS 464","BUS 465","BUS 466","BUS 467","BUS 468","BUS 469","BUS 470","BUS 472","BUS 473","BUS 474","BUS 475","BUS 476","BUS 479","BUS 480","BUS 495","BUS 498","BUS 541","BUS 542","BUS 543","BUS 554","BUS 558","BUS 571","BUS 590","EC 202","EC 301","EC 302","EC 305","EC 336","EC 348","EC 351","EC 404","EC 410","EC 413","EC 431","EC 437","EC 448","EC 449","EC 451","EC 468","EC 474","EC 490","EC 495","EC 498","M 100","MA 105","MBA 501","MBA 502","MBA 512","MBA 515","MBA 516","MBA 518","MBA 525","MBA 530","MBA 531","MBA 532","MBA 533","MBA 534","MBA 539","MBA 572","MBA 578","MBA 579","MBA 580","MBA 584","MBA 585","MBA 586","MBA 589","MIE 201","MIE 209","MIE 295","MIE 305","MIE 306","MIE 309","MIE 310","MIE 330","MIE 335","MIE 410","MIE 411","MIE 412","MIE 413","MIE 416","MIE 418","MIE 419","MIE 430","MIE 432","MIE 434","MIE 435","MIE 436","MIE 437","MIE 438","MIE 439","MIE 480","MIE 495","MIE 498","MIE 501","MIE 510","MIE 511","MIE 516","MIE 517","MIE 522","MIE 535","MIE 536","MIE 570","MIE 573","MIE 574","MIE 576","MIE 577","MIE 581","MIE 590","MSE 576","MSE 577","PRT 406","ST 350","TTM 585"];
+
+// GEP Verify Requirements (overlay — no extra hours needed)
+var VERIFY_GLOBAL_KNOWLEDGE=["AEC 245","AEC 260","AEC 380","ADN 275","AFS 240","AFS 275","AFS 276","AFS 342","AFS 475","AFS 476","AFS 479","AFS 575","AFS 576","AFS 579","ALS 494","ANS 395","ANT 252","ANT 253","ANT 261","ANT 315","ANT 325","ANT 330","ANT 345","ANT 360","ANT 371","ANT 461","ANT 471","ANT 561","ANT 571","ARC 141","ARE 345","ARE 494","ARS 251","ARS 252","ARS 353","ARS 354","ARS 410","CE 489","CE 589","COM 215","COM 364","COM 374","COM 392","COM 447","CS 224","CS 230","DAN 122","DAN 227","DAN 228","E 480","EC 449","ECD 225","ENG 215","ENG 219","ENG 220","ENG 221","ENG 222","ENG 223","ENG 224","ENG 246","ENG 255","ENG 275","ENG 282","ENG 326","ENG 329","ENG 364","ENG 374","ENG 378","ENG 380","ENG 382","ENG 385","ENG 390","ENG 392","ENG 393","ENG 394","ENG 399","ENG 406","ENG 407","ENG 439","ENG 451","ENG 464","ENG 465","ENG 551","ENT 207","ES 100","ES 113","ES 150","ES 200","ES 300","ES 449","ES 450","FOR 414","FW 221","FW 465","FW 565","GEO 220","GOH 201","GOH 302","HA 240","HI 207","HI 208","HI 209","HI 210","HI 214","HI 215","HI 216","HI 217","HI 221","HI 222","HI 232","HI 233","HI 240","HI 263","HI 264","HI 270","HI 275","HI 276","HI 307","HI 317","HI 321","HI 324","HI 325","HI 332","HI 335","HI 338","HI 340","HI 342","HI 361","HI 370","HI 371","HI 374","HI 375","HI 376","HI 377","HI 378","HI 402","HI 407","HI 408","HI 410","HI 411","HI 412","HI 414","HI 415","HI 418","HI 419","HI 421","HI 422","HI 423","HI 425","HI 429","HI 430","HI 465","HI 466","HI 467","HI 468","HI 469","HI 470","HI 471","HI 472","HI 473","HI 474","HI 475","HI 476","HI 477","HI 478","HI 479","HI 483","HI 484","HI 486","HI 511","HI 512","HI 514","HI 515","HI 518","HI 519","HI 521","HI 522","HI 523","HI 525","HI 530","HI 568","HI 569","HI 570","HI 571","HI 573","HI 575","HI 576","HI 577","HI 579","HI 583","HI 584","HI 586","HON 293","HON 311","HON 353","HON 355","HON 356","HON 358","HON 359","HON 360","HON 370","HON 390","HUMG 295","IDS 201","IDS 220","IDS 310","IPGK 295","IS 200","IS 471","IS 571","MEA 100","MUS 105","MUS 200","MUS 202","MUS 215","MUS 320","MUS 330","MUS 350","NSGK 295","NTR 220","PRT 449","PRT 450","PS 231","PS 236","PS 335","PS 336","PS 339","PS 341","PS 342","PS 345","PS 431","PS 433","PS 441","REL 200","REL 210","REL 220","REL 230","REL 311","REL 312","REL 314","REL 317","REL 327","REL 331","REL 332","REL 333","REL 334","REL 340","REL 350","REL 383","REL 402","REL 407","REL 408","REL 412","REL 413","REL 424","REL 482","REL 489","SOC 220","SOC 261","SOC 342","SOC 351","STS 302","STS 320","STS 323","SW 440","SW 540","WL 210","WL 211","WL 216","WL 218","WL 219","WL 220","WL 221","WL 222","WL 223","WL 224","WL 246","WL 250","WL 275","WL 320","WL 355","WL 357","WL 392","WL 393","WL 394","WL 406","WL 407","WL 451","WLAR 318","WLAR 320","WLAR 351","WLCH 202","WLCH 351","WLCH 402","WLCL 200","WLCL 210","WLCL 215","WLCL 225","WLCL 320","WLCL 325","WLFR 202","WLFR 212","WLFR 301","WLFR 302","WLFR 315","WLFR 318","WLFR 320","WLFR 425","WLFR 525","WLGE 202","WLGE 212","WLGE 315","WLGE 318","WLGE 320","WLGE 323","WLGE 325","WLGE 420","WLGE 440","WLGR 202","WLHU 202","WLHU 301","WLHU 302","WLHU 351","WLHU 401","WLIT 202","WLIT 315","WLIT 318","WLJA 202","WLJA 342","WLJA 344","WLJA 345","WLRU 202","WLRU 303","WLRU 304","WLRU 318","WLSP 202","WLSP 212","WLSP 335","WLSP 338","WLSP 340","WLSP 341","WLSP 342","WLSP 343","WLSP 351","WLSP 352","WLSP 353","WLSP 360"];
+
+var VERIFY_AMER_DEMOCRACY=["AFS 248","COM 371","ENG 248","ENG 265","FAD 295","HI 253","HI 254","HI 345","HI 382","HSS 201","PHI 212","PS 201","PS 208","PS 362","REL 250","SOC 212","WLCL 222"];
+
+var VERIFY_WORLD_LANG=["WLAR 102","WLCH 102","WLFR 102","WLGE 102","WLGR 102","WLHU 102","WLIT 102","WLJA 102","WLLA 102","WLPE 102","WLPO 102","WLRU 102","WLSP 102","WLSP 105","WLAR 201","WLAR 202","WLAR 203","WLAR 204","WLAR 301","WLAR 318","WLAR 320","WLAR 330","WLAR 440","WLCH 201","WLCH 202","WLCH 203","WLCH 204","WLCH 205","WLCH 301","WLCH 302","WLCH 401","WLCH 402","WLFR 201","WLFR 202","WLFR 212","WLFR 301","WLFR 302","WLFR 306","WLFR 307","WLFR 308","WLFR 309","WLFR 310","WLFR 315","WLFR 318","WLFR 320","WLFR 321","WLFR 401","WLFR 411","WLFR 425","WLFR 492","WLFR 502","WLFR 511","WLFR 516","WLFR 520","WLFR 521","WLFR 525","WLFR 592","WLFR 595","WLGE 201","WLGE 202","WLGE 212","WLGE 301","WLGE 302","WLGE 307","WLGE 311","WLGE 315","WLGE 318","WLGE 320","WLGE 323","WLGE 325","WLGE 390","WLGE 398","WLGE 401","WLGE 420","WLGE 430","WLGE 440","WLGE 492","WLGE 499","WLGR 201","WLGR 202","WLHU 201","WLHU 202","WLHU 203","WLHU 204","WLHU 301","WLHU 302","WLHU 351","WLHU 401","WLIT 201","WLIT 202","WLIT 208","WLIT 308","WLIT 318","WLJA 201","WLJA 202","WLJA 203","WLJA 204","WLJA 301","WLJA 302","WLJA 342","WLJA 344","WLJA 345","WLJA 401","WLJA 402","WLLA 201","WLLA 202","WLPE 201","WLPE 202","WLPO 201","WLPO 401","WLRU 201","WLRU 202","WLRU 303","WLRU 304","WLRU 318","WLSP 201","WLSP 202","WLSP 212","WLSP 295","WLSP 331","WLSP 332","WLSP 333","WLSP 335","WLSP 336","WLSP 337","WLSP 338","WLSP 340","WLSP 341","WLSP 342","WLSP 343","WLSP 351","WLSP 352","WLSP 353","WLSP 360","WLSP 395","WLSP 399","WLSP 400","WLSP 401","WLSP 402","WLSP 405","WLSP 411","WLSP 412","WLSP 413","WLSP 445","WLSP 492","WLSP 495","WLSP 502","WLSP 503","WLSP 504","WLSP 509","WLSP 512","WLSP 515","WLSP 520","WLSP 528","WLSP 530","WLSP 545","WLSP 550","WLSP 553","WLSP 554","WLSP 563","WLSP 592","WLSP 595"];
+
+function checkVerifyRequirements(){
+var allCodes=[];
+plan.forEach(function(s){s.courses.forEach(function(c){allCodes.push(c.code);});});
+transferredCourses.forEach(function(c){allCodes.push(c.code);});
+
+var bar=document.getElementById('verify-bar');
+var checks=[
+{name:'GEP Global Knowledge',list:VERIFY_GLOBAL_KNOWLEDGE,listKey:'globalknowledge'},
+{name:'Found. of American Democracy',list:VERIFY_AMER_DEMOCRACY,listKey:'amerdemocracy'}
+];
+var results=[];
+checks.forEach(function(chk){
+var met=false;var matchCourse='';
+for(var i=0;i<allCodes.length;i++){
+if(chk.list.indexOf(allCodes[i])!==-1){met=true;matchCourse=allCodes[i];break;}
+}
+results.push({name:chk.name,met:met,course:matchCourse,listKey:chk.listKey});
+});
+
+bar.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center"><span style="font-size:0.78rem;font-weight:600;color:var(--text)">Verify Requirements:</span>'+results.map(function(r){
+var style=r.met?'background:rgba(5,150,105,0.08);border:1px solid rgba(5,150,105,0.25);color:#059669':'background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.2);color:#DC2626';
+var icon=r.met?'\u2713 Met':'&#10007; Not Met';
+var detail=r.met?' \u2014 '+r.course:' \u2014 pick a qualifying course';
+return '<div style="'+style+';padding:0.4rem 0.75rem;border-radius:6px;font-size:0.78rem;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;display:flex;align-items:center;gap:0.4rem" onclick="openVerifyList(\''+r.listKey+'\',\''+r.name+'\')"><span>'+icon+'</span> '+r.name+detail+'<span style="font-size:0.68rem;opacity:0.7;text-decoration:underline">view list</span></div>';
+}).join('')+'</div>';
+}
+
+function openVerifyList(listKey,title){
+var list;
+if(listKey==='globalknowledge')list=VERIFY_GLOBAL_KNOWLEDGE;
+else if(listKey==='amerdemocracy')list=VERIFY_AMER_DEMOCRACY;
+else return;
+
+var allCodes=[];
+plan.forEach(function(s){s.courses.forEach(function(c){allCodes.push(c.code);});});
+transferredCourses.forEach(function(c){allCodes.push(c.code);});
+
+document.getElementById('modal-title').textContent=title+' \u2014 Qualifying Courses';
+var body=document.getElementById('modal-body');
+var input=document.getElementById('modal-search-input');
+input.value='';
+input.placeholder='Search qualifying courses...';
+
+// Group by prefix
+var groups={};
+list.forEach(function(code){
+var prefix=code.split(' ')[0];
+if(!groups[prefix])groups[prefix]=[];
+groups[prefix].push(code);
+});
+
+function renderVerifyList(filter){
+body.innerHTML='';
+var sortedKeys=Object.keys(groups).sort();
+sortedKeys.forEach(function(prefix){
+var codes=groups[prefix].filter(function(c){
+if(!filter)return true;
+return c.toLowerCase().indexOf(filter)!==-1;
+});
+if(codes.length===0)return;
+var div=document.createElement('div');div.className='modal-group';
+div.innerHTML='<div class="modal-group-header">'+prefix+' ('+codes.length+' courses)</div>';
+codes.forEach(function(code){
+var inPlan=allCodes.indexOf(code)!==-1;
+var item=document.createElement('div');
+item.className='modal-item';
+item.style.cssText=inPlan?'background:rgba(5,150,105,0.08);border-left:3px solid #059669':'';
+item.innerHTML='<span class="mi-code">'+code+'</span><span class="mi-name">'+(inPlan?'<span style="color:#059669;font-weight:600">\u2713 In your plan</span>':'')+'</span>';
+div.appendChild(item);
+});
+body.appendChild(div);
+});
+if(body.children.length===0)body.innerHTML='<div style="padding:2rem;text-align:center;color:var(--text-3)">No matching courses</div>';
+}
+
+renderVerifyList(null);
+input.oninput=function(){renderVerifyList(input.value.trim().toLowerCase());};
+document.getElementById('modal-overlay').classList.add('open');
+setTimeout(function(){input.focus();},100);
+}
+
+var DEFAULT_PLAN=[
+{term:"Fall \u2014 Year 1",courses:[
+{id:"ALS103",code:"ALS 103/303 or ARE 290",name:"Orientation to CALS / ARE",units:1,cat:"orientation"},
+{id:"ARE201",code:"ARE 201",name:"Principles of Microeconomics",units:3,cat:"dept"},
+{id:"MA121",code:"MA 121/131/141",name:"Click to choose",units:3,cat:"math",picker:"math1"},
+{id:"ENG101",code:"ENG 101",name:"Academic Writing & Research",units:4,cat:"gep",tag:"Writing GEP"},
+{id:"SOCSCI",code:"Social Science Elective",name:"Click to select course",units:3,cat:"gep",tag:"Social Science GEP",picker:"socsci"}
+]},
+{term:"Spring \u2014 Year 1",courses:[
+{id:"COM110",code:"COM 110",name:"Public Speaking",units:3,cat:"comm"},
+{id:"ARE306",code:"ARE 306/309",name:"Click to choose",units:3,cat:"dept",picker:"are306"},
+{id:"MATH2",code:"MA 114 or ST 311",name:"Click to choose",units:3,cat:"math",picker:"math2"},
+{id:"ARE303",code:"ARE 303/304",name:"Click to choose",units:3,cat:"dept",picker:"are303"},
+{id:"NATSCI1",code:"Natural Science Elective (3 cr)",name:"Click to choose",units:3,cat:"natsci",picker:"natsci3"}
+]},
+{term:"Fall \u2014 Year 2",courses:[
+{id:"EC202",code:"EC 202",name:"Principles of Macroeconomics",units:3,cat:"dept"},
+{id:"EC301",code:"EC/ARE 301",name:"Intermediate Microeconomics",units:3,cat:"dept"},
+{id:"ACC210",code:"ACC 210",name:"Accounting",units:3,cat:"dept"},
+{id:"MEA",code:"Natural Science Elective (4 cr)",name:"Click to choose",units:4,cat:"natsci",picker:"natsci4"},
+{id:"RSTD1",code:"Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"tech"}
+]},
+{term:"Spring \u2014 Year 2",courses:[
+{id:"ARE336",code:"ARE 336",name:"Resource & Environmental Econ",units:3,cat:"dept"},
+{id:"ARE321",code:"ARE 321/323/BUS 320",name:"Click to choose",units:3,cat:"dept",picker:"are321"},
+{id:"ARE433",code:"ARE 433",name:"U.S. Agricultural Policy",units:3,cat:"dept"},
+{id:"ARE312",code:"ARE 311/312",name:"Click to choose",units:3,cat:"dept",picker:"are312"},
+{id:"ST311",code:"ST 311 or MA 114",name:"Click to choose",units:3,cat:"math",picker:"st311"},
+{id:"HESF1",code:"HESF 1XX",name:"Click to choose (100-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf1"}
+]},
+{term:"Fall \u2014 Year 3",courses:[
+{id:"ARE4A",code:"ARE 4XX",name:"Click to choose",units:3,cat:"dept",picker:"are4xx"},
+{id:"ARE3A",code:"ARE 3XX",name:"Click to choose",units:3,cat:"dept",picker:"are3xx"},
+{id:"COM112",code:"COM 112/211/226 or ENG 332",name:"Click to choose",units:3,cat:"comm",picker:"com112"},
+{id:"AEE226",code:"AEE 226",name:"Computer Applications in AG",units:3,cat:"comm"},
+{id:"BIO",code:"BIO 105/106/181 or PB 200",name:"Click to choose",units:4,cat:"natsci",picker:"bio"}
+]},
+{term:"Spring \u2014 Year 3",courses:[
+{id:"ARE490",code:"ARE 490",name:"Career Seminar in ARE",units:1,cat:"dept"},
+{id:"ARE4B",code:"ARE 4XX",name:"Click to choose",units:3,cat:"dept",picker:"are4xx"},
+{id:"ARE3B",code:"ARE 3XX",name:"Click to choose",units:3,cat:"dept",picker:"are3xx"},
+{id:"HUMGEP",code:"GEP Humanities 2",name:"Click to select course",units:3,cat:"gep",tag:"Humanities GEP",picker:"hum"},
+{id:"GEPHUMANITIES",code:"GEP Humanities",name:"Click to select course",units:3,cat:"gep",tag:"Humanities GEP",picker:"hum"},
+{id:"HESF2",code:"HES 100/200",name:"Click to choose (100 or 200-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf2"},
+{id:"RSTD2",code:"Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"tech"}
+]},
+{term:"Fall \u2014 Year 4",courses:[
+{id:"RSTD3",code:"Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"tech"},
+{id:"RSTD4",code:"Dept or Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"depttech"},
+{id:"IDS201",code:"Interdisc Perspectives",name:"Click to choose",units:2,cat:"gep",tag:"IDS GEP",picker:"ids"},
+{id:"GEPELEC",code:"GEP Elective",name:"Click to select course",units:3,cat:"gep",tag:"GEP Elective",picker:"gepelec"},
+{id:"FREE1",code:"Free Elective",name:"Click to choose",units:3,cat:"free",picker:"free"}
+]},
+{term:"Spring \u2014 Year 4",courses:[
+{id:"RSTD5",code:"Dept or Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"depttech"},
+{id:"RSTD6",code:"Dept or Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"depttech"},
+{id:"FREE2",code:"Free Elective",name:"Click to choose",units:3,cat:"free",picker:"free"},
+{id:"FREE3",code:"Free Elective",name:"Click to choose",units:3,cat:"free",picker:"free"}
+]},
+{term:"Summer I & II \u2014 Year 1",courses:[]},
+{term:"Summer I & II \u2014 Year 2",courses:[]},
+{term:"Summer I & II \u2014 Year 3",courses:[]},
+{term:"Summer I & II \u2014 Year 4",courses:[]}
+];
+
+var plan=JSON.parse(JSON.stringify(DEFAULT_PLAN));
+var showPrereqs=true,showValidation=false,transferMode=false;
+var transferredCourses=[];
+var undoStack=[];
+var currentPickerTarget=null;
+
+function showToast(msg){
+var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+setTimeout(function(){t.classList.remove('show');},5000);
+}
+
+function saveUndo(){
+undoStack.push({plan:JSON.parse(JSON.stringify(plan)),transferred:JSON.parse(JSON.stringify(transferredCourses))});
+if(undoStack.length>30)undoStack.shift();
+updateUndoBtn();
+}
+
+function doUndo(){
+if(undoStack.length===0)return;
+var prev=undoStack.pop();
+plan=prev.plan;
+transferredCourses=prev.transferred;
+render();
+showToast('Undone!');
+updateUndoBtn();
+}
+
+function updateUndoBtn(){
+var btn=document.getElementById('undo-btn');
+if(btn){btn.disabled=undoStack.length===0;btn.style.opacity=undoStack.length===0?'0.35':'1';}
+}
+
+function renderLegend(){
+document.getElementById('legend').innerHTML=Object.keys(CATEGORIES).map(function(k){
+var v=CATEGORIES[k];
+return '<div class="legend-item"><div class="legend-dot" style="background:'+v.color+'"></div>'+v.label+'</div>';
+}).join('');
+}
+
+function render(){
+var main=document.getElementById('main');main.innerHTML='';
+var years=[
+{label:"Year 1 \u2014 Freshman",sems:[0,1]},{label:"Year 2 \u2014 Sophomore",sems:[2,3]},
+{label:"Year 3 \u2014 Junior",sems:[4,5]},{label:"Year 4 \u2014 Senior",sems:[6,7]}
+];
+years.forEach(function(year){
+var g=document.createElement('div');g.className='year-group';
+g.innerHTML='<div class="year-label">'+year.label+'</div>';
+var row=document.createElement('div');row.className='semester-row';
+year.sems.forEach(function(si){
+if(si>=plan.length)return;
+var sem=plan[si];var cr=sem.courses.reduce(function(s,c){return s+c.units;},0);
+var cls=cr>18?'over':cr<12?'under':'';
+var d=document.createElement('div');d.className='semester';d.dataset.si=si;
+d.innerHTML='<div class="sem-header"><span class="sem-title">'+sem.term+'</span><span class="sem-credits '+cls+'">'+cr+' cr</span></div><div class="sem-courses" data-sem="'+si+'">'+sem.courses.map(function(c,ci){return courseHTML(c,si,ci);}).join('')+'</div>';
+row.appendChild(d);
+});
+g.appendChild(row);main.appendChild(g);
+});
+// Render Summer sections
+var summerSems=[];
+plan.forEach(function(s,si){if(s.term.indexOf('Summer')===0)summerSems.push(si);});
+if(summerSems.length>0){
+var sg=document.createElement('div');sg.className='year-group';
+sg.innerHTML='<div class="year-label">Summer Courses <span style="font-weight:400;font-size:0.8rem;color:var(--text-3)">(optional \u2014 drag courses here to lighten your semester load)</span></div>';
+var srow=document.createElement('div');srow.className='semester-row';srow.style.gridTemplateColumns='repeat(4,1fr)';
+summerSems.forEach(function(si){
+var sem=plan[si];
+var sumCr=sem.courses.reduce(function(s,c){return s+c.units;},0);
+var sd=document.createElement('div');sd.className='semester';sd.dataset.si=si;
+var coursesHtml=sem.courses.map(function(c,ci){return courseHTML(c,si,ci);}).join('');
+var yearLabel=sem.term.replace('Summer I & II \u2014 ','');
+sd.innerHTML='<div class="sem-header"><span class="sem-title">'+sem.term+'</span><span class="sem-credits">'+sumCr+' cr</span></div><div class="sem-courses" data-sem="'+si+'" style="min-height:50px">'+(coursesHtml||'<div style="padding:0.75rem;text-align:center;color:var(--text-3);font-size:0.72rem;font-style:italic">Drag here</div>')+'</div>';
+srow.appendChild(sd);
+});
+sg.appendChild(srow);main.appendChild(sg);
+}
+// Render Transfer Credit section
+if(transferredCourses.length>0){
+var tg=document.createElement('div');tg.className='year-group';
+var tCr=transferredCourses.reduce(function(s,c){return s+c.units;},0);
+tg.innerHTML='<div class="year-label" style="color:#059669">Transfer Credit <span style="font-weight:400;font-size:0.8rem">('+tCr+' cr \u2014 click course to restore to plan)</span></div>';
+var trow=document.createElement('div');trow.style.cssText='display:flex;flex-wrap:wrap;gap:0.5rem;padding:0 1rem 1rem';
+transferredCourses.forEach(function(c,idx){
+var cat=CATEGORIES[c.cat]||CATEGORIES.free;
+var tagLabel=c.tag||cat.label;
+var item=document.createElement('div');
+item.className='course';
+item.style.cssText='border:1.5px solid #059669;background:rgba(5,150,105,0.06);cursor:pointer;min-width:180px;max-width:250px';
+item.innerHTML='<div class="cat-stripe" style="background:#059669"></div><div class="course-info"><div class="course-code">'+c.code+'<span class="transferred-badge">TRANSFERRED</span></div><div class="course-name">'+c.name+'</div></div><div class="course-right"><div class="course-cr">'+c.units+' cr</div><div class="course-cat-label" style="background:#059669">'+tagLabel+'</div></div>';
+item.addEventListener('click',function(){restoreFromTransfer(idx);});
+trow.appendChild(item);
+});
+tg.appendChild(trow);main.appendChild(tg);
+}
+// Update transfer counter
+document.getElementById('transfer-cr').textContent=transferredCourses.reduce(function(s,c){return s+c.units;},0);
+updateTotals();updateStrip();checkVerifyRequirements();
+if(showValidation)validate();initDrag();initPickers();
+}
+
+function courseHTML(c,si,ci){
+var cat=CATEGORIES[c.cat]||CATEGORIES.free;
+var codeEsc=c.code.replace(/'/g,"&#39;");
+var tagLabel=c.tag||cat.label;
+var pickClass=c.picker?' pickable':'';
+return '<div class="course'+pickClass+'" draggable="true" data-sem="'+si+'" data-ci="'+ci+'" data-code="'+c.code+'" data-id="'+c.id+'" onclick="handleTransferClick('+si+','+ci+')" onmouseenter="hlPrereqs(this.dataset.code,true)" onmouseleave="hlPrereqs(this.dataset.code,false)"><div class="cat-stripe" style="background:'+cat.color+'"></div><div class="course-info"><div class="course-code">'+c.code+'</div><div class="course-name">'+c.name+'</div></div><div class="course-right"><div class="course-cr">'+c.units+' cr</div><div class="course-cat-label" style="background:'+cat.color+'">'+tagLabel+'</div></div></div>';
+}
+
+// PREREQ-ENFORCED DRAG
+var dragData=null;
+function initDrag(){
+document.querySelectorAll('.course').forEach(function(el){
+el.addEventListener('dragstart',function(e){
+dragData={from:parseInt(el.dataset.sem),ci:parseInt(el.dataset.ci),code:el.dataset.code};
+el.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','');
+});
+el.addEventListener('dragend',function(){
+el.classList.remove('dragging');
+document.querySelectorAll('.semester.drop-hover,.semester.drop-blocked').forEach(function(s){s.classList.remove('drop-hover');s.classList.remove('drop-blocked');});
+dragData=null;
+});
+});
+document.querySelectorAll('.sem-courses').forEach(function(zone){
+zone.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';zone.closest('.semester').classList.add('drop-hover');});
+zone.addEventListener('dragleave',function(e){if(!zone.contains(e.relatedTarget)){zone.closest('.semester').classList.remove('drop-hover');zone.closest('.semester').classList.remove('drop-blocked');}});
+zone.addEventListener('drop',function(e){
+e.preventDefault();var sem=zone.closest('.semester');sem.classList.remove('drop-hover');sem.classList.remove('drop-blocked');
+if(!dragData)return;
+var to=parseInt(zone.dataset.sem);
+if(dragData.from===to)return;
+var course=plan[dragData.from].courses[dragData.ci];
+var violation=checkPrereqViolation(course.code,dragData.from,to);
+if(violation){showToast(violation);return;}
+saveUndo();
+plan[dragData.from].courses.splice(dragData.ci,1);
+plan[to].courses.push(course);
+render();
+});
+});
+}
+
+function checkPrereqViolation(code,fromSem,toSem){
+var semOf={};
+// Build a map of code -> semester, including original picker codes mapping to picked values
+var pickerOriginals={};// maps original default code -> current code in plan
+plan.forEach(function(s,si){s.courses.forEach(function(c){
+semOf[c.code]=si;
+// If this course had a picker and its code changed, map the original default
+if(c.picker){
+var defaults=["ARE 306/309","ARE 303/304","ARE 311/312","ARE 321/323/BUS 320","BIO 105/106/181 or PB 200","MA 114 or ST 311","ST 311 or MA 114","MA 121/131/141","COM 112/211/226 or ENG 332","Natural Science Elective (3 cr)","Natural Science Elective (4 cr)","Interdisc Perspectives","Free Elective","HESF 1XX","HES 100/200","Technical Elective","Dept or Technical Elective"];
+// Find the original code for this picker slot by ID
+var origMap={"MA121":"MA 121/131/141","MATH2":"MA 114 or ST 311","ST311":"ST 311 or MA 114","COM112":"COM 112/211/226 or ENG 332","ARE306":"ARE 306/309","ARE303":"ARE 303/304","ARE312":"ARE 311/312","ARE321":"ARE 321/323/BUS 320","BIO":"BIO 105/106/181 or PB 200","MEA":"Natural Science Elective (4 cr)","NATSCI1":"Natural Science Elective (3 cr)","IDS201":"Interdisc Perspectives"};
+if(origMap[c.id]&&c.code!==origMap[c.id]){
+semOf[origMap[c.id]]=si;
+}
+}
+});});
+semOf[code]=toSem;
+// Check: does moving this course violate its own prereqs?
+var myPrereqs=PREREQS[code]||[];
+for(var i=0;i<myPrereqs.length;i++){
+var ps=semOf[myPrereqs[i]];
+if(ps!==undefined&&ps>=toSem){
+return code+' requires '+myPrereqs[i]+' in an earlier semester';
+}
+}
+// Check: does moving this course break dependents?
+var keys=Object.keys(PREREQS);
+for(var j=0;j<keys.length;j++){
+var dep=keys[j];
+var depPrereqs=PREREQS[dep];
+// Check if this code OR its original default code is a prereq of dep
+var isPrereq=depPrereqs.indexOf(code)!==-1;
+if(!isPrereq){
+// Check if any original default maps to this code
+for(var origKey in {"MA 121/131/141":1,"MA 114 or ST 311":1,"ST 311 or MA 114":1,"COM 112/211/226 or ENG 332":1}){
+if(depPrereqs.indexOf(origKey)!==-1&&semOf[origKey]===fromSem){
+isPrereq=true;break;
+}
+}
+}
+if(isPrereq){
+var ds=semOf[dep];
+if(ds!==undefined&&ds<=toSem){
+return 'Cannot move: '+dep+' depends on '+code+' being earlier';
+}
+}
+}
+return null;
+}
+
+// COURSE PICKERS
+function initPickers(){
+document.querySelectorAll('.course.pickable').forEach(function(el){
+el.addEventListener('click',function(e){
+e.stopPropagation();
+var si=parseInt(el.dataset.sem);
+var ci=parseInt(el.dataset.ci);
+var course=plan[si].courses[ci];
+currentPickerTarget={si:si,ci:ci,course:course};
+var list;
+var title;
+if(course.picker==='hum'){list=HUM_COURSES;title='Select Humanities GEP Course';}
+else if(course.picker==='socsci'){list=SOCSCI_COURSES;title='Select Social Science Elective';}
+else if(course.picker==='gepelec'){list=GEP_ELEC_COURSES;title='Select GEP Elective';}
+else if(course.picker==='ids'){list=IDS_COURSES;title='Select Interdisciplinary Perspectives Course';}
+else if(course.picker==='free'){list=null;title='Select Free Elective';openFreeModal(title);return;}
+else if(course.picker==='tech'){list=TECH_ELECTIVE_LIST;title='Select Technical Elective';openModal(title,list);return;}
+else if(course.picker==='depttech'){
+// Combine dept and tech lists
+var combined=[{g:"== DEPARTMENTAL ELECTIVES ==",courses:[]},
+{g:"ACC - Accounting",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("ACC")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"ARE - Ag & Resource Economics",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("ARE")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"BUS - Business",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("BUS")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"EC - Economics",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("EC ")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"M / MA - Mathematics",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("M ")===0||c.indexOf("MA ")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"MBA - Business Administration",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("MBA")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"MIE - Mgmt, Innovation & Entrepreneurship",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("MIE")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"MSE / PRT / ST / TTM - Other Dept",courses:DEPT_VALID_CODES.filter(function(c){return c.indexOf("MSE")===0||c.indexOf("PRT")===0||c.indexOf("ST ")===0||c.indexOf("TTM")===0;}).map(function(c){return {c:c,n:"Departmental Elective"};})},
+{g:"== TECHNICAL ELECTIVES ==",courses:[]}
+].concat(TECH_ELECTIVE_LIST);
+list=combined;title='Select Dept or Technical Elective';openModal(title,list);return;}
+else if(SLASH_COURSES[course.picker]){
+list=[{g:"Options",courses:SLASH_COURSES[course.picker]}];
+title='Select Course';
+}
+else return;
+openModal(title,list);
+});
+});
+}
+
+function openModal(title,groups){
+document.getElementById('modal-title').textContent=title;
+var body=document.getElementById('modal-body');
+var input=document.getElementById('modal-search-input');
+input.value='';
+renderModalList(body,groups,'');
+input.oninput=function(){renderModalList(body,groups,input.value.toLowerCase());};
+document.getElementById('modal-overlay').classList.add('open');
+setTimeout(function(){input.focus();},100);
+}
+
+function getAllPickedCodes(){
+// Get all codes selected in picker slots
+var codes=[];
+plan.forEach(function(s){s.courses.forEach(function(c){
+if(c.picker&&c.code!=='GEP Humanities 2'&&c.code!=='GEP Humanities'&&c.code!=='Social Science Elective'&&c.code!=='GEP Elective'){
+codes.push(c.code);
+}
+});});
+return codes;
+}
+
+function getAllPlanCodes(){
+// Get ALL specific course codes in the plan
+var codes=[];
+var slashDefaults=["ARE 306/309","ARE 303/304","ARE 311/312","ARE 321/323/BUS 320","BIO 105/106/181 or PB 200","MA 114 or ST 311","ST 311 or MA 114","MA 121/131/141","COM 112/211/226 or ENG 332","Natural Science Elective (3 cr)","Natural Science Elective (4 cr)","Interdisc Perspectives","Free Elective","HESF 1XX","HES 100/200","Technical Elective","Dept or Technical Elective","GEP Humanities 2","GEP Humanities","Social Science Elective","GEP Elective"];
+plan.forEach(function(s){s.courses.forEach(function(c){
+// Skip generic/unpicked placeholder codes
+if(c.code==='GEP Humanities 2'||c.code==='GEP Humanities'||c.code==='Social Science Elective'||c.code==='GEP Elective'||c.code==='FREE'||c.code==='ARE 4XX'||c.code==='ARE 3XX'||c.code==='HESF 1XX'||c.code==='HESF 2XX')return;
+// Skip unpicked slash/or defaults
+if(slashDefaults.indexOf(c.code)!==-1)return;
+codes.push(c.code);
+});});
+return codes;
+}
+
+function getUsedHumInfo(){
+var used=[];
+plan.forEach(function(s){s.courses.forEach(function(c){
+if(c.picker==='hum'&&c.code!=='GEP Humanities 2'&&c.code!=='GEP Humanities'){
+used.push({code:c.code,group:c.code.split(' ')[0]});
+}
+});});
+return used;
+}
+
+function renderModalList(body,groups,filter){
+body.innerHTML='';
+var pickerType=currentPickerTarget?currentPickerTarget.course.picker:null;
+var usedHum=pickerType==='hum'?getUsedHumInfo():[];
+// Exclude current slot's selection from hum checks so it can be re-picked
+if(pickerType==='hum'&&currentPickerTarget){
+var curCode=currentPickerTarget.course.code;
+usedHum=usedHum.filter(function(u){return u.code!==curCode;});
+}
+var usedCodes=usedHum.map(function(u){return u.code;});
+var usedGroups=usedHum.map(function(u){return u.group;});
+var allPicked=getAllPickedCodes();
+var allPlanCodes=getAllPlanCodes();
+// Math/Stat cross-validation: if one slot picked MA, other must pick ST (and vice versa)
+var mathStatBlockedType=null;
+if(pickerType==='math2'||pickerType==='st311'){
+var otherPicker=pickerType==='math2'?'st311':'math2';
+var otherCode=null;
+plan.forEach(function(s){s.courses.forEach(function(c){
+if(c.picker===otherPicker&&c.code!=='MA 114 or ST 311'&&c.code!=='ST 311 or MA 114')otherCode=c.code;
+});});
+if(otherCode){
+var otherPrefix=otherCode.split(' ')[0];
+if(otherPrefix==='MA')mathStatBlockedType='MA';
+else if(otherPrefix==='ST'||otherPrefix==='BUS')mathStatBlockedType='ST';
+}
+}
+// Remove current slot's own code from checks so it doesn't block itself
+if(currentPickerTarget){
+var currentCode=currentPickerTarget.course.code;
+allPicked=allPicked.filter(function(c){return c!==currentCode;});
+allPlanCodes=allPlanCodes.filter(function(c){return c!==currentCode;});
+}
+
+groups.forEach(function(g){
+var filtered=g.courses.filter(function(c){
+if(!filter)return true;
+return c.c.toLowerCase().indexOf(filter)!==-1||c.n.toLowerCase().indexOf(filter)!==-1;
+});
+if(filtered.length===0)return;
+var div=document.createElement('div');div.className='modal-group';
+
+var availCount=0;
+filtered.forEach(function(c){
+var prefix=c.c.split(' ')[0];
+var blocked=false;
+if(pickerType==='hum'){
+if(usedCodes.indexOf(c.c)!==-1||usedGroups.indexOf(prefix)!==-1)blocked=true;
+}
+if(!blocked&&mathStatBlockedType){
+if(mathStatBlockedType==='MA'&&prefix==='MA')blocked=true;
+if(mathStatBlockedType==='ST'&&(prefix==='ST'||prefix==='BUS'))blocked=true;
+}
+// Cross-picker: block if already used in another GEP slot
+if(!blocked&&allPicked.indexOf(c.c)!==-1){blocked=true;reason=' \u2014 used in another GEP slot';}
+if(!blocked&&allPlanCodes.indexOf(c.c)!==-1){blocked=true;reason=' \u2014 already in your plan';}
+if(!blocked)availCount++;
+});
+
+div.innerHTML='<div class="modal-group-header">'+g.g+' ('+availCount+' available of '+filtered.length+')</div>';
+filtered.forEach(function(c){
+var item=document.createElement('div');
+var prefix=c.c.split(' ')[0];
+var blocked=false;
+var reason='';
+if(pickerType==='hum'){
+if(usedCodes.indexOf(c.c)!==-1){blocked=true;reason=' \u2014 already selected';}
+else if(usedGroups.indexOf(prefix)!==-1){blocked=true;reason=' \u2014 max 1 from '+prefix;}
+}
+if(!blocked&&mathStatBlockedType){
+if(mathStatBlockedType==='MA'&&prefix==='MA'){blocked=true;reason=' \u2014 already chose an MA in other slot';}
+if(mathStatBlockedType==='ST'&&(prefix==='ST'||prefix==='BUS')){blocked=true;reason=' \u2014 already chose a ST/BUS in other slot';}
+}
+if(!blocked&&allPicked.indexOf(c.c)!==-1){blocked=true;reason=' \u2014 used in another GEP slot';}
+if(!blocked&&allPlanCodes.indexOf(c.c)!==-1){blocked=true;reason=' \u2014 already in your plan';}
+item.className='modal-item'+(blocked?' disabled':'');
+item.innerHTML='<span class="mi-code">'+c.c+'</span><span class="mi-name">'+c.n+(reason?'<span style="color:#DC2626;font-size:0.75rem">'+reason+'</span>':'')+'</span>';
+if(!blocked){item.addEventListener('click',function(){selectCourse(c);});}
+div.appendChild(item);
+});
+body.appendChild(div);
+});
+if(body.children.length===0){
+body.innerHTML='<div style="padding:2rem;text-align:center;color:var(--text-3)">No courses match your search</div>';
+}
+}
+
+function selectCourse(c){
+if(!currentPickerTarget)return;
+saveUndo();
+var t=currentPickerTarget;
+plan[t.si].courses[t.ci].code=c.c;
+plan[t.si].courses[t.ci].name=c.n;
+closeModal();
+render();
+}
+
+function openTechModal(title,type){
+document.getElementById('modal-title').textContent=title;
+var body=document.getElementById('modal-body');
+var input=document.getElementById('modal-search-input');
+input.value='';
+input.placeholder='Type a course code (e.g., AEE 226) and press Enter...';
+var prefixes=type==='tech'?TECH_PREFIXES:DEPT_OR_TECH_PREFIXES;
+var extraNote=type==='depttech'?'<p style="font-size:0.8rem;color:var(--primary);margin-bottom:0.5rem"><strong>Departmental courses (ARE, ACC, BUS, EC, MIE, etc.) validated exactly. Technical courses validated by prefix.</strong></p>':'';
+body.innerHTML='<div style="padding:1.5rem;color:var(--text-2);font-size:0.88rem;line-height:1.7"><p style="margin-bottom:0.5rem"><strong>Valid course prefixes:</strong></p>'+extraNote+'<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:1rem">'+prefixes.map(function(p){return '<span style="font-family:JetBrains Mono;font-size:0.7rem;background:var(--surface-2);padding:0.1rem 0.35rem;border-radius:3px">'+p+'</span>';}).join('')+'</div><p style="font-size:0.8rem;color:#B45309">\u26a0 Technical electives validated by prefix only \u2014 check the <strong>degree audit requirement details</strong> for the full list of approved classes.</p><p style="font-size:0.8rem;color:var(--text-3)">Type a course code above and press Enter.</p></div>';
+input.onkeydown=function(e){
+if(e.key==='Enter'&&input.value.trim()){
+var code=input.value.trim().toUpperCase();
+var prefix=code.replace(/\s*\d.*/,'');
+// Check if it's a departmental prefix
+var isDeptPrefix=DEPT_PREFIXES.indexOf(prefix)!==-1;
+if(type==='depttech'&&isDeptPrefix){
+// Exact match for departmental courses
+if(DEPT_VALID_CODES.indexOf(code)===-1){
+showToast(code+' is not on the approved departmental elective list');return;
+}
+} else {
+// Prefix check for technical courses
+if(prefixes.indexOf(prefix)===-1){
+showToast(prefix+' is not an approved prefix for this elective type');return;
+}
+}
+var freshPlanCodes=getAllPlanCodes();
+if(freshPlanCodes.indexOf(code)!==-1){
+showToast(code+' is already in your plan \u2014 cannot double-count');return;
+}
+var label=type==='tech'?'Technical Elective':'Dept/Tech Elective';
+selectCourse({c:code,n:label});
+input.onkeydown=null;
+input.placeholder='Search by course code or name...';
+}
+};
+document.getElementById('modal-overlay').classList.add('open');
+setTimeout(function(){input.focus();},100);
+}
+
+function openFreeModal(title){
+document.getElementById('modal-title').textContent=title;
+var body=document.getElementById('modal-body');
+var input=document.getElementById('modal-search-input');
+input.value='';
+input.placeholder='Type a course code (e.g., PSY 200) and press Enter...';
+var planCodes=getAllPlanCodes();
+body.innerHTML='<div style="padding:1.5rem;color:var(--text-2);font-size:0.88rem;line-height:1.7"><p style="margin-bottom:0.75rem"><strong>Any course counts EXCEPT:</strong></p><p style="font-size:0.8rem;color:var(--text-3);margin-bottom:0.5rem">1. Courses on the excluded list below</p><p style="font-size:0.8rem;color:var(--text-3);margin-bottom:0.75rem">2. Courses already in your plan</p><div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem">'+FREE_EXCLUDED.map(function(c){return '<span style="font-family:JetBrains Mono;font-size:0.75rem;background:var(--surface-2);border:1px solid rgba(220,38,38,0.15);color:#991B1B;padding:0.15rem 0.4rem;border-radius:4px">'+c+'</span>';}).join('')+'</div><p style="font-size:0.8rem;color:var(--text-3)">Type a course code above and press Enter to select it.</p></div>';
+input.onkeydown=function(e){
+if(e.key==='Enter'&&input.value.trim()){
+var code=input.value.trim().toUpperCase();
+if(FREE_EXCLUDED.indexOf(code)!==-1){
+showToast(code+' is on the excluded list \u2014 cannot be a free elective');return;
+}
+var freshPlanCodes=getAllPlanCodes();
+if(freshPlanCodes.indexOf(code)!==-1){
+showToast(code+' is already in your plan \u2014 cannot double-count');return;
+}
+selectCourse({c:code,n:'Free Elective'});
+input.onkeydown=null;
+input.placeholder='Search by course code or name...';
+}
+};
+document.getElementById('modal-overlay').classList.add('open');
+setTimeout(function(){input.focus();},100);
+}
+
+function closeModal(){
+document.getElementById('modal-overlay').classList.remove('open');
+currentPickerTarget=null;
+}
+
+document.getElementById('modal-close').addEventListener('click',closeModal);
+document.getElementById('modal-overlay').addEventListener('click',function(e){
+if(e.target===this)closeModal();
+});
+
+function hlPrereqs(codeOrEl,show){
+if(!showPrereqs)return;
+var code=typeof codeOrEl==='string'?codeOrEl:codeOrEl;
+document.querySelectorAll('.course').forEach(function(el){el.classList.remove('prereq-highlight','dependent-highlight');});
+if(!show)return;
+var prs=PREREQS[code]||[];
+prs.forEach(function(p){document.querySelectorAll('.course[data-code="'+p+'"]').forEach(function(el){el.classList.add('prereq-highlight');});});
+Object.keys(PREREQS).forEach(function(dep){
+if(PREREQS[dep].indexOf(code)!==-1){
+document.querySelectorAll('.course[data-code="'+dep+'"]').forEach(function(el){el.classList.add('dependent-highlight');});
+}
+});
+}
+
+function validate(){
+var bar=document.getElementById('validation-bar');bar.innerHTML='';
+var semOf={};plan.forEach(function(s,si){s.courses.forEach(function(c){semOf[c.code]=si;});});
+var issues=0;
+Object.keys(PREREQS).forEach(function(code){
+var my=semOf[code];if(my===undefined)return;
+PREREQS[code].forEach(function(p){
+var ps=semOf[p];
+if(ps!==undefined&&ps>=my){issues++;
+bar.innerHTML+='<div class="validation-msg error">\u26A0 <strong>'+code+'</strong> requires <strong>'+p+'</strong> in an earlier semester</div>';
+}});
+});
+plan.forEach(function(s){
+if(s.term.indexOf('Summer')===0)return;// skip summer for load checks
+var cr=s.courses.reduce(function(a,c){return a+c.units;},0);
+if(cr>18){issues++;bar.innerHTML+='<div class="validation-msg warn">\u26A1 <strong>'+s.term+'</strong> has '+cr+' credits (max recommended: 18)</div>';}
+if(cr>0&&cr<12){issues++;bar.innerHTML+='<div class="validation-msg warn">\u26A1 <strong>'+s.term+'</strong> has '+cr+' credits (below full-time: 12)</div>';}
+});
+var tot=plan.reduce(function(a,s){return a+s.courses.reduce(function(b,c){return b+c.units;},0);},0);
+if(tot<120){issues++;bar.innerHTML+='<div class="validation-msg warn">\u26A1 Total '+tot+' credits \u2014 need '+(120-tot)+' more to reach 120</div>';}
+if(!issues)bar.innerHTML='<div class="validation-msg ok">\u2713 All prereqs satisfied, credit loads look good</div>';
+}
+
+function updateTotals(){
+var tot=plan.reduce(function(a,s){return a+s.courses.reduce(function(b,c){return b+c.units;},0);},0);
+var tCr=transferredCourses.reduce(function(s,c){return s+c.units;},0);
+tot+=tCr;
+var el=document.getElementById('total-planned');el.textContent=tot;
+el.className='cb-value '+(tot<120?'warning':'ok');
+var regSems=plan.filter(function(s){return s.term.indexOf('Summer')!==0;}).length;
+document.getElementById('avg-per-sem').textContent=Math.round((tot-tCr)/regSems);
+}
+
+function updateStrip(){
+var strip=document.getElementById('total-strip');
+var ct={};plan.forEach(function(s){s.courses.forEach(function(c){ct[c.cat]=(ct[c.cat]||0)+c.units;});});
+var tot=0;Object.keys(ct).forEach(function(k){tot+=ct[k];});
+strip.innerHTML=Object.keys(ct).map(function(cat){
+var u=ct[cat];var pct=(u/Math.max(tot,120))*100;
+var c=CATEGORIES[cat];
+return '<div style="width:'+pct+'%;background:'+(c?c.color:'#666')+'" title="'+(c?c.label:'?')+': '+u+' cr"></div>';
+}).join('');
+document.getElementById('strip-label').textContent=Object.keys(ct).map(function(cat){
+return (CATEGORIES[cat]?CATEGORIES[cat].label:'?')+': '+ct[cat];
+}).join(' \u00B7 ');
+}
+
+document.getElementById('prereq-toggle').addEventListener('click',function(){
+showPrereqs=!showPrereqs;this.classList.toggle('active',showPrereqs);
+});
+document.getElementById('validate-toggle').addEventListener('click',function(){
+showValidation=!showValidation;this.classList.toggle('active',showValidation);
+if(showValidation)validate();else document.getElementById('validation-bar').innerHTML='';
+});
+document.getElementById('reset-btn').addEventListener('click',function(){
+if(confirm('Reset to default plan?')){plan=JSON.parse(JSON.stringify(DEFAULT_PLAN));transferredCourses=[];undoStack=[];updateUndoBtn();render();}
+});
+
+document.getElementById('undo-btn').addEventListener('click',function(){
+doUndo();
+});
+
+document.getElementById('transfer-toggle').addEventListener('click',function(){
+transferMode=!transferMode;
+this.classList.toggle('active',transferMode);
+if(transferMode){this.style.background='#059669';this.style.color='#fff';document.getElementById('main').classList.add('transfer-mode');document.getElementById('transfer-hint').style.display='block';}
+else{this.style.background='';this.style.color='';document.getElementById('main').classList.remove('transfer-mode');document.getElementById('transfer-hint').style.display='none';}
+});
+
+function handleTransferClick(si,ci){
+if(!transferMode)return;
+var course=plan[si].courses[ci];
+// Don't transfer orientation or unpicked placeholders
+if(course.units===0)return;
+saveUndo();
+// Remove from semester
+var removed=plan[si].courses.splice(ci,1)[0];
+// Add to transferred list
+transferredCourses.push(removed);
+render();
+}
+
+function restoreFromTransfer(idx){
+saveUndo();
+var course=transferredCourses.splice(idx,1)[0];
+// Put it in first Summer section by default
+var sumIdx=-1;
+for(var i=0;i<plan.length;i++){if(plan[i].term.indexOf('Summer')===0){sumIdx=i;break;}}
+if(sumIdx===-1)sumIdx=plan.length-1;
+plan[sumIdx].courses.push(course);
+render();
+}
+
+document.getElementById('save-btn').addEventListener('click',function(){
+var data={plan:plan,transferred:transferredCourses,version:1,savedAt:new Date().toISOString()};
+var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+var a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='agbus-degree-plan.json';
+a.click();
+URL.revokeObjectURL(a.href);
+showToast('Plan saved!');
+});
+
+document.getElementById('load-btn').addEventListener('click',function(){
+document.getElementById('load-file').click();
+});
+
+document.getElementById('load-file').addEventListener('change',function(e){
+var file=e.target.files[0];
+if(!file)return;
+var reader=new FileReader();
+reader.onload=function(ev){
+try{
+var data=JSON.parse(ev.target.result);
+if(data.plan&&Array.isArray(data.plan)){
+plan=data.plan;
+transferredCourses=data.transferred||[];
+render();
+showToast('Plan loaded successfully!');
+}else{
+showToast('Invalid plan file');
+}
+}catch(err){
+showToast('Error reading file: '+err.message);
+}
+};
+reader.readAsText(file);
+e.target.value='';
+});
+
+renderLegend();render();
+window.hlPrereqs = hlPrereqs;
+window.handleTransferClick = handleTransferClick;
+window.restoreFromTransfer = restoreFromTransfer;
+window.openVerifyList = openVerifyList;
+}); // end DOMContentLoaded
+</script>
+<script data-goatcounter="https://jtreme.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
