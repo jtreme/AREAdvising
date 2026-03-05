@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/25755149/README.md)# AREAdvising[# Agribusiness Management, BS — Interactive Degree Planner
+(https://github.com/user-attachments/files/25755149/README.md)# AREAdvising[# Agribusiness Management, BS — Interactive Degree Planner
 
 Interactive drag-and-drop 4-year degree planner for NC State's Agribusiness Management, BS program in the College of Agriculture & Life Sciences.
 
