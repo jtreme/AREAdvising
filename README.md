@@ -20,8 +20,3 @@ Open `index.html` in any web browser — no installation or server required. See
 ## Important
 
 This planner is an advising tool, not an official university system. Always confirm your plan against your **Degree Audit** and consult with your advisor before registering.
-
-## Updating
-
-To update the planner, replace `index.html` with the new version and commit. GitHub Pages will update automatically within about 30 seconds.
-Uploading README.md…]()
