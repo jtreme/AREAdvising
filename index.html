@@ -262,8 +262,7 @@ Save your plan as a file. Load it later or email it to your advisor.
 <strong>Key Chains:</strong>
 <span class="prereq-tag">ARE 201</span><span class="prereq-arrow">&rarr;</span>
 <span class="prereq-tag">EC/ARE 301</span><span class="prereq-arrow">&rarr;</span>
-<span class="prereq-tag">ARE 336</span><span class="prereq-arrow">&rarr;</span>
-<span class="prereq-tag">ARE 433</span>
+<span class="prereq-tag">ARE 336, ARE 433</span>
 <span style="color:var(--text-3);margin-left:0.5rem">|</span>
 <span class="prereq-tag">ARE 201</span><span style="color:var(--text-3)">+</span>
 <span class="prereq-tag">MA 121/131/141</span><span class="prereq-arrow">&rarr;</span>
@@ -290,6 +289,11 @@ Save your plan as a file. Load it later or email it to your advisor.
 <script>
 document.addEventListener('DOMContentLoaded', function(){
 
+// Set up pdf.js worker once at startup to avoid the "Setting up fake worker" fallback warning
+if(typeof pdfjsLib!=='undefined'){
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
 var CATEGORIES={
 orientation:{label:"Orientation",color:"#B45309"},
 comm:{label:"Comm & Tech",color:"#0E7490"},
@@ -304,11 +308,15 @@ free:{label:"Free Elective",color:"#57534E"}
 var PREREQS={
 "ARE 336":["ARE 201","EC/ARE 301"],
 "EC/ARE 301":["ARE 201","MA 121/131/141"],
-"ARE 433":["ARE 201","EC/ARE 301","ARE 336"],
+"ARE 433":["ARE 201","EC/ARE 301"],
 "ARE 303/304":["ARE 201"],
 "ARE 311/312":["ARE 201"],
 "ARE 321/323/BUS 320":["ARE 201"],
-"ARE 306/309":["ARE 201"]
+"ARE 306/309":["ARE 201"],
+"MA 114":["MA 121/131/141"],
+"MA 114, 231 or 241":["MA 121/131/141"],
+"ARE 3XX":["ARE 201"],
+"ARE 4XX":["ARE 201"]
 };
 
 // Pickable course lists - abbreviated for size, grouped by subject
@@ -549,7 +557,8 @@ var DEFAULT_PLAN=[
 {id:"ARE306",code:"ARE 306/309",name:"Click to choose",units:3,cat:"dept",picker:"are306"},
 {id:"MATH2",code:"MA 114, 231 or 241",name:"Click to choose",units:3,cat:"math",picker:"math2"},
 {id:"ARE303",code:"ARE 303/304",name:"Click to choose",units:3,cat:"dept",picker:"are303"},
-{id:"NATSCI1",code:"Natural Science Elective (3 cr)",name:"Click to choose",units:3,cat:"natsci",picker:"natsci3"}
+{id:"NATSCI1",code:"Natural Science Elective (3 cr)",name:"Click to choose",units:3,cat:"natsci",picker:"natsci3"},
+{id:"HESF1",code:"HESF 1XX",name:"Click to choose (100-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf1"}
 ]},
 {term:"Fall \u2014 Year 2",courses:[
 {id:"EC202",code:"EC 202",name:"Principles of Macroeconomics",units:3,cat:"dept"},
@@ -563,8 +572,7 @@ var DEFAULT_PLAN=[
 {id:"ARE321",code:"ARE 321/323/BUS 320",name:"Click to choose",units:3,cat:"dept",picker:"are321"},
 {id:"ARE433",code:"ARE 433",name:"U.S. Agricultural Policy",units:3,cat:"dept"},
 {id:"ARE312",code:"ARE 311/312",name:"Click to choose",units:3,cat:"dept",picker:"are312"},
-{id:"ST311",code:"ST 311, BUS 350 or ST 350",name:"Click to choose",units:3,cat:"math",picker:"st311"},
-{id:"HESF1",code:"HESF 1XX",name:"Click to choose (100-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf1"}
+{id:"ST311",code:"ST 311, BUS 350 or ST 350",name:"Click to choose",units:3,cat:"math",picker:"st311"}
 ]},
 {term:"Fall \u2014 Year 3",courses:[
 {id:"ARE4A",code:"ARE 4XX",name:"Click to choose",units:3,cat:"dept",picker:"are4xx"},
@@ -578,7 +586,6 @@ var DEFAULT_PLAN=[
 {id:"ARE3B",code:"ARE 3XX",name:"Click to choose",units:3,cat:"dept",picker:"are3xx"},
 {id:"HUMGEP",code:"GEP Humanities 2",name:"Click to select course",units:3,cat:"gep",tag:"Humanities GEP",picker:"hum"},
 {id:"GEPHUMANITIES",code:"GEP Humanities",name:"Click to select course",units:3,cat:"gep",tag:"Humanities GEP",picker:"hum"},
-{id:"HESF2",code:"HES 100/200",name:"Click to choose (100 or 200-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf2"},
 {id:"RSTD2",code:"Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"tech"}
 ]},
 {term:"Fall \u2014 Year 4",courses:[
@@ -592,6 +599,7 @@ var DEFAULT_PLAN=[
 {term:"Spring \u2014 Year 4",courses:[
 {id:"RSTD5",code:"Dept or Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"depttech"},
 {id:"RSTD6",code:"Dept or Technical Elective",name:"Click to choose",units:3,cat:"restricted",picker:"depttech"},
+{id:"HESF2",code:"HES 100/200",name:"Click to choose (100 or 200-level)",units:1,cat:"gep",tag:"Health GEP",picker:"hesf2"},
 {id:"FREE2",code:"Free Elective",name:"Click to choose",units:3,cat:"free",picker:"free"},
 {id:"FREE3",code:"Free Elective",name:"Click to choose",units:3,cat:"free",picker:"free"}
 ]},
@@ -714,7 +722,7 @@ var yearLabels=['Freshman','Sophomore','Junior','Senior','Year 5','Year 6','Year
 for(var yi=0;yi<Math.ceil(regularSems.length/2);yi++){
 var yearSems=[regularSems[yi*2]];
 if(regularSems[yi*2+1]!==undefined)yearSems.push(regularSems[yi*2+1]);
-var yLabel=yi<4?('Year '+(yi+1)+' \u2014 '+yearLabels[yi]):(yearLabels[yi]);
+var yLabel='Year '+(yi+1);
 years.push({label:yLabel,sems:yearSems});
 }
 years.forEach(function(year){
@@ -1434,10 +1442,49 @@ function getCourseCredits(code){return COURSE_CREDITS[code]||3;}
 
 function processDegreeAudit(text){
 showToast('Parsing degree audit: '+text.length+' chars');
+// Detect image-only PDFs (text extraction returns very little or nothing)
+// If we extracted fewer than 100 chars or there are no course codes anywhere, the PDF is likely an image.
+var hasCodes=/\b[A-Z]{1,4}\s+\d{3}/.test(text);
+if(text.length<100||!hasCodes){
+showToast('No text could be read from this PDF.');
+// Show a friendly modal explaining
+var bodyErr=document.getElementById('modal-body');
+document.getElementById('modal-title').textContent='Could not read this PDF';
+document.getElementById('modal-search-input').style.display='none';
+bodyErr.innerHTML='<div style="padding:1.5rem;font-size:0.9rem;line-height:1.6;color:var(--text-1)">'+
+'<p style="margin:0 0 1rem 0">Paw Plan couldn\'t find any course information in this PDF. This usually means the file is <strong>an image rather than a text-searchable PDF</strong> (which can happen if the audit was saved as a screenshot or printed in an image-only mode).</p>'+
+'<p style="margin:0 0 0.5rem 0"><strong>To fix this, re-save your audit as a text PDF:</strong></p>'+
+'<ol style="margin:0 0 1rem 1.2rem;padding:0">'+
+'<li style="margin-bottom:0.4rem">Open your degree audit in MyPack</li>'+
+'<li style="margin-bottom:0.4rem">Click the <strong>"New Window"</strong> link at the top right of the audit</li>'+
+'<li style="margin-bottom:0.4rem">In the new window, press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>'+
+'<li style="margin-bottom:0.4rem">Choose <strong>"Save as PDF"</strong> as the destination</li>'+
+'<li>Upload that PDF to Paw Plan</li>'+
+'</ol>'+
+'<p style="margin:0;color:var(--text-2);font-size:0.82rem">If you continue to have trouble, your advisor can help.</p>'+
+'</div>';
+document.getElementById('modal').classList.add('open');
+return;
+}
 try{
 var lines=text.split('\n');
 var allLines=[];
 lines.forEach(function(l){l=l.trim();if(l)allLines.push(l);});
+
+// Parse "Req Term" — this is the official major start term (e.g. "Fall '25").
+// Use it to anchor startYear instead of the earliest course term, since students often
+// have pre-major non-degree credits from earlier years (e.g. ED 103 in Fall '24).
+var auditReqTermYear=null;
+var auditReqTermSeason=null;
+for(var rti=0;rti<allLines.length;rti++){
+var rtMatch=allLines[rti].match(/Req Term\s+(Fall|Spring|Summer)\s*'?(\d{2,4})/);
+if(rtMatch){
+auditReqTermSeason=rtMatch[1];
+var rty=parseInt(rtMatch[2]);
+auditReqTermYear=(rty<100)?(2000+rty):rty;
+break;
+}
+}
 
 // Audit section to plan slot mapping
 var sectionSlotMap={
@@ -1490,7 +1537,7 @@ var codeToSlot={
 'MEA 100':'MEA','CH 100':'MEA','PY 131':'MEA','PY 205':'MEA','PY 211':'MEA',
 'MEA 101':'MEA','MEA 110':'MEA','CH 101':'NATSCI1','CH 201':'NATSCI1','MEA 130':'NATSCI1','MEA 200':'NATSCI1',
 'CH 102':'NATSCI1','CH 202':'NATSCI1','PY 206':'MEA',
-'ARE 201':'ARE201','EC 201':'ARE201','EC 205':'ARE201',
+'ARE 201':'ARE201','EC 201':'ARE201',
 'EC 202':'EC202','ACC 210':'ACC210',
 'ARE 303':'ARE303','ARE 304':'ARE303',
 'ARE 306':'ARE306','ARE 309':'ARE306',
@@ -1663,12 +1710,12 @@ var grade='';
 // Try to find grade after the term pattern
 if(termMatch){
 var afterTerm=line.substring(line.indexOf(termMatch[0])+termMatch[0].length);
-gradeMatch=afterTerm.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TIP|MET|PF|WA)(?:\s|$)/);
+gradeMatch=afterTerm.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
 if(gradeMatch)grade=gradeMatch[1];
 } 
 // If no term found, try grade near end of line (before units number)
 if(!grade){
-gradeMatch=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TIP|MET|PF|WA)\s+\d+\.\d{3}/);
+gradeMatch=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d+\.\d{3}/);
 if(gradeMatch)grade=gradeMatch[1];
 }
 // If still no grade, try looking for MET at end of line (special case — MET rows have no units)
@@ -1703,13 +1750,14 @@ var actualUnits=unitsFromLine||getCourseCredits(code);
 
 if(!grade||grade==='')status='(In Progress)';
 else status='(Completed)';
-if(grade==='TA'||grade==='CR'||grade==='PF'||grade==='TB'||grade==='TB-'||grade==='TB+'||grade==='TC'||grade==='TC-'||grade==='TC+'||grade==='TD'||grade==='TD-'||grade==='TD+')status='(Transfer Credit)';
+if(grade==='TA'||grade==='CR'||grade==='PF'||grade==='TB'||grade==='TB-'||grade==='TB+'||grade==='TC'||grade==='TC-'||grade==='TC+'||grade==='TD'||grade==='TD-'||grade==='TD+'||grade==='TR')status='(Transfer Credit)';
 if(grade==='TIP')status='(Transfer In Progress)';
 // MET means "this requirement is met by a course already counted elsewhere" — skip to avoid duplicate placement
 if(grade==='MET')return;
 // If there's no term AND no grade, this row is just listing the required course (e.g. "ARE 433 U S Agric Policy")
 // not indicating the student has taken it. Skip placement entirely — the default plan slot will handle it.
-if(!term&&(!grade||grade==='')){matched.push(code);return;}
+// Don't count it in matched either, since it's not an actual student course.
+if(!term&&(!grade||grade==='')){return;}
 
 // Non-degree section
 if(isNonDeg){
@@ -1820,7 +1868,7 @@ return info;
 if(status==='(Transfer Credit)'||status==='(Transfer In Progress)'||(/^[A-D][+-]?$/.test(grade))){
 var slotInfo=getSlotInfoFromAudit();
 // null means a verify-only requirement (sub-headers 80/90/100 in section 8) — skip entirely
-if(slotInfo===null){matched.push(code);return;}
+if(slotInfo===null){return;}  // verify-only requirement — skip entirely
 var targetSemIdx=-1;
 if(status==='(Transfer Credit)'||status==='(Transfer In Progress)'){
 plan.forEach(function(s,si){if(s.term.indexOf('Transfer')===0)targetSemIdx=si;});
@@ -2016,25 +2064,37 @@ matched.push(code);
 auditCourses.push({code:code,grade:grade,term:term,section:currentSection});
 });
 
-// Compute start year from collected terms
-// Use earliest Fall term, but if Spring comes before any Fall, adjust
+// Compute start year from collected terms.
+// SKIP section 99 (non-degree) since those are often pre-major credits that shouldn't anchor Year 1.
 var earliestFall=9999;
 var earliestSpring=9999;
 auditCourses.forEach(function(ac){
+if(ac.section==='99')return;  // skip non-degree
 if(ac.term){
 var y=parseInt(ac.term.split(' ')[1]);
 if(ac.term.indexOf('Fall')!==-1&&y<earliestFall)earliestFall=y;
 if(ac.term.indexOf('Spring')!==-1&&y<earliestSpring)earliestSpring=y;
 }
 });
-// startYear = the Fall that begins the academic year of the earliest term
+// startYear = the Fall that begins the academic year of the student's earliest in-degree term.
+// Prefer the earliest course term (so Year 1 always shows the student's first coursework).
+// Use Req Term only as a fallback if there are no in-degree courses yet.
+var candFromCourses=null;
 if(earliestFall<=9998){
-startYear=earliestFall;
-// If there's a Spring before this Fall (same year), the student started in Spring
-// Back up so Spring maps to sem 1 not -1
-if(earliestSpring<=earliestFall)startYear=earliestSpring-1;
+candFromCourses=earliestFall;
+if(earliestSpring<=earliestFall)candFromCourses=earliestSpring-1;
 } else if(earliestSpring<=9998){
-startYear=earliestSpring-1;
+candFromCourses=earliestSpring-1;
+}
+var candFromReq=null;
+if(auditReqTermYear!==null){
+if(auditReqTermSeason==='Spring')candFromReq=auditReqTermYear-1;
+else candFromReq=auditReqTermYear;
+}
+if(candFromCourses!==null){
+startYear=candFromCourses;
+} else if(candFromReq!==null){
+startYear=candFromReq;
 } else {
 startYear=2023;
 }
@@ -2081,9 +2141,11 @@ if(s.term.indexOf('Prior NC State')===0)priorNcSemIdx=si;
 auditCourses.forEach(function(ac){
 if(matched.indexOf(ac.code)===-1)return;
 // Transfer Credit and Transfer In Progress courses go to the Transfer section
-var isTransfer=ac.grade==='TIP'||ac.grade==='TC'||ac.grade==='TC+'||ac.grade==='TC-'||ac.grade==='TA'||ac.grade==='TB'||ac.grade==='TB+'||ac.grade==='TB-'||ac.grade==='TD'||ac.grade==='TD+'||ac.grade==='TD-'||ac.grade==='CR'||ac.grade==='PF';
-// Standard letter grades (A, B, C, D) without T prefix mean completed at NC State
-var isPriorNc=!isTransfer&&ac.grade&&/^[A-D][+-]?$/.test(ac.grade);
+var isTransfer=ac.grade==='TIP'||ac.grade==='TC'||ac.grade==='TC+'||ac.grade==='TC-'||ac.grade==='TA'||ac.grade==='TB'||ac.grade==='TB+'||ac.grade==='TB-'||ac.grade==='TD'||ac.grade==='TD+'||ac.grade==='TD-'||ac.grade==='CR'||ac.grade==='PF'||ac.grade==='TR';
+// Standard letter grades (A, B, C, D) without T prefix mean completed at NC State.
+// Also S/U/CR/PF without T prefix indicate a completed NC State pass-fail course
+// (e.g. E 115 with grade "S" Spring '26 — student already took it, shouldn't appear in future plan).
+var isPriorNc=!isTransfer&&ac.grade&&(/^[A-D][+-]?$/.test(ac.grade)||ac.grade==='S'||ac.grade==='U'||ac.grade==='CR'||ac.grade==='PF');
 var semIdx;
 if(isTransfer&&transferSemIdx>=0){
 semIdx=transferSemIdx;
@@ -2110,11 +2172,20 @@ plan[semIdx].courses.push(course);
 }
 });
 
-// Shift unfilled requirements forward from past semesters
-// Set currentSem=-1 so distribution always starts from Fall Y1 onward.
-// Students with prior coursework see those in the special "Prior NC State Courses" section above,
-// while their future plan starts fresh at Fall Y1.
+// Shift unfilled requirements forward from past semesters.
+// currentSem = the latest semester that has any actual student coursework (completed or in-progress).
+// Distribution of default-plan items starts AFTER currentSem (next available future semester).
+// Students with prior coursework see those in the Prior NC State / Transfer sections above,
+// AND any past in-degree semesters stay empty in the year grid (no displaced defaults there).
+// For a fresh-start student (no prior work), currentSem stays at -1 so distribution begins Fall Y1.
 var currentSem=-1;
+auditCourses.forEach(function(ac){
+if(!ac.term)return;
+if(ac.grade==='MET')return;
+// Only consider regular semester terms (not summer for this purpose)
+var idx=auditTermToSemIndex(ac.term);
+if(idx>=0&&idx<8&&idx>currentSem)currentSem=idx;
+});
 
 // Collect satisfied slot credits from Transfer and Prior NC State sections.
 // We track CREDITS satisfied per slot id (not course count) since some transfers
@@ -2202,34 +2273,800 @@ displacedCourses.push(plan[si].courses.splice(ci,1)[0]);
 }
 }
 
+// Sort displaced courses topologically by prereq depth so prereqs come before dependents.
+// This ensures ARE 201 -> EC/ARE 301 -> ARE 336 -> ARE 433 stays in the right order.
+function getPrereqDepth(courseCode,seen){
+seen=seen||{};
+if(seen[courseCode])return 0;  // cycle guard
+seen[courseCode]=true;
+var prs=PREREQS[courseCode];
+if(!prs||prs.length===0)return 0;
+var maxDepth=0;
+prs.forEach(function(p){
+var d=getPrereqDepth(p,seen)+1;
+if(d>maxDepth)maxDepth=d;
+});
+return maxDepth;
+}
+// Priority order for placement (lower = placed first).
+// Core required courses get scheduled before generic electives so students don't
+// load up on ARE 3XX/4XX electives before finishing the required dept courses.
+function getCoursePriority(c){
+var code=c.code||'';
+var id=c.id||'';
+// 0: Orientation
+if(c.cat==='orientation')return 0;
+// 1: Specifically-required courses (ARE 201, EC 202, ACC 210, ARE 303/304, ARE 306/309,
+//    ARE 311/312, ARE 321/323/BUS 320, ARE 301/EC 301, ARE 336, ARE 433, ARE 490)
+var coreIds=['ARE201','EC202','ACC210','ARE303','ARE306','ARE312','ARE321','EC301','ARE336','ARE433','ARE490'];
+if(coreIds.indexOf(id)!==-1)return 1;
+// 2: Math, Comm, Natural Science (foundational)
+if(c.cat==='math'||c.cat==='comm'||c.cat==='natsci')return 2;
+// 3: GEP requirements (Writing, Humanities, SocSci, IDS, Health, etc.)
+if(c.cat==='gep')return 3;
+// 4: Restricted (Technical / Dept-Technical) electives AND ARE 3XX / 4XX placeholders
+//    They share priority so they interleave and distribute together across late semesters.
+if(c.cat==='restricted')return 4;
+if(id==='ARE4A'||id==='ARE4B'||id==='ARE3A'||id==='ARE3B')return 4;
+// 5: Free electives last
+if(c.cat==='free')return 5;
+return 3;
+}
+
+// Tight-chain preferences (used by both sort and placement). Declared early so sort can reference.
+// Preferred sequence (configured via the sequencer UI):
+//   Anchor (sem 0):  ARE 201 + one restricted elective (RSTD1, e.g. ARE 270)
+//   +1 sem:          ARE 303/304, ARE 306/309
+//   +2 sems:         EC/ARE 301, ARE 311/312
+//   +3 sems:         ARE 321/323/BUS 320, ARE 336
+//   +4 sems:         ARE 433, ARE 3XX (placeholders handled by sort order)
+//   +5 sems:         ARE 4XX, ARE 490 (bound by near-last-sem rule)
+var tightChainPreference={
+'ARE 303/304':{after:'ARE 201',gap:1,maxGap:2},
+'ARE 306/309':{after:'ARE 201',gap:1,maxGap:2},
+'EC/ARE 301':{after:'ARE 201',gap:2,maxGap:2},
+'ARE 301':{after:'ARE 201',gap:2,maxGap:2},
+'EC 301':{after:'ARE 201',gap:2,maxGap:2},
+'ARE 311/312':{after:'ARE 201',gap:2,maxGap:3},
+'ARE 321/323/BUS 320':{after:'ARE 201',gap:3,maxGap:4},
+'ARE 336':{after:'ARE 201',gap:3,maxGap:4},
+'ARE 433':{after:'ARE 201',gap:4,maxGap:5},
+// MA 114 should follow MA 121 closely so it doesn't drift to the last semester.
+'MA 114':{after:'MA 121/131/141',gap:1,maxGap:3},
+'MA 114, 231 or 241':{after:'MA 121/131/141',gap:1,maxGap:3}
+};
+// Same idea but matched by slot id (for placeholder/elective slots).
+var tightChainPreferenceById={
+'RSTD1':{after:'ARE 201',gap:0,maxGap:1}
+};
+// Avoid-pair rules: try not to place these courses in the same semester (soft rule).
+var avoidPairing=[
+['ACC 210','EC/ARE 301'],
+['ACC 210','ARE 301'],
+['ACC 210','EC 301'],
+['ACC 210','ST 311'],
+['ACC 210','ST 311, BUS 350 or ST 350']
+];
+function isAvoidedPair(codeA,codeB){
+for(var i=0;i<avoidPairing.length;i++){
+var pair=avoidPairing[i];
+if((pair[0]===codeA&&pair[1]===codeB)||(pair[0]===codeB&&pair[1]===codeA))return true;
+}
+return false;
+}
+function avoidPairingOk(courseCode,semIdx){
+for(var i=0;i<plan[semIdx].courses.length;i++){
+if(isAvoidedPair(courseCode,plan[semIdx].courses[i].code))return false;
+}
+return true;
+}
+// Avoid-SAME-YEAR rules: keep these courses (matched by slot id) in different academic years.
+// Pairs of slot ids — order doesn't matter.
+var avoidSameYearById=[
+['HESF1','HESF2']
+];
+function isAvoidedSameYear(idA,idB){
+for(var i=0;i<avoidSameYearById.length;i++){
+var pair=avoidSameYearById[i];
+if((pair[0]===idA&&pair[1]===idB)||(pair[0]===idB&&pair[1]===idA))return true;
+}
+return false;
+}
+function avoidSameYearOk(course,semIdx){
+if(!course.id)return true;
+// Year = floor(semIdx / 2) using regular semester indexes (sem 0,1 = Y1; 2,3 = Y2; etc.)
+var targetYear=Math.floor(semIdx/2);
+for(var pi=0;pi<plan.length;pi++){
+var pt=plan[pi].term;
+if(pt.indexOf('Summer')===0||pt.indexOf('Transfer')===0||pt.indexOf('Prior NC State')===0)continue;
+var thisYear=Math.floor(pi/2);
+if(thisYear!==targetYear)continue;
+for(var ci=0;ci<plan[pi].courses.length;ci++){
+if(isAvoidedSameYear(course.id,plan[pi].courses[ci].id))return false;
+}
+}
+return true;
+}
+
+displacedCourses.sort(function(a,b){
+// Anchor courses — courses that other tight-chain rules depend on — must be placed FIRST.
+// Also includes courses that are HARD PREREQS for tight-chain courses (e.g. MA 121 for EC 301).
+// MUST happen before depth check (anchors might have higher depth in some chains).
+var anchorCodes={};
+Object.keys(tightChainPreference).forEach(function(k){
+anchorCodes[tightChainPreference[k].after]=true;
+var prs=PREREQS[k]||[];
+prs.forEach(function(p){anchorCodes[p]=true;});
+});
+Object.keys(tightChainPreferenceById).forEach(function(k){
+anchorCodes[tightChainPreferenceById[k].after]=true;
+});
+var aIsAnchor=anchorCodes[a.code];
+var bIsAnchor=anchorCodes[b.code];
+if(aIsAnchor&&!bIsAnchor)return -1;
+if(bIsAnchor&&!aIsAnchor)return 1;
+// Otherwise: prereq depth first (later depth comes later)
+var depthDiff=getPrereqDepth(a.code)-getPrereqDepth(b.code);
+if(depthDiff!==0)return depthDiff;
+// Tight-chain courses (specific gap preferences) get placed BEFORE others of same priority.
+var aIsTight=!!(tightChainPreference[a.code]||tightChainPreferenceById[a.id]);
+var bIsTight=!!(tightChainPreference[b.code]||tightChainPreferenceById[b.id]);
+if(aIsTight&&!bIsTight)return -1;
+if(bIsTight&&!aIsTight)return 1;
+// Secondary: priority (core required courses before electives)
+return getCoursePriority(a)-getCoursePriority(b);
+});
+
+// Within priority 4 (restricted electives + ARE 3XX/4XX placeholders), INTERLEAVE them
+// so they distribute together across late semesters instead of clustering by type.
+(function interleavePriority4(){
+var p4Start=-1, p4End=-1;
+for(var i=0;i<displacedCourses.length;i++){
+if(getCoursePriority(displacedCourses[i])===4){
+if(p4Start===-1)p4Start=i;
+p4End=i;
+}
+}
+if(p4Start===-1)return;
+var p4=displacedCourses.slice(p4Start,p4End+1);
+var placeholders=p4.filter(function(c){return c.id==='ARE4A'||c.id==='ARE4B'||c.id==='ARE3A'||c.id==='ARE3B';});
+var restricted=p4.filter(function(c){return c.cat==='restricted';});
+var others=p4.filter(function(c){
+var ph=c.id==='ARE4A'||c.id==='ARE4B'||c.id==='ARE3A'||c.id==='ARE3B';
+return !ph&&c.cat!=='restricted';
+});
+// Interleave restricted + placeholders alternately
+var interleaved=[];
+var maxLen=Math.max(restricted.length,placeholders.length);
+for(var k=0;k<maxLen;k++){
+if(k<restricted.length)interleaved.push(restricted[k]);
+if(k<placeholders.length)interleaved.push(placeholders[k]);
+}
+interleaved=interleaved.concat(others);
+// Splice back into displacedCourses
+displacedCourses.splice.apply(displacedCourses,[p4Start,p4End-p4Start+1].concat(interleaved));
+})();
+
+// Helper: find the semester index where a given course code is currently scheduled.
+// Returns -1 if not scheduled. Used for prereq satisfaction checks during placement.
+function findCourseSem(courseCode){
+for(var pi=0;pi<plan.length;pi++){
+for(var pj=0;pj<plan[pi].courses.length;pj++){
+var pc=plan[pi].courses[pj];
+if(pc.code===courseCode)return pi;
+// Also match alt codes like "EC/ARE 301" matching both EC 301 and ARE 301
+if(courseCode==='EC/ARE 301'&&(pc.code==='EC 301'||pc.code==='ARE 301'||pc.code==='EC/ARE 301'))return pi;
+if(courseCode==='MA 121/131/141'&&(pc.code==='MA 121'||pc.code==='MA 131'||pc.code==='MA 141'||pc.code==='MA 121/131/141'))return pi;
+}
+}
+return -1;
+}
+
+// Helper: returns true if all prereqs of `courseCode` are in semesters strictly BEFORE `targetSem`.
+// Prereqs can be satisfied by being in Transfer/Prior NC State sections too (those count as "before").
+function prereqsSatisfiedBy(courseCode,targetSem){
+var prs=PREREQS[courseCode]||[];
+for(var pi=0;pi<prs.length;pi++){
+var prereqSem=findCourseSem(prs[pi]);
+if(prereqSem===-1)return false;  // Prereq not scheduled at all - can't satisfy
+// Transfer and Prior NC State sections count as "before" everything
+var prereqTerm=plan[prereqSem].term;
+if(prereqTerm.indexOf('Transfer')===0||prereqTerm.indexOf('Prior NC State')===0)continue;
+// Otherwise the prereq must be in an earlier regular semester
+if(prereqSem>=targetSem)return false;
+}
+return true;
+}
+
+// Course-specific allowed-semester constraints by course code.
+// Maps course code -> array of allowed sem indices (0=Fall Y1, 1=Spring Y1, ... 6=Fall Y4, 7=Spring Y4)
+// Use this for HARD constraints based on absolute semester position.
+var allowedSemestersByCode={
+};
+
+// "Earliest allowed semester" — these courses cannot be scheduled BEFORE this sem index.
+// 0=Fall Y1, 1=Spring Y1, 2=Fall Y2, etc.
+// ACC 210 and EC 202 are typically taken in Year 2 (sem 2+).
+var earliestSemByCode={
+'ACC 210':2,
+'ACC 200':2,
+'ACC 200 or ACC 210':2,
+'EC 202':2
+};
+// Same idea by slot id (for placeholder slots without specific course codes).
+// ARE 3XX and ARE 4XX placeholders should not be in the same semester as ARE 201 —
+// students need to take ARE 201 first, then start filling elective slots.
+// Setting earliest=2 means they can't be in sem 0 or sem 1.
+var earliestSemById={
+'ARE3A':2,
+'ARE3B':2,
+'ARE4A':2,
+'ARE4B':2
+};
+function meetsEarliestSem(courseCodeOrCourse,targetSem){
+// Accept either a string course code OR a course object
+var code,id;
+if(typeof courseCodeOrCourse==='string'){code=courseCodeOrCourse;id=null;}
+else{code=courseCodeOrCourse.code;id=courseCodeOrCourse.id;}
+var earliest=earliestSemByCode[code];
+if(earliest!==undefined&&targetSem<earliest)return false;
+if(id){
+var earliestId=earliestSemById[id];
+if(earliestId!==undefined&&targetSem<earliestId)return false;
+}
+return true;
+}
+
+// Course-specific positional constraints based on the LAST semester with real coursework.
+// Maps course code -> {minFromLast: N} meaning the course must be in the last N semesters
+// of actual coursework. Useful for capstone-style courses (ARE 490) where the timing depends
+// on how compressed the student's plan is.
+// E.g. {minFromLast: 2} means: place in either the last semester or the one before it.
+var nearLastSemConstraint={
+'ARE 490':{lastN:3}  // ARE 490 must be in one of the last 3 semesters with actual coursework
+};
+// Courses that should NOT be placed in the very last semester with coursework.
+// Useful for foundational courses like MA 114 that shouldn't drift to the end.
+var cannotBeLastSemByCode={
+'MA 114':true,
+'MA 114, 231 or 241':true
+};
+// Course-specific positional constraints based on the FIRST semester with real coursework.
+// E.g. ALS 103/303 (Orientation) belongs in the student's FIRST semester.
+// Matched by either course code or slot id (since the default plan uses combined code "ALS 103/303 or ARE 290").
+var nearFirstSemConstraint={
+'ALS 103':{firstN:1},
+'ALS 303':{firstN:1},
+'ARE 290':{firstN:1},
+'ALS 103/303 or ARE 290':{firstN:1}
+};
+var nearFirstSemConstraintByid={
+'ALS103':{firstN:1}
+};
+function semesterAllowed(courseCode,targetSem){
+var allowed=allowedSemestersByCode[courseCode];
+if(allowed&&allowed.indexOf(targetSem)===-1)return false;
+return true;
+}
+
+// Helper: count how many courses in a given category are already in a semester.
+// Used to spread similar courses (e.g. ARE/dept) across multiple semesters.
+function categoryCountInSem(semIdx,cat){
+return plan[semIdx].courses.filter(function(c){return c.cat===cat;}).length;
+}
+// Count how many courses in a semester have a given prefix (e.g. "ARE", "EC").
+function prefixCountInSem(semIdx,prefix){
+return plan[semIdx].courses.filter(function(c){
+return c.code&&c.code.indexOf(prefix+' ')===0;
+}).length;
+}
+// Maximum number of courses per category per semester (soft limit — applied in pass 1 only).
+// Prevents clumping like "4 ARE + EC 202 in one semester".
+var maxPerCategory={dept:3,gep:3,natsci:2,restricted:2,math:2,comm:2};
+// Maximum number of courses sharing the same subject prefix per semester.
+// E.g. no more than 3 ARE-prefix courses in one semester (covers ARE 201, ARE 303, ARE 3XX, etc.)
+var maxPerPrefix={'ARE':3};
+function categoryLimitOk(courseCode,semIdx,cat){
+var max=maxPerCategory[cat];
+if(!max)return true;
+return categoryCountInSem(semIdx,cat)<max;
+}
+function prefixLimitOk(courseCode,semIdx){
+// Extract prefix (e.g. "ARE 303/304" -> "ARE", "ARE 4XX" -> "ARE")
+var pmatch=courseCode&&courseCode.match(/^([A-Z]+)\s/);
+if(!pmatch)return true;
+var prefix=pmatch[1];
+var max=maxPerPrefix[prefix];
+if(!max)return true;
+return prefixCountInSem(semIdx,prefix)<max;
+}
+
 // Redistribute all displaced courses evenly across future semesters
 // Start from the first ACTIVE semester (skipping any pre-enrollment empty terms like Fall Y1
 // for a Spring-start student)
 displacedCourses.forEach(function(displaced){
 var placed=false;
 var startFrom=Math.max(currentSem+1,firstActiveSem);
-for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
-var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
-if(targetCr+displaced.units<=15){plan[target].courses.push(displaced);placed=true;}
+// Tight-chain pass: place at preferred gap (then expand outward up to maxGap)
+var tightChain=tightChainPreference[displaced.code]||tightChainPreferenceById[displaced.id];
+if(tightChain){
+var prereqSem=findCourseSem(tightChain.after);
+if(prereqSem>=0){
+var prereqTerm=plan[prereqSem].term;
+var basisSem=(prereqTerm.indexOf('Transfer')===0||prereqTerm.indexOf('Prior NC State')===0)?(startFrom-1):prereqSem;
+var idealSem=basisSem+tightChain.gap;
+// Build candidate list: ideal first, then walk outward up to maxGap
+var candidates=[idealSem];
+for(var off=1;off<=(tightChain.maxGap-tightChain.gap+1);off++){
+if(idealSem+off<=basisSem+tightChain.maxGap)candidates.push(idealSem+off);
+if(idealSem-off>basisSem)candidates.push(idealSem-off);
 }
-// If nothing under 15, try under 18
+for(var ci=0;ci<candidates.length&&!placed;ci++){
+var ts=candidates[ci];
+if(ts<0||ts>=plan.length)continue;
+if(ts<startFrom)continue;
+if(plan[ts].term.indexOf('Summer')===0)continue;
+if(plan[ts].term.indexOf('Transfer')===0||plan[ts].term.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(displaced.code,ts))continue;
+if(!meetsEarliestSem(displaced,ts))continue;
+if(!prereqsSatisfiedBy(displaced.code,ts))continue;
+if(!avoidPairingOk(displaced.code,ts))continue;
+if(!avoidSameYearOk(displaced,ts))continue;
+if(!prefixLimitOk(displaced.code,ts))continue;
+var targetCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+displaced.units<=18){plan[ts].courses.push(displaced);placed=true;}
+}
+}
+}
+// First pass: respect prereqs, allowed semesters, earliest-sem, category limits, avoid-pair, ≤15 cr
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
 if(plan[target].term.indexOf('Summer')===0)continue;
 if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(displaced.code,target))continue;
+if(!meetsEarliestSem(displaced,target))continue;
+if(!prereqsSatisfiedBy(displaced.code,target))continue;
+if(!categoryLimitOk(displaced.code,target,displaced.cat))continue;
+if(!avoidPairingOk(displaced.code,target))continue;
+if(!avoidSameYearOk(displaced,target))continue;
+if(!prefixLimitOk(displaced.code,target))continue;
+var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+displaced.units<=15){plan[target].courses.push(displaced);placed=true;}
+}
+}
+// Second pass: relax category limit (still respect avoid-pair and earliest-sem).
+// EXCEPTION: keep dept category limit for placeholder ARE 3XX/4XX slots AND restricted
+// elective limit for Tech/Dept Elec slots — they cluster in the last sem otherwise.
+if(!placed){
+for(var target=startFrom;target<plan.length&&!placed;target++){
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(displaced.code,target))continue;
+if(!meetsEarliestSem(displaced,target))continue;
+if(!prereqsSatisfiedBy(displaced.code,target))continue;
+if(!avoidPairingOk(displaced.code,target))continue;
+if(!avoidSameYearOk(displaced,target))continue;
+if(!prefixLimitOk(displaced.code,target))continue;
+// Keep limits for placeholders & restricted electives
+var isPlaceholder=(displaced.id==='ARE4A'||displaced.id==='ARE4B'||displaced.id==='ARE3A'||displaced.id==='ARE3B');
+var isRestricted=(displaced.cat==='restricted');
+if((isPlaceholder||isRestricted)&&!categoryLimitOk(displaced.code,target,displaced.cat))continue;
+var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+displaced.units<=15){plan[target].courses.push(displaced);placed=true;}
+}
+}
+// Third pass: relax credit limit to 18 (still respect earliest-sem and ARE prefix limit).
+// EXCEPTION: keep limits for placeholders & restricted electives.
+if(!placed){
+for(var target=startFrom;target<plan.length&&!placed;target++){
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(displaced.code,target))continue;
+if(!meetsEarliestSem(displaced,target))continue;
+if(!prereqsSatisfiedBy(displaced.code,target))continue;
+if(!prefixLimitOk(displaced.code,target))continue;
+var isPlaceholder=(displaced.id==='ARE4A'||displaced.id==='ARE4B'||displaced.id==='ARE3A'||displaced.id==='ARE3B');
+var isRestricted=(displaced.cat==='restricted');
+if((isPlaceholder||isRestricted)&&!categoryLimitOk(displaced.code,target,displaced.cat))continue;
 var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
 if(targetCr+displaced.units<=18){plan[target].courses.push(displaced);placed=true;}
 }
 }
+// Fourth pass: relax prereqs (still respect earliest-sem and ARE prefix limit)
 if(!placed){
-// Put in last regular semester
+for(var target=startFrom;target<plan.length&&!placed;target++){
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(displaced.code,target))continue;
+if(!meetsEarliestSem(displaced,target))continue;
+if(!prefixLimitOk(displaced.code,target))continue;
+var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+displaced.units<=18){plan[target].courses.push(displaced);placed=true;}
+}
+}
+// If still not placed AND there's an allowed-semester constraint, force-place
+// in an allowed semester (overloading is preferable to violating the constraint).
+if(!placed&&allowedSemestersByCode[displaced.code]){
+var allowed=allowedSemestersByCode[displaced.code];
+// Try each allowed semester regardless of credit limit
+for(var ai=0;ai<allowed.length&&!placed;ai++){
+var target=allowed[ai];
+if(target>=plan.length)continue;
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+plan[target].courses.push(displaced);
+placed=true;
+}
+}
+// Final fallback: try EARLIEST regular sem that still respects prefix limit + earliest-sem.
+// Skip semesters that already have the prefix cap (avoid the "5 ARE in last sem" pile-up).
+if(!placed){
+for(var target=startFrom;target<plan.length&&!placed;target++){
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!meetsEarliestSem(displaced,target))continue;
+if(!prefixLimitOk(displaced.code,target))continue;
+plan[target].courses.push(displaced);
+placed=true;
+}
+}
+// Absolute last resort: if even prefix limit can't be respected, dump in earliest sem
+// that's not Summer/Transfer/Prior. Don't pile in the last sem.
+if(!placed){
+for(var target=startFrom;target<plan.length&&!placed;target++){
+if(plan[target].term.indexOf('Summer')===0)continue;
+if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(!meetsEarliestSem(displaced,target))continue;
+plan[target].courses.push(displaced);
+placed=true;
+}
+}
+if(!placed){
+// Truly last resort: last regular sem
 var lastReg=7;
 for(var ri=plan.length-1;ri>=0;ri--){if(plan[ri].term.indexOf('Summer')!==0&&plan[ri].term.indexOf('Transfer')!==0&&plan[ri].term.indexOf('Prior NC State')!==0){lastReg=ri;break;}}
 plan[lastReg].courses.push(displaced);
 }
 });
+
+// POST-PASS: Try to eliminate the last regular semester if its courses can fit
+// into earlier semesters (loading those up to 18 credits). This lets students
+// graduate earlier when they have few remaining requirements.
+
+// Try compacting trailing semesters from the end backwards.
+// For each last semester, see if all its courses can be moved to earlier semesters
+// (loading up to 18 credits). If yes, empty it out (leave visible as a signal that
+// the student could graduate earlier) and try the new last semester.
+var compactSemIdx=-1;
+for(var ri=plan.length-1;ri>=0;ri--){
+var t=plan[ri].term;
+if(t.indexOf('Summer')!==0&&t.indexOf('Transfer')!==0&&t.indexOf('Prior NC State')!==0){compactSemIdx=ri;break;}
+}
+while(compactSemIdx>firstActiveSem){
+var lastSem=plan[compactSemIdx];
+var lastSemCoursesToMove=lastSem.courses.slice();
+if(lastSemCoursesToMove.length===0){
+// Already empty — move back to check the one before it
+compactSemIdx--;
+while(compactSemIdx>=0&&(plan[compactSemIdx].term.indexOf('Summer')===0||plan[compactSemIdx].term.indexOf('Transfer')===0||plan[compactSemIdx].term.indexOf('Prior NC State')===0))compactSemIdx--;
+continue;
+}
+// Simulate moves
+var simulatedFills={};
+var moves=[];
+var allMovable=true;
+for(var lci=0;lci<lastSemCoursesToMove.length;lci++){
+var lc=lastSemCoursesToMove[lci];
+var moveTarget=-1;
+for(var ts=firstActiveSem;ts<compactSemIdx&&moveTarget===-1;ts++){
+var tt=plan[ts].term;
+if(tt.indexOf('Summer')===0)continue;
+if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(lc.code,ts))continue;
+if(!prereqsSatisfiedBy(lc.code,ts))continue;
+var existingCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
+var simAdded=simulatedFills[ts]||0;
+if(existingCr+simAdded+lc.units<=18){
+moveTarget=ts;
+simulatedFills[ts]=simAdded+lc.units;
+}
+}
+if(moveTarget===-1){allMovable=false;break;}
+moves.push({courseIdx:lci,targetSem:moveTarget});
+}
+if(!allMovable)break;
+// Execute moves
+moves.forEach(function(m){
+plan[m.targetSem].courses.push(lastSemCoursesToMove[m.courseIdx]);
+});
+lastSem.courses=[];
+// Step back to next-earlier regular semester and try again
+compactSemIdx--;
+while(compactSemIdx>=0&&(plan[compactSemIdx].term.indexOf('Summer')===0||plan[compactSemIdx].term.indexOf('Transfer')===0||plan[compactSemIdx].term.indexOf('Prior NC State')===0))compactSemIdx--;
+}
+(function(){
+plan.forEach(function(s,si){
+s.courses.forEach(function(c){
+});
+});
+})();
+
+// POST-PASS: Handle courses with nearLastSemConstraint (e.g. ARE 490 should be near
+// the END of the student's actual coursework, not stuck alone in a middle semester).
+// Find each such course, identify the LAST semester with real coursework, and ensure
+// the course is in one of the last N semesters with coursework.
+Object.keys(nearLastSemConstraint).forEach(function(courseCode){
+var constraint=nearLastSemConstraint[courseCode];
+var lastN=constraint.lastN||1;
+// Find which semester the course is currently in
+var currentSemForCourse=-1, currentCourseIdx=-1, currentCourseObj=null;
+plan.forEach(function(s,si){
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+s.courses.forEach(function(c,ci){
+if(c.code===courseCode){currentSemForCourse=si;currentCourseIdx=ci;currentCourseObj=c;}
+});
+});
+if(currentSemForCourse===-1)return;  // Course not scheduled; nothing to do
+// Identify the last N regular semesters that have actual coursework
+var semsWithCoursework=[];
+plan.forEach(function(s,si){
+if(s.term.indexOf('Summer')===0)return;
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(s.courses.length>0)semsWithCoursework.push(si);
+});
+if(semsWithCoursework.length===0)return;
+// EXCLUDE the very first semester with coursework — courses like ARE 490 should
+// never be taken in the student's first NC State semester even if they're a transfer
+// with a compressed plan. The student needs at least one semester of acclimation first.
+var allowedSemsPool=semsWithCoursework.length>1?semsWithCoursework.slice(1):semsWithCoursework;
+var allowedTargets=allowedSemsPool.slice(-lastN);  // last N (excluding first sem)
+// Is the course already in an allowed target?
+if(allowedTargets.indexOf(currentSemForCourse)!==-1)return;
+// Need to move. Pick the LATEST allowed target where prereqs are satisfied
+// and the credit load can handle it.
+var bestTarget=-1;
+for(var ai=allowedTargets.length-1;ai>=0;ai--){
+var target=allowedTargets[ai];
+if(!prereqsSatisfiedBy(courseCode,target))continue;
+var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+currentCourseObj.units<=18){bestTarget=target;break;}
+}
+// If no target found with 18cr cap, just use the last allowed target (overload)
+if(bestTarget===-1)bestTarget=allowedTargets[allowedTargets.length-1];
+if(bestTarget!==currentSemForCourse){
+plan[currentSemForCourse].courses.splice(currentCourseIdx,1);
+plan[bestTarget].courses.push(currentCourseObj);
+}
+});
+
+// POST-PASS: Handle courses with nearFirstSemConstraint (e.g. ALS 103/303 Orientation
+// should be in the student's FIRST semester of coursework, even if that overloads it).
+// We collect all qualifying courses (matched by code or slot id) and move each to sem 1.
+var firstSemCoursesToMove=[];
+plan.forEach(function(s,si){
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+s.courses.forEach(function(c,ci){
+if(nearFirstSemConstraint[c.code]||nearFirstSemConstraintByid[c.id]){
+firstSemCoursesToMove.push({sem:si,idx:ci,course:c});
+}
+});
+});
+// Identify the first semester with actual coursework
+var firstSemWithCoursework=-1;
+plan.forEach(function(s,si){
+if(firstSemWithCoursework!==-1)return;
+if(s.term.indexOf('Summer')===0)return;
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(s.courses.length>0)firstSemWithCoursework=si;
+});
+if(firstSemWithCoursework>=0){
+// Sort moves in reverse so splicing earlier indices doesn't shift later ones
+firstSemCoursesToMove.sort(function(a,b){if(a.sem!==b.sem)return b.sem-a.sem;return b.idx-a.idx;});
+firstSemCoursesToMove.forEach(function(m){
+if(m.sem===firstSemWithCoursework)return;  // already in first sem
+plan[m.sem].courses.splice(m.idx,1);
+plan[firstSemWithCoursework].courses.push(m.course);
+});
+}
+
+// PARTIAL COMPACTION: If the last semester with coursework has fewer than 12 credits,
+// try to move individual courses to earlier semesters (up to 18 cr each) — even if we
+// can't empty the entire semester. This rebalances cases where the final semester ends
+// up with just 6-9 credits while earlier semesters have room.
+var lastWithWork=-1;
+for(var ri=plan.length-1;ri>=0;ri--){
+var t=plan[ri].term;
+if(t.indexOf('Summer')!==0&&t.indexOf('Transfer')!==0&&t.indexOf('Prior NC State')!==0&&plan[ri].courses.length>0){
+lastWithWork=ri;break;
+}
+}
+// SPECIAL CASE: If the final semester contains ONLY a nearLastSemConstraint course
+// (e.g. ARE 490 alone at 1 credit), move it backward so the student doesn't enroll
+// for just a 1-credit semester. Otherwise leave the plan as-is — the user can drag
+// courses around if they prefer a different balance.
+if(lastWithWork>firstActiveSem){
+var lastWS=plan[lastWithWork];
+var allKept=lastWS.courses.every(function(c){return nearLastSemConstraint[c.code];});
+if(lastWS.courses.length>0&&allKept){
+for(var lci=lastWS.courses.length-1;lci>=0;lci--){
+var lc=lastWS.courses[lci];
+var absorbed=false;
+for(var ts=firstActiveSem;ts<lastWithWork&&!absorbed;ts++){
+var tt=plan[ts].term;
+if(tt.indexOf('Summer')===0)continue;
+if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(!semesterAllowed(lc.code,ts))continue;
+if(!prereqsSatisfiedBy(lc.code,ts))continue;
+var existingCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(existingCr+lc.units<=18){
+plan[ts].courses.push(lc);
+lastWS.courses.splice(lci,1);
+absorbed=true;
+}
+}
+}
+}
+}
+
+// BALANCING PASS: If late semesters are noticeably lighter than mid-plan semesters,
+// move courses backward (chronologically forward, i.e. to later semesters) to even out
+// the load. This avoids "front-packed" plans where freshman/sophomore years are 18cr
+// and senior year is 9cr.
+(function balanceLoadAcrossSemesters(){
+var workingSems=[];  // {idx, cr}
+plan.forEach(function(s,si){
+if(s.term.indexOf('Summer')===0)return;
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(si>=firstActiveSem){
+var cr=s.courses.reduce(function(sum,cc){return sum+cc.units;},0);
+workingSems.push({idx:si,cr:cr});
+}
+});
+if(workingSems.length<2)return;
+// Trim trailing empty semesters
+while(workingSems.length>0&&workingSems[workingSems.length-1].cr===0){
+workingSems.pop();
+}
+if(workingSems.length<2)return;
+var safety=30;
+while(safety-->0){
+workingSems.forEach(function(ws){ws.cr=plan[ws.idx].courses.reduce(function(s,cc){return s+cc.units;},0);});
+var lastIdx=workingSems.length-1;
+var lastCr=workingSems[lastIdx].cr;
+if(lastCr>=12)break;
+// Find a heavier earlier semester to pull from (≥14 cr)
+var bestSourceIdx=-1, bestSourceCr=0;
+for(var i=0;i<lastIdx;i++){
+if(workingSems[i].cr>bestSourceCr&&workingSems[i].cr>=14){
+bestSourceCr=workingSems[i].cr;
+bestSourceIdx=i;
+}
+}
+if(bestSourceIdx===-1)break;
+var sourceSem=plan[workingSems[bestSourceIdx].idx];
+var sourceSemIdx=workingSems[bestSourceIdx].idx;
+var targetSemIdx=workingSems[lastIdx].idx;
+var moved=false;
+for(var ci=sourceSem.courses.length-1;ci>=0&&!moved;ci--){
+var c=sourceSem.courses[ci];
+if(nearFirstSemConstraint[c.code]||nearFirstSemConstraintByid[c.id])continue;
+if(!semesterAllowed(c.code,targetSemIdx))continue;
+// Don't violate prefix limit (e.g. max 3 ARE per sem) when balancing
+if(!prefixLimitOk(c.code,targetSemIdx))continue;
+// Is this course a prereq for something between source and target?
+var isBlocker=false;
+Object.keys(PREREQS).forEach(function(dep){
+if(isBlocker)return;
+if(PREREQS[dep].indexOf(c.code)!==-1){
+var depSem=findCourseSem(dep);
+if(depSem>sourceSemIdx&&depSem<=targetSemIdx)isBlocker=true;
+}
+});
+if(isBlocker)continue;
+if(workingSems[lastIdx].cr+c.units>18)continue;
+sourceSem.courses.splice(ci,1);
+plan[targetSemIdx].courses.push(c);
+moved=true;
+}
+if(!moved)break;
+}
+})();
+
+// FINAL CLEANUP: enforce per-prefix limits. If any semester has more than the limit
+// of a given prefix (e.g. 4+ ARE), move excess courses to other regular sems.
+// This catches any course that slipped through earlier passes (balancing, fallback, etc.).
+Object.keys(maxPerPrefix).forEach(function(prefix){
+var max=maxPerPrefix[prefix];
+plan.forEach(function(s,si){
+if(s.term.indexOf('Summer')===0)return;
+if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+// Get all courses in this sem with this prefix
+var prefixCourses=[];
+s.courses.forEach(function(c,ci){
+if(c.code&&c.code.indexOf(prefix+' ')===0)prefixCourses.push({course:c,idx:ci});
+});
+if(prefixCourses.length<=max)return;
+// Need to move (prefixCourses.length - max) courses out.
+// Prefer to move placeholders (ARE 3XX/4XX) over named courses, and nearLastSem courses last.
+prefixCourses.sort(function(a,b){
+var aPh=(a.course.id==='ARE3A'||a.course.id==='ARE3B'||a.course.id==='ARE4A'||a.course.id==='ARE4B');
+var bPh=(b.course.id==='ARE3A'||b.course.id==='ARE3B'||b.course.id==='ARE4A'||b.course.id==='ARE4B');
+if(aPh&&!bPh)return -1;
+if(bPh&&!aPh)return 1;
+var aNl=nearLastSemConstraint[a.course.code];
+var bNl=nearLastSemConstraint[b.course.code];
+if(aNl&&!bNl)return 1;
+if(bNl&&!aNl)return -1;
+return 0;
+});
+var excess=prefixCourses.length-max;
+for(var ei=0;ei<excess;ei++){
+var pc=prefixCourses[ei];
+// Find another regular sem with room AND below the prefix cap
+var moved=false;
+for(var tsi=0;tsi<plan.length&&!moved;tsi++){
+if(tsi===si)continue;
+if(plan[tsi].term.indexOf('Summer')===0)continue;
+if(plan[tsi].term.indexOf('Transfer')===0||plan[tsi].term.indexOf('Prior NC State')===0)continue;
+if(!meetsEarliestSem(pc.course,tsi))continue;
+// HARD: respect prereqs — don't move a course to a sem before/with its prereq
+if(!prereqsSatisfiedBy(pc.course.code,tsi))continue;
+// HARD: respect avoid-pair rules
+if(!avoidPairingOk(pc.course.code,tsi))continue;
+// Check prefix count in target
+var tgtPrefCount=plan[tsi].courses.filter(function(c){return c.code&&c.code.indexOf(prefix+' ')===0;}).length;
+if(tgtPrefCount>=max)continue;
+var tgtCr=plan[tsi].courses.reduce(function(sum,c){return sum+c.units;},0);
+if(tgtCr+pc.course.units>18)continue;
+// Remove from current sem (use code lookup since indices may have shifted)
+for(var rci=s.courses.length-1;rci>=0;rci--){
+if(s.courses[rci]===pc.course){s.courses.splice(rci,1);break;}
+}
+plan[tsi].courses.push(pc.course);
+moved=true;
+}
+}
+});
+});
+
+// FINAL CLEANUP: enforce cannotBeLastSemByCode — move any such course out of the last
+// semester with coursework. They go to an earlier sem with room.
+(function enforceCannotBeLast(){
+var lastWithWork=-1;
+for(var ri=plan.length-1;ri>=0;ri--){
+var t=plan[ri].term;
+if(t.indexOf('Summer')!==0&&t.indexOf('Transfer')!==0&&t.indexOf('Prior NC State')!==0&&plan[ri].courses.length>0){
+lastWithWork=ri;break;
+}
+}
+if(lastWithWork<=0)return;
+var lastSem=plan[lastWithWork];
+for(var lci=lastSem.courses.length-1;lci>=0;lci--){
+var lc=lastSem.courses[lci];
+if(!cannotBeLastSemByCode[lc.code])continue;
+// Find an earlier sem with room
+for(var ts=0;ts<lastWithWork;ts++){
+var tt=plan[ts].term;
+if(tt.indexOf('Summer')===0)continue;
+if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(!prereqsSatisfiedBy(lc.code,ts))continue;
+var tgtCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(tgtCr+lc.units<=18){
+lastSem.courses.splice(lci,1);
+plan[ts].courses.push(lc);
+break;
+}
+}
+}
+})();
+
+// Debug: where did ARE 321 end up?
+(function(){
+plan.forEach(function(s,si){
+s.courses.forEach(function(c){
+});
+});
+})();
 
 // Save globals
 withdrawnCoursesGlobal=withdrawnCourses;
@@ -2250,7 +3087,7 @@ document.body.classList.remove('sample-mode');
 var wcA=document.getElementById('welcome-card');if(wcA)wcA.style.display='none';
 var sbA=document.getElementById('sample-banner');if(sbA)sbA.style.display='none';
 render();
-var msg='Degree Audit loaded! Matched '+matched.length+' of '+auditCourses.length+' courses.';
+var msg='Degree Audit loaded! Placed '+matched.length+' courses into your plan.';
 if(overloadedSems.length>0)msg+=' \u26a0 '+overloadedSems[0].term+' has '+overloadedSems[0].cr+' credits \u2014 use Add Semester to spread courses out.';
 showToast(msg);
 
@@ -2548,7 +3385,7 @@ var allSlotMap={}; // combined map of code -> slot info
 
 // Build comprehensive slot mapping
 var directMap={
-'ARE 201':{id:'ARE201'},'EC 201':{id:'ARE201'},'EC 205':{id:'ARE201'},
+'ARE 201':{id:'ARE201'},'EC 201':{id:'ARE201'},
 'ARE 290':{id:'ALS103'},'ALS 103':{id:'ALS103'},'ALS 303':{id:'ALS103'},
 'EC 202':{id:'EC202'},
 'EC 301':{id:'EC301',altCode:'EC/ARE 301'},'ARE 301':{id:'EC301',altCode:'EC/ARE 301'},
@@ -2877,12 +3714,24 @@ if(isUnfilled||isUnmatched){
 // Remove from past semester
 var displaced=plan[pastSem].courses.splice(ci,1)[0];
 // Try to place in the nearest future semester (pastSem+1, +2, etc.)
+// Respect prefix limit (3 ARE max per sem) so placeholders don't pile up.
 var placed=false;
+for(var target=pastSem+1;target<8&&!placed;target++){
+if(!prefixLimitOk(displaced.code,target))continue;
+var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
+if(targetCr+displaced.units<=18){
+plan[target].courses.push(displaced);
+placed=true;
+}
+}
+// Fallback: try again without prefix limit (still respect credit limit)
+if(!placed){
 for(var target=pastSem+1;target<8&&!placed;target++){
 var targetCr=plan[target].courses.reduce(function(s,cc){return s+cc.units;},0);
 if(targetCr+displaced.units<=18){
 plan[target].courses.push(displaced);
 placed=true;
+}
 }
 }
 // Last resort: put in last semester
