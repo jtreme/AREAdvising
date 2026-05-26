@@ -2,14 +2,14 @@
 <!--
   Paw Plan (AGBUSBS)
   Build:    May 26 2026 audit-core version
-  Build id: reflow-final-v8
+  Build id: reflow-final-v9
   Source:   https://github.com/jtreme/AREAdvising
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="May 26 2026 audit-core version">
-<meta name="paw-plan-build-id" content="reflow-final-v8">
+<meta name="paw-plan-build-id" content="reflow-final-v9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -624,6 +624,33 @@ var AUDIT_SECTION_TO_CAT={
 '5':'dept','6':'restricted','8':'gep','20':'free','99':'free'
 };
 function categoryFromSection(section){return AUDIT_SECTION_TO_CAT[String(section||'')]||'free';}
+
+// Section + sub-header -> display tag/label. Used to give COURSE cards (transfer / planned /
+// completed rows under section 8 etc.) a specific sub-category label rather than a generic
+// "GEP" or empty tag.
+function sectionSubHeaderTag(section,subHeader){
+var s=String(section||''),sh=String(subHeader||'');
+if(s==='8'){
+if(sh==='10')return 'ENG 101 / Writing GEP';
+if(sh==='20')return 'Humanities GEP';
+if(sh==='30')return 'Social Science GEP';
+if(sh==='40')return 'HES Fitness GEP';
+if(sh==='50')return 'HES Activity GEP';
+if(sh==='60')return 'Interdisciplinary GEP';
+if(sh==='70')return 'GEP Elective';
+if(sh==='80')return 'GEP Global Knowledge (verify)';
+if(sh==='90')return 'American Democracy (verify)';
+if(sh==='100')return 'World Language (verify)';
+return 'GEP';
+}
+if(s==='6'){
+if(sh==='10')return 'Technical Elective';
+if(sh==='20')return 'Dept/Tech Elective';
+return 'Restricted Elective';
+}
+if(s==='20')return 'Free Elective';
+return '';
+}
 
 var PREREQS={
 "ARE 336":["ARE 201","EC/ARE 301"],
@@ -2071,13 +2098,16 @@ if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
 // Section-aware category fallback: audit section context beats any generic 'free' fallback.
 var resolvedCat=slotInfo.cat||item.cat||categoryFromSection(item&&item.section);
 var catReason=slotInfo.cat?'slot-match':(item.cat?'item.cat':('section-'+(item&&item.section||'?')));
+// Section/sub-header-aware display tag fallback: a section-8/20 course shows "Humanities GEP",
+// section-8/30 shows "Social Science GEP", etc., instead of a generic empty tag.
+var resolvedTag=slotInfo.tag||item.requirementKind||sectionSubHeaderTag(item&&item.section,item&&item.subHeader)||'';
 return {
 id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
 code:code,
 name:status,
 units:item.units||getCourseCredits(code),
 cat:resolvedCat,
-tag:slotInfo.tag||item.requirementKind||'',
+tag:resolvedTag,
 picker:slotInfo.picker||'',
 term:item.term||'',
 slotId:slotInfo.slotId||item.matchedRequirement&&item.matchedRequirement.id||'',
@@ -2154,9 +2184,10 @@ var req=item.matchedRequirement||requirementCatalog[item.code]||{};
 var slotId=(typeof req==='string')?req:(req.id||'');
 var found=slotId?findDefaultSlot(slotId):null;
 if(found)return {slotId:slotId,cat:found.cat,tag:found.tag||CATEGORIES[found.cat].label,picker:found.picker||''};
-// Fallback: use the audit's own section context instead of defaulting to 'free'.
+// Fallback: use the audit's own section + sub-header context instead of defaulting to generic 'GEP' / 'free'.
 var sectCat=categoryFromSection(item&&item.section);
-return {slotId:slotId,cat:sectCat,tag:item.requirementKind||(CATEGORIES[sectCat]?CATEGORIES[sectCat].label:''),picker:''};
+var sectTag=sectionSubHeaderTag(item&&item.section,item&&item.subHeader);
+return {slotId:slotId,cat:sectCat,tag:item.requirementKind||sectTag||(CATEGORIES[sectCat]?CATEGORIES[sectCat].label:''),picker:''};
 }
 function removeSatisfiedFutureSlots(sections,requirementCatalog){
 var satisfied={};
@@ -2521,7 +2552,7 @@ if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].
 }
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v8';
+window.pawPlanBuildId='reflow-final-v9';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
@@ -2534,7 +2565,7 @@ if(isCompletedNcTerm(s.term))dest=summary.completed;
 else if(isTransferTerm(s.term))dest=summary.transfer;
 else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
 else if(isSchedulableSemester(s))dest=summary.future;
-if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',tag:c.tag||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
 });
 advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||''});});
 return summary;
@@ -2547,7 +2578,7 @@ window.pawPlanDiagnoseAllImported=function(){
 var rows=[];
 plan.forEach(function(s,si){
 (s.courses||[]).forEach(function(c){
-rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',slotId:c.slotId||c.id||'',classification:c.classification||'',catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
+rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',tag:c.tag||'',slotId:c.slotId||c.id||'',classification:c.classification||'',catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
 });
 });
 if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
