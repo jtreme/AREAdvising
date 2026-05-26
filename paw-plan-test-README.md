@@ -1,21 +1,21 @@
 # Paw Plan Test Bundle
 
-**Commit:** 1ef9b3d9feaa316c8fa169e9d54949ef9d67b01b
-**Build id:** reflow-final-v5
-**Features:** planned-current placement, foundation-course priority, prereq-aware forward-pull compaction, ARE 490 tail cleanup, trailing-empty trim
-**Generated:** 2026-05-26T16:30:08Z
+**Commit:** 7a1c63d23a10f95c00f66f5abea2607af01af477
+**Build id:** reflow-final-v6
+**Features:** planned-current placement, foundation priority, prereq-aware forward compaction, ARE 490 tail cleanup, tiny-final-semester merge, trailing-empty trim
+**Generated:** 2026-05-26T16:37:49Z
 
-## Verify you have the latest file
+## Verify
 
 Yellow banner reads:
 ```
-Build: 1ef9b3d9feaa316c8fa169e9d54949ef9d67b01b  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:30:08Z
+Build: 7a1c63d23a10f95c00f66f5abea2607af01af477  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:37:49Z
 ```
 
-DevTools console:
+DevTools:
 ```javascript
-console.log(window.pawPlanBuildId);  // expect: "reflow-final-v5" (after upload)
-console.log(document.title);          // expect: contains "[build reflow-final-v5]"
+console.log(window.pawPlanBuildId);  // "reflow-final-v6" after upload
+console.log(document.title);          // contains "[build reflow-final-v6]"
 ```
 
 ## Expected per audit
@@ -25,7 +25,7 @@ console.log(document.title);          // expect: contains "[build reflow-final-v
 Fall 2026: 14 cr (5 planned)
 Spring 2027: 16 cr
 Fall 2027: 15 cr
-Spring 2028: 10 cr  including ARE 490   <- moved here from Fall 2029
+Spring 2028: 10 cr  including ARE 490
 ```
 
 ### Audit A
@@ -34,7 +34,7 @@ Fall 2026: 17 cr
 Spring 2027: 15 cr
 Fall 2027: 15 cr
 Spring 2028: 17 cr
-Fall 2028: 8 cr  including ARE 490   <- moved here from Fall 2029
+Fall 2028: 8 cr  including ARE 490
 ```
 
 ### Audit B
@@ -44,8 +44,7 @@ Spring 2027: 16 cr
 Fall 2027: 15 cr
 Spring 2028: 15 cr
 Fall 2028: 15 cr
-Spring 2029: 15 cr
-Fall 2029: 2 cr  ARE 490 + HES 100/200  (already final active term, no move)
+Spring 2029: 17 cr  including ARE 490   <- merged from Fall 2029 (was 2 cr)
 ```
 
 ### Micah
@@ -58,5 +57,3 @@ Fall 2028: 15 cr
 Spring 2029: 15 cr
 Fall 2029: 8 cr  ARE 490 + 3 others
 ```
-
-## Commit-pinned downloads (immutable, see next commit for actual file URLs)
