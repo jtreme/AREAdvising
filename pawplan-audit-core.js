@@ -59,7 +59,7 @@ if(/Electives?|Humanities|Social Sciences|Statistics|Fitness|Interdisc|Free Elec
 return codes.length>1&&!parseTerm(text);
 }
 
-function getRequirementKind(line,section){
+function getRequirementKind(line,section,subHeader){
 var text=String(line||'');
 if(/ARE 400-level/i.test(text))return 'ARE 400-level Electives';
 if(/ARE Elective/i.test(text))return 'ARE Elective';
@@ -77,6 +77,7 @@ if(/Statistics/i.test(text))return 'Statistics Choice';
 if(/Interdisc Perspectives/i.test(text))return 'Interdisciplinary Perspectives';
 if(/GEP Global Knowledge/i.test(text))return 'GEP Global Knowledge';
 if(/Found\. of American Democracy/i.test(text))return 'American Democracy';
+if(/GEP Elective/i.test(text))return 'GEP Elective';
 if(/COM 112|ENG 332/i.test(text))return 'Communications Choice';
 if(/ACC 200|ACC 210/i.test(text))return 'Accounting Choice';
 if(/ARE 303|ARE 304/i.test(text))return 'ARE 303/304';
@@ -84,9 +85,33 @@ if(/ARE 306|ARE 309/i.test(text))return 'ARE 306/309';
 if(/ARE 311|ARE 312/i.test(text))return 'ARE 311/312';
 if(/ARE 321|ARE 323|BUS 320/i.test(text))return 'ARE 321/323/BUS 320';
 if(/ARE 301|EC 301/i.test(text))return 'ARE/EC 301';
+// Section + subHeader fallbacks (audit context beats generic 'Requirement Group')
+var s=String(section||''), sh=String(subHeader||'');
+if(s==='8'){
+if(sh==='10')return 'ENG 101 Requirement';
+if(sh==='20')return 'Humanities Elective';
+if(sh==='30')return 'Social Science Elective';
+if(sh==='40')return 'HES Fitness';
+if(sh==='50')return 'HES Activity';
+if(sh==='60')return 'Interdisciplinary Perspectives';
+if(sh==='70')return 'GEP Elective';
+if(sh==='80')return 'GEP Global Knowledge';
+if(sh==='90')return 'American Democracy';
+if(sh==='100')return 'World Language Proficiency';
+}
+if(s==='6'){
+if(sh==='10')return 'Technical Electives';
+if(sh==='20')return 'Departmental or Technical Electives';
+}
 return 'Requirement Group';
 }
 
+function parseSubHeader(line){
+// Audit rows in sections like 8 lead with a sub-header number: "20  Humanities Elective ...".
+// MyPack-printed PDFs sometimes butt the number against the description ("100HI School Spanish").
+var m=String(line||'').match(/^\s*(\d{1,3})(?=\s|[A-Z])/);
+return m?m[1]:'';
+}
 function parseAuditText(rawText){
 var lines=normalizeLines(rawText);
 var items=[];
@@ -102,6 +127,7 @@ var termText=termMatch?termMatch[0]:'';
 var term=parseTerm(line);
 var grade=parseGrade(line,termText);
 var units=parseUnits(line);
+var subHeader=parseSubHeader(line);
 var nextLine=lines[i+1]||'';
 var flags=[];
 if(nextLine.indexOf('Wait Listed')!==-1||line.indexOf('Wait Listed')!==-1)flags.push('Wait Listed');
@@ -111,13 +137,14 @@ if(looksLikeRequirementGroup(line,codes)){
 items.push({
 type:'requirement_group',
 section:section,
+subHeader:subHeader,
 raw:line,
 codes:codes,
 code:codes[0]||'',
 term:term,
 grade:grade,
 units:units,
-requirementKind:getRequirementKind(line,section),
+requirementKind:getRequirementKind(line,section,subHeader),
 classification:'unmet_requirement',
 flags:flags
 });
@@ -125,7 +152,7 @@ continue;
 }
 if(!codes.length){
 if(/Approved Exception|Approved Waiver/.test(line)){
-items.push({type:'note',section:section,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
+items.push({type:'note',section:section,subHeader:subHeader,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
 }
 continue;
 }
@@ -133,6 +160,7 @@ codes.forEach(function(code){
 items.push({
 type:'course',
 section:section,
+subHeader:subHeader,
 raw:line,
 code:code,
 codes:[code],
