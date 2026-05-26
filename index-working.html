@@ -1869,11 +1869,22 @@ if(!allowed[slotId])s.courses.splice(ci,1);
 });
 return allowed;
 }
-function suggestedRequirementGroupTargetIndex(){
+function suggestedRequirementGroupTargetIndex(slotCredits){
+slotCredits=slotCredits||3;
+var TARGET_LOAD=15, SOFT_MAX=17, HARD_MAX=18;
 var regularIndexes=[];
 plan.forEach(function(s,idx){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))regularIndexes.push(idx);});
 if(!regularIndexes.length)return 0;
-return regularIndexes[Math.min(6,regularIndexes.length-1)];
+function load(i){return (plan[i].courses||[]).reduce(function(t,c){return t+(c.units||0);},0);}
+// Eligible = not an audit-planned semester that's already loaded
+var elig=regularIndexes.filter(function(i){return !(plan[i].hasAuditPlannedCourses&&load(i)>=TARGET_LOAD);});
+if(!elig.length)elig=regularIndexes;
+// Prefer earliest semester whose resulting load <= SOFT_MAX (17)
+for(var i=0;i<elig.length;i++){if(load(elig[i])+slotCredits<=SOFT_MAX)return elig[i];}
+// Else allow up to HARD_MAX (18)
+for(var i=0;i<elig.length;i++){if(load(elig[i])+slotCredits<=HARD_MAX)return elig[i];}
+// Else fall back to original behavior (the "year 3" slot)
+return elig[Math.min(6,elig.length-1)];
 }
 function applySharedAuditSectionsToPlan(sections,classifiedItems,requirementCatalog,planningSettings){
 planningSettings=planningSettings||{};
@@ -1909,6 +1920,7 @@ var targetIdx=-1;
 plan.forEach(function(s,si){if(isSchedulableSemester(s)&&s.term===item.term)targetIdx=si;});
 if(targetIdx>=0){
 plan[targetIdx].courses.push(c);
+plan[targetIdx].hasAuditPlannedCourses=true;
 } else {
 plan[plannedIdx].courses.push(c);
 }
@@ -1926,7 +1938,7 @@ if(slot.id && satisfiedSlotIds[slot.id])return;
 var already=false;
 plan.forEach(function(s){if(isSchedulableSemester(s)){s.courses.forEach(function(c){if(c.id===slot.id||c.id===slot.slotId||c.slotId===slot.slotId||c.code===slot.code)already=true;});}});
 if(!already){
-var target=suggestedRequirementGroupTargetIndex();
+var target=suggestedRequirementGroupTargetIndex(slot.units||3);
 ensureSemesterExists(target);
 plan[target].courses.push(slot);
 }
