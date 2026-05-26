@@ -2119,6 +2119,7 @@ if(ids.indexOf(s.courses[ci].id)!==-1) s.courses.splice(ci,1);
 }
 });
 });
+return satisfied;
 }
 function filterFuturePlanToAuditRequirements(sections,requirementCatalog){
 var allowed={};
@@ -2165,7 +2166,7 @@ c.reviewReason=item.reviewReason||item.statusNote||'Needs advisor review.';
 if(c.classification==='non_degree')nonDegreeCourses.push(c);else advisorReviewCourses.push(c);
 });
 filterFuturePlanToAuditRequirements(sections,requirementCatalog);
-removeSatisfiedFutureSlots(sections,requirementCatalog);
+var satisfiedSlotIds=removeSatisfiedFutureSlots(sections,requirementCatalog)||{};
 // Place planned/current items into their actual audit term inside the future grid (rule: planned/current is a status, not a display section).
 sections.plannedCurrent.forEach(function(item){
 var slotInfo=getSlotInfoForImportedItem(item,requirementCatalog);
@@ -2190,6 +2191,9 @@ futureGroups.forEach(function(item){
 if(item.requirementKind==='Requirement Group')return;
 var slots=requirementGroupToPlanSlots(item);
 slots.forEach(function(slot){
+// Skip re-add if this requirement slot is already satisfied by a completed/transfer/planned course.
+if(slot.slotId && satisfiedSlotIds[slot.slotId])return;
+if(slot.id && satisfiedSlotIds[slot.id])return;
 var already=false;
 plan.forEach(function(s){if(isSchedulableSemester(s)){s.courses.forEach(function(c){if(c.id===slot.id||c.id===slot.slotId||c.slotId===slot.slotId||c.code===slot.code)already=true;});}});
 if(!already){
