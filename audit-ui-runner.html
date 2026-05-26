@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Paw Plan Audit UI Runner</title>
+</head>
+<body>
+<pre id="out">running...</pre>
+<iframe id="app" src="./index-working.html" style="width:1200px;height:800px;border:1px solid #ccc"></iframe>
+<script>
+function compact(summary){
+function group(items){return {count:items.length,credits:items.reduce(function(s,c){return s+(c.units||0);},0),items:items.map(function(c){return c.code+(c.requirementGroup?' {'+c.requirementGroup+'}':'');})};}
+var activeTerms=[...new Set((summary.future||[]).map(function(c){return c.term;}))].filter(Boolean);
+var are490Terms=(summary.future||[]).filter(function(c){return c.code==='ARE 490';}).map(function(c){return c.term;});
+return {
+completed:group(summary.completed||[]),
+transfer:group(summary.transfer||[]),
+plannedCurrent:group(summary.plannedCurrent||[]),
+future:group(summary.future||[]),
+advisorReview:group(summary.advisorReview||[]),
+activeFutureTerms:activeTerms,
+are490Terms:are490Terms,
+are490InLastThree:are490Terms.every(function(term){return activeTerms.slice(-3).indexOf(term)!==-1;}),
+creditBuckets:summary.creditBuckets||{}
+};
+}
+async function run(){
+var frame=document.getElementById('app');
+await new Promise(function(resolve){frame.onload=resolve;});
+var win=frame.contentWindow;
+var auditA=await fetch('./audit_a.txt').then(function(r){return r.text();});
+var auditB=await fetch('./audit_b.txt').then(function(r){return r.text();});
+var resultA=win.pawPlanImportAuditTextForTest(auditA);
+var planA=win.summarizeImportedAuditPlan();
+frame.src='./index-working.html?b='+Date.now();
+await new Promise(function(resolve){frame.onload=resolve;});
+win=frame.contentWindow;
+var resultB=win.pawPlanImportAuditTextForTest(auditB);
+var planB=win.summarizeImportedAuditPlan();
+document.getElementById('out').textContent=JSON.stringify({
+hasSharedCore:!!win.PawPlanAuditCore,
+auditA:compact(planA),
+auditB:compact(planB)
+},null,2);
+}
+run().catch(function(err){document.getElementById('out').textContent=err.stack||String(err);});
+</script>
+</body>
+</html>
