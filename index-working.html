@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paw Plan [build reflow-final-v2] â€” Agribusiness Management BS | NC State CALS</title>
+<title>Paw Plan [build reflow-final-v3] â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="./pawplan-audit-core.js?v=2"></script>
@@ -1932,6 +1932,43 @@ plan[targetIdx].hasAuditPlannedCourses=true;
 plan[plannedIdx].courses.push(c);
 }
 });
+// EARLY REFLOW with foundation-course priority.
+// Evict every non-audit-planned course from any audit-planned semester and reinsert via the
+// picker, foundation courses first (ARE 201 strongest) so they grab the earliest available
+// semester before electives/GEP can fill it.
+function foundationPriority(slot){
+var id=slot.id||'';var slotId=slot.slotId||'';var code=slot.code||'';
+if(id==='ARE201'||slotId==='ARE201'||/\bARE 201\b/.test(code))return 0;
+if(id==='ALS103'||slotId==='ALS103'||/\bALS 10[33]\b|\bARE 290\b/.test(code))return 1;
+if(id==='ENG101'||slotId==='ENG101'||/\bENG 101\b/.test(code))return 2;
+if(id==='COM110'||slotId==='COM110'||/\bCOM 110\b/.test(code))return 3;
+if(id==='MA121'||slotId==='MA121'||/\bMA 1(2|3|4)1\b/.test(code))return 4;
+return 100;
+}
+function isAuditPlannedCourse(c){return c&&(c.classification==='planned_current'||c.auditStatus==='planned_current'||c.importedFromAudit===true);}
+var earlyDisplaced=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s)||!s.hasAuditPlannedCourses)return;
+for(var i=s.courses.length-1;i>=0;i--){
+if(!isAuditPlannedCourse(s.courses[i])){
+earlyDisplaced.push({slot:s.courses[i],sourceIdx:si});
+s.courses.splice(i,1);
+}
+}
+});
+earlyDisplaced.sort(function(a,b){return foundationPriority(a.slot)-foundationPriority(b.slot);});
+earlyDisplaced.forEach(function(d){
+var target=suggestedRequirementGroupTargetIndex(d.slot.units||3);
+if(target===d.sourceIdx||(plan[target]&&plan[target].hasAuditPlannedCourses)){
+for(var i=0;i<plan.length;i++){
+if(!isSchedulableSemester(plan[i]))continue;
+if(plan[i].hasAuditPlannedCourses)continue;
+target=i;break;
+}
+}
+ensureSemesterExists(target);
+plan[target].courses.push(d.slot);
+});
 var futureGroups=sections.futureRequirements||[];
 var seenGroups={};
 futureGroups.forEach(function(item){seenGroups[item.requirementKind]=true;});
@@ -1984,7 +2021,7 @@ plan[target].courses.push(d.slot);
 });
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v2';
+window.pawPlanBuildId='reflow-final-v3';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
