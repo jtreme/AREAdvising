@@ -1,11 +1,293 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
+<!--
+  Paw Plan (AGBUSBS) - production bundle
+  Build:     reflow-final-v6
+  Commit:    7a1c63d23a10f95c00f66f5abea2607af01af477
+  Generated: 2026-05-26T16:37:49Z
+  Source:    https://github.com/jtreme/AREAdvising/blob/7a1c63d23a10f95c00f66f5abea2607af01af477/index-working.html
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="paw-plan-build" content="reflow-final-v6">
+<meta name="paw-plan-build-commit" content="7a1c63d23a10f95c00f66f5abea2607af01af477">
+<meta name="paw-plan-build-generated" content="2026-05-26T16:37:49Z">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
+<title>Paw Plan â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>/* inlined pawplan-audit-core.js */
+(function(root){
+'use strict';
+
+function normalizeLines(rawText){
+return String(rawText||'').split(/\r?\n/).map(function(line){return line.trim();}).filter(Boolean);
+}
+
+function parseTerm(line){
+var m=String(line||'').match(/(Fall|Spring|Sum1|Sum2|Summer)\s+'?(\d{2,4})/);
+if(!m)return '';
+var year=parseInt(m[2],10);
+if(year<100)year+=2000;
+var season=(m[1]==='Sum1'||m[1]==='Sum2')?'Summer':m[1];
+return season+' '+year;
+}
+
+function parseGrade(line,termMatchText){
+var grade='';
+if(termMatchText&&line.indexOf(termMatchText)!==-1){
+var after=line.substring(line.indexOf(termMatchText)+termMatchText.length);
+var gm=after.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
+if(gm)grade=gm[1];
+}
+if(!grade){
+var gm2=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d{1,2}\.\d{3}/);
+if(gm2)grade=gm2[1];
+}
+if(!grade){
+var gm3=line.match(/\s(MET|PF|Verify)\s*$/);
+if(gm3)grade=gm3[1]==='Verify'?'VERIFY':gm3[1];
+}
+return grade;
+}
+
+function parseUnits(line){
+var m=String(line||'').match(/(?:^|\s)(\d{1,2}\.\d{3})(?:\s|$)/);
+return m?parseFloat(m[1]):0;
+}
+
+function extractCourseCodes(line){
+var out=[];
+var text=String(line||'');
+// Handles normal spacing ("ARE 270") and PDF extraction joins ("EntreprenershipARE 270").
+var re=/(^|[^A-Z])([A-Z]{1,4})\s*(\d{3}[A-Z]?|\d[A-Z]{2,5}|\d\*+|\*+)(?=\s|$|,|\.|;|\)|Rqmnt|Move|Waive)/g;
+var m;
+while((m=re.exec(text))!==null){
+var prefix=m[2], num=m[3];
+if(['PRK','GPA','Cum','Page','SAO'].indexOf(prefix)!==-1)continue;
+out.push(prefix+' '+num);
+}
+return out;
+}
+
+function looksLikeRequirementGroup(line,codes){
+var text=String(line||'');
+if(/^\d+\s+/.test(text)&&!parseTerm(text)&&!parseGrade(text,''))return true;
+if(/\bor\b/i.test(text)&&!parseTerm(text))return true;
+if(/Electives?|Humanities|Social Sciences|Statistics|Fitness|Interdisc|Free Electives|ARE 400-level/i.test(text)&&!parseTerm(text))return true;
+return codes.length>1&&!parseTerm(text);
+}
+
+function getRequirementKind(line,section){
+var text=String(line||'');
+if(/ARE 400-level/i.test(text))return 'ARE 400-level Electives';
+if(/ARE Elective/i.test(text))return 'ARE Elective';
+if(/Technical Electives/i.test(text))return 'Technical Electives';
+if(/Departmental or Technical/i.test(text))return 'Departmental or Technical Electives';
+if(/Humanities Elective/i.test(text))return 'Humanities Elective';
+if(/Social Sciences Elective/i.test(text))return 'Social Science Elective';
+if(/HES Fitness/i.test(text))return 'HES Fitness';
+if(/HES Fit Elective/i.test(text))return 'HES Activity';
+if(/Free Electives/i.test(text))return 'Free Electives';
+if(/ALS 103|ALS 303|ARE 290/i.test(text))return 'ALS Orientation Choice';
+if(/AEE 226|CSC 200/i.test(text))return 'AEE/CSC 200 Choice';
+if(/MA 114|MA 231|MA 241/i.test(text))return 'Math Choice';
+if(/Statistics/i.test(text))return 'Statistics Choice';
+if(/Interdisc Perspectives/i.test(text))return 'Interdisciplinary Perspectives';
+if(/GEP Global Knowledge/i.test(text))return 'GEP Global Knowledge';
+if(/Found\. of American Democracy/i.test(text))return 'American Democracy';
+if(/COM 112|ENG 332/i.test(text))return 'Communications Choice';
+if(/ACC 200|ACC 210/i.test(text))return 'Accounting Choice';
+if(/ARE 303|ARE 304/i.test(text))return 'ARE 303/304';
+if(/ARE 306|ARE 309/i.test(text))return 'ARE 306/309';
+if(/ARE 311|ARE 312/i.test(text))return 'ARE 311/312';
+if(/ARE 321|ARE 323|BUS 320/i.test(text))return 'ARE 321/323/BUS 320';
+if(/ARE 301|EC 301/i.test(text))return 'ARE/EC 301';
+return 'Requirement Group';
+}
+
+function parseAuditText(rawText){
+var lines=normalizeLines(rawText);
+var items=[];
+var section='';
+for(var i=0;i<lines.length;i++){
+var line=lines[i];
+var sm=line.match(/^(\d+)\s*-\s/);
+if(sm){section=sm[1];continue;}
+if(line.indexOf('Description Class Term')!==-1||line.indexOf('Degree Audit')!==-1||line.indexOf('https://')!==-1)continue;
+var codes=extractCourseCodes(line);
+var termMatch=line.match(/(Fall|Spring|Sum1|Sum2|Summer)\s+'?(\d{2,4})/);
+var termText=termMatch?termMatch[0]:'';
+var term=parseTerm(line);
+var grade=parseGrade(line,termText);
+var units=parseUnits(line);
+var nextLine=lines[i+1]||'';
+var flags=[];
+if(nextLine.indexOf('Wait Listed')!==-1||line.indexOf('Wait Listed')!==-1)flags.push('Wait Listed');
+if(nextLine.indexOf('Course provides excess units')!==-1||line.indexOf('Course provides excess units')!==-1)flags.push('Course provides excess units');
+if(line.indexOf('Approved Exception')!==-1||nextLine.indexOf('Approved Exception')!==-1)flags.push('Approved Exception');
+if(looksLikeRequirementGroup(line,codes)){
+items.push({
+type:'requirement_group',
+section:section,
+raw:line,
+codes:codes,
+code:codes[0]||'',
+term:term,
+grade:grade,
+units:units,
+requirementKind:getRequirementKind(line,section),
+classification:'unmet_requirement',
+flags:flags
+});
+continue;
+}
+if(!codes.length){
+if(/Approved Exception|Approved Waiver/.test(line)){
+items.push({type:'note',section:section,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
+}
+continue;
+}
+codes.forEach(function(code){
+items.push({
+type:'course',
+section:section,
+raw:line,
+code:code,
+codes:[code],
+term:term,
+grade:grade,
+units:units,
+flags:flags.slice(),
+wildcard:code.indexOf('*')!==-1
+});
+});
+}
+return items;
+}
+
+function classifyAuditItems(parsedItems){
+return (parsedItems||[]).map(function(item){
+var out=Object.assign({},item);
+var g=out.grade||'';
+if(out.type==='note'){
+out.classification='advisor_review';
+out.statusNote=(out.flags||[]).join('; ');
+return out;
+}
+if(out.section==='99'){
+out.classification='non_degree';
+out.reviewReason='Audit lists this item in Section 99 - Non-degree Courses.';
+return out;
+}
+if(out.type==='requirement_group'){
+out.classification='unmet_requirement';
+out.placementStatus='unplaced';
+out.confidence='high';
+return out;
+}
+// Excess-units is a flag, NOT a classification override. Mark and continue.
+if(out.flags.indexOf('Course provides excess units')!==-1){
+out.excessUnitsFlag=true;
+out.reviewNote='Course provides excess units';
+}
+if(g==='MET'||g==='VERIFY'||out.wildcard){
+out.classification='advisor_review';
+out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':
+out.wildcard?'Wildcard/generic transfer code needs advisor confirmation.':
+'Verify-only row; advisor should confirm.';
+return out;
+}
+if(g==='TIP'){
+out.classification='transfer_in_progress';
+out.reviewReason='Transfer-in-progress credit is not posted.';
+return out;
+}
+if(['TA','TB','TB+','TB-','TC','TC+','TC-','TD','TD+','TD-','TR','CR','PF'].indexOf(g)!==-1){
+if(g==='PF'&&!out.units){
+out.classification='advisor_review';
+out.reviewReason='Proficiency/verify row with no credit units.';
+} else {
+out.classification='transfer_posted';
+}
+return out;
+}
+if(/^[ABCD][+-]?$/.test(g)){
+out.classification='completed_nc_state';
+return out;
+}
+if(out.term&&!g){
+out.classification='planned_current';
+if(out.flags.indexOf('Wait Listed')!==-1){
+out.advisorReviewFlag=true;
+out.statusNote='Wait Listed';
+}
+return out;
+}
+out.classification='advisor_review';
+out.reviewReason='Could not confidently classify audit row.';
+return out;
+});
+}
+
+function matchItemsToRequirements(classifiedItems, requirementCatalog){
+return (classifiedItems||[]).map(function(item){
+var out=Object.assign({},item);
+var code=out.code||'';
+var match=requirementCatalog&&requirementCatalog[code];
+if(match)out.matchedRequirement=match;
+return out;
+});
+}
+
+function buildPlanSections(classifiedItems, matchedRequirements, planningSettings){
+var sections={
+completedNcState:[],
+transferPrior:[],
+plannedCurrent:[],
+futureRequirements:[],
+advisorReview:[]
+};
+(matchedRequirements||classifiedItems||[]).forEach(function(item){
+if(item.classification==='completed_nc_state')sections.completedNcState.push(item);
+else if(item.classification==='transfer_posted')sections.transferPrior.push(item);
+else if(item.classification==='planned_current')sections.plannedCurrent.push(item);
+else if(item.classification==='unmet_requirement')sections.futureRequirements.push(item);
+else sections.advisorReview.push(item);
+});
+return sections;
+}
+
+function isTopAuditSection(section){
+return section&&section.term&&(
+section.term.indexOf('Transfer')===0||
+section.term.indexOf('Prior NC')===0||
+section.term.indexOf('Completed NC State')===0||
+section.term.indexOf('Planned / Current')===0||
+section.term.indexOf('In Progress')===0
+);
+}
+
+function isSchedulableSemester(section){
+return section&&section.term&&!isTopAuditSection(section)&&
+section.term.indexOf('Advisor Review')===-1&&
+section.term.indexOf('Non-Degree')===-1&&
+section.term.indexOf('Not Applied')===-1;
+}
+
+var api={
+parseAuditText:parseAuditText,
+classifyAuditItems:classifyAuditItems,
+matchItemsToRequirements:matchItemsToRequirements,
+buildPlanSections:buildPlanSections,
+isTopAuditSection:isTopAuditSection,
+isSchedulableSemester:isSchedulableSemester
+};
+root.PawPlanAuditCore=api;
+if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script>
 <style>
 :root{
   --red:#CC0000;--red-dark:#9B0000;
@@ -120,11 +402,11 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .transferred-badge{font-size:0.58rem;background:#059669;color:#fff;padding:0.1rem 0.35rem;border-radius:4px;font-weight:600;margin-left:0.3rem;letter-spacing:0.02em}
 @media(max-width:900px){.semester-row{grid-template-columns:1fr}.header,.main,.toolbar,.legend,.prereq-banner,.validation-bar,.drag-hint,.total-bar{padding-left:1rem;padding-right:1rem}}
 @media print{.toolbar,.reset-btn,.drag-hint{display:none}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}.semester,.course{break-inside:avoid}}
-/* Sample plan state — banner shows above plan, plan is scaled down to indicate it's a preview but stays interactive */
+/* Sample plan state â€” banner shows above plan, plan is scaled down to indicate it's a preview but stays interactive */
 body.sample-mode #plan-section{opacity:0.85;transform:scale(0.92);transform-origin:top center;transition:opacity 0.3s ease,transform 0.3s ease}
 body.sample-mode #plan-section:hover{opacity:1}
 body.sample-mode #toolbar{display:none}
-/* Uploaded state — Upload Degree Audit primary button moves to More menu as "Upload new audit" */
+/* Uploaded state â€” Upload Degree Audit primary button moves to More menu as "Upload new audit" */
 body.uploaded-mode #toolbar #transcript-btn{display:none}
 body.uploaded-mode #more-tools-menu #reupload-btn{display:block !important}
 /* Collapsible course-colors legend */
@@ -139,7 +421,7 @@ body.uploaded-mode #more-tools-menu #reupload-btn{display:block !important}
 <body>
 <div class="header"><div class="header-inner">
 <h1><span style="color:var(--red);font-weight:700;letter-spacing:-0.02em">Paw Plan</span> <span style="color:rgba(255,255,255,0.25);font-weight:300;margin:0 0.15rem">|</span> Agribusiness Management, BS</h1>
-<div class="subtitle">College of Agriculture & Life Sciences · NC State University · Interactive 4-Year Degree Planner</div>
+<div class="subtitle">College of Agriculture & Life Sciences Â· NC State University Â· Interactive 4-Year Degree Planner</div>
 <div class="header-row"><div class="credit-summary">
 <div class="credit-box"><div class="cb-label">Total Required</div><div class="cb-value">120</div></div>
 <div class="credit-box"><div class="cb-label">Planned</div><div class="cb-value" id="total-planned">0</div></div>
@@ -272,7 +554,7 @@ Save your plan as a file. Load it later or email it to your advisor.
 <span class="prereq-tag">EC/ARE 301</span>
 </div></div>
 <div class="drag-hint" id="drag-hint" style="font-style:normal;font-size:0.85rem;color:var(--text);max-width:1400px;margin:0.75rem auto 0.4rem;padding:0.7rem 1rem;background:rgba(29,78,216,0.06);border:1px solid rgba(29,78,216,0.25);border-left:4px solid #1D4ED8;border-radius:6px;font-family:Inter,sans-serif"><strong style="color:#1D4ED8">&#9755; What's next:</strong> <strong>Drag courses between semesters</strong> to adjust your plan. Click courses with a <span style="border:1.5px dashed var(--text-3);padding:0 0.25rem;border-radius:3px;font-size:0.78rem">dashed border</span> to pick from approved options. Possible prerequisite timing issues will be flagged for advisor review.</div>
-<div class="drag-hint" id="transfer-hint" style="display:none;color:#059669;font-style:normal;font-weight:600;background:rgba(5,150,105,0.08);padding:0.6rem 1rem;border-radius:6px;border:1px solid rgba(5,150,105,0.2);margin-top:0.4rem">&#9654; Transfer Mode ON — Click any course to move it to the Transfer Credit section below. Transferred courses still count toward your 120 credits. Click a transferred course to restore it. Click "Transfer Mode" again to exit.</div>
+<div class="drag-hint" id="transfer-hint" style="display:none;color:#059669;font-style:normal;font-weight:600;background:rgba(5,150,105,0.08);padding:0.6rem 1rem;border-radius:6px;border:1px solid rgba(5,150,105,0.2);margin-top:0.4rem">&#9654; Transfer Mode ON â€” Click any course to move it to the Transfer Credit section below. Transferred courses still count toward your 120 credits. Click a transferred course to restore it. Click "Transfer Mode" again to exit.</div>
 <div class="validation-bar" id="validation-bar"></div>
 <div id="verify-bar" style="max-width:1400px;margin:0.5rem auto 0;padding:0 2rem"></div>
 <div class="main" id="main"></div>
@@ -457,7 +739,7 @@ var DEPT_OR_TECH_PREFIXES=TECH_PREFIXES.concat(DEPT_PREFIXES);
 // Valid departmental elective codes (exact match)
 var DEPT_VALID_CODES=["ACC 200","ACC 210","ACC 220","ACC 230","ACC 280","ACC 295","ACC 310","ACC 311","ACC 330","ACC 340","ACC 411","ACC 420","ACC 440","ACC 450","ACC 451","ACC 452","ACC 453","ACC 458","ACC 459","ACC 460","ACC 495","ACC 498","ACC 499","ACC 508","ACC 510","ACC 519","ACC 520","ACC 530","ACC 533","ACC 534","ACC 535","ACC 538","ACC 540","ACC 544","ACC 545","ACC 550","ACC 571","ACC 572","ACC 580","ACC 588","ACC 590","ARE 215","ARE 260","ARE 270","ARE 290","ARE 295","ARE 301","ARE 303","ARE 304","ARE 306","ARE 309","ARE 311","ARE 312","ARE 321","ARE 323","ARE 332","ARE 336","ARE 345","ARE 370","ARE 395","ARE 404","ARE 412","ARE 413","ARE 415","ARE 420","ARE 425","ARE 433","ARE 444","ARE 448","ARE 455","ARE 470","ARE 475","ARE 490","ARE 492","ARE 493","ARE 494","ARE 495","ARE 515","ARE 590","BUS 225","BUS 295","BUS 320","BUS 340","BUS 350","BUS 351","BUS 360","BUS 370","BUS 420","BUS 422","BUS 423","BUS 425","BUS 426","BUS 427","BUS 428","BUS 429","BUS 440","BUS 441","BUS 442","BUS 443","BUS 444","BUS 449","BUS 458","BUS 459","BUS 460","BUS 461","BUS 462","BUS 463","BUS 464","BUS 465","BUS 466","BUS 467","BUS 468","BUS 469","BUS 470","BUS 472","BUS 473","BUS 474","BUS 475","BUS 476","BUS 479","BUS 480","BUS 495","BUS 498","BUS 541","BUS 542","BUS 543","BUS 554","BUS 558","BUS 571","BUS 590","EC 202","EC 301","EC 302","EC 305","EC 336","EC 348","EC 351","EC 404","EC 410","EC 413","EC 431","EC 437","EC 448","EC 449","EC 451","EC 468","EC 474","EC 490","EC 495","EC 498","M 100","MA 105","MBA 501","MBA 502","MBA 512","MBA 515","MBA 516","MBA 518","MBA 525","MBA 530","MBA 531","MBA 532","MBA 533","MBA 534","MBA 539","MBA 572","MBA 578","MBA 579","MBA 580","MBA 584","MBA 585","MBA 586","MBA 589","MIE 201","MIE 209","MIE 295","MIE 305","MIE 306","MIE 309","MIE 310","MIE 330","MIE 335","MIE 410","MIE 411","MIE 412","MIE 413","MIE 416","MIE 418","MIE 419","MIE 430","MIE 432","MIE 434","MIE 435","MIE 436","MIE 437","MIE 438","MIE 439","MIE 480","MIE 495","MIE 498","MIE 501","MIE 510","MIE 511","MIE 516","MIE 517","MIE 522","MIE 535","MIE 536","MIE 570","MIE 573","MIE 574","MIE 576","MIE 577","MIE 581","MIE 590","MSE 576","MSE 577","PRT 406","ST 350","TTM 585"];
 
-// GEP Verify Requirements (overlay — no extra hours needed)
+// GEP Verify Requirements (overlay â€” no extra hours needed)
 var VERIFY_GLOBAL_KNOWLEDGE=["AEC 245","AEC 260","AEC 380","ADN 275","AFS 240","AFS 275","AFS 276","AFS 342","AFS 475","AFS 476","AFS 479","AFS 575","AFS 576","AFS 579","ALS 494","ANS 395","ANT 252","ANT 253","ANT 261","ANT 315","ANT 325","ANT 330","ANT 345","ANT 360","ANT 371","ANT 461","ANT 471","ANT 561","ANT 571","ARC 141","ARE 345","ARE 494","ARS 251","ARS 252","ARS 353","ARS 354","ARS 410","CE 489","CE 589","COM 215","COM 364","COM 374","COM 392","COM 447","CS 224","CS 230","DAN 122","DAN 227","DAN 228","E 480","EC 449","ECD 225","ENG 215","ENG 219","ENG 220","ENG 221","ENG 222","ENG 223","ENG 224","ENG 246","ENG 255","ENG 275","ENG 282","ENG 326","ENG 329","ENG 364","ENG 374","ENG 378","ENG 380","ENG 382","ENG 385","ENG 390","ENG 392","ENG 393","ENG 394","ENG 399","ENG 406","ENG 407","ENG 439","ENG 451","ENG 464","ENG 465","ENG 551","ENT 207","ES 100","ES 113","ES 150","ES 200","ES 300","ES 449","ES 450","FOR 414","FW 221","FW 465","FW 565","GEO 220","GOH 201","GOH 302","HA 240","HI 207","HI 208","HI 209","HI 210","HI 214","HI 215","HI 216","HI 217","HI 221","HI 222","HI 232","HI 233","HI 240","HI 263","HI 264","HI 270","HI 275","HI 276","HI 307","HI 317","HI 321","HI 324","HI 325","HI 332","HI 335","HI 338","HI 340","HI 342","HI 361","HI 370","HI 371","HI 374","HI 375","HI 376","HI 377","HI 378","HI 402","HI 407","HI 408","HI 410","HI 411","HI 412","HI 414","HI 415","HI 418","HI 419","HI 421","HI 422","HI 423","HI 425","HI 429","HI 430","HI 465","HI 466","HI 467","HI 468","HI 469","HI 470","HI 471","HI 472","HI 473","HI 474","HI 475","HI 476","HI 477","HI 478","HI 479","HI 483","HI 484","HI 486","HI 511","HI 512","HI 514","HI 515","HI 518","HI 519","HI 521","HI 522","HI 523","HI 525","HI 530","HI 568","HI 569","HI 570","HI 571","HI 573","HI 575","HI 576","HI 577","HI 579","HI 583","HI 584","HI 586","HON 293","HON 311","HON 353","HON 355","HON 356","HON 358","HON 359","HON 360","HON 370","HON 390","HUMG 295","IDS 201","IDS 220","IDS 310","IPGK 295","IS 200","IS 471","IS 571","MEA 100","MUS 105","MUS 200","MUS 202","MUS 215","MUS 320","MUS 330","MUS 350","NSGK 295","NTR 220","PRT 449","PRT 450","PS 231","PS 236","PS 335","PS 336","PS 339","PS 341","PS 342","PS 345","PS 431","PS 433","PS 441","REL 200","REL 210","REL 220","REL 230","REL 311","REL 312","REL 314","REL 317","REL 327","REL 331","REL 332","REL 333","REL 334","REL 340","REL 350","REL 383","REL 402","REL 407","REL 408","REL 412","REL 413","REL 424","REL 482","REL 489","SOC 220","SOC 261","SOC 342","SOC 351","STS 302","STS 320","STS 323","SW 440","SW 540","WL 210","WL 211","WL 216","WL 218","WL 219","WL 220","WL 221","WL 222","WL 223","WL 224","WL 246","WL 250","WL 275","WL 320","WL 355","WL 357","WL 392","WL 393","WL 394","WL 406","WL 407","WL 451","WLAR 318","WLAR 320","WLAR 351","WLCH 202","WLCH 351","WLCH 402","WLCL 200","WLCL 210","WLCL 215","WLCL 225","WLCL 320","WLCL 325","WLFR 202","WLFR 212","WLFR 301","WLFR 302","WLFR 315","WLFR 318","WLFR 320","WLFR 425","WLFR 525","WLGE 202","WLGE 212","WLGE 315","WLGE 318","WLGE 320","WLGE 323","WLGE 325","WLGE 420","WLGE 440","WLGR 202","WLHU 202","WLHU 301","WLHU 302","WLHU 351","WLHU 401","WLIT 202","WLIT 315","WLIT 318","WLJA 202","WLJA 342","WLJA 344","WLJA 345","WLRU 202","WLRU 303","WLRU 304","WLRU 318","WLSP 202","WLSP 212","WLSP 335","WLSP 338","WLSP 340","WLSP 341","WLSP 342","WLSP 343","WLSP 351","WLSP 352","WLSP 353","WLSP 360"];
 
 var VERIFY_AMER_DEMOCRACY=["AFS 248","COM 371","ENG 248","ENG 265","FAD 295","HI 253","HI 254","HI 345","HI 382","HSS 201","PHI 212","PS 201","PS 208","PS 362","REL 250","SOC 212","WLCL 222"];
@@ -616,22 +898,51 @@ var DEFAULT_PLAN=[
 {term:"Summer I & II \u2014 Year 2",courses:[]},
 {term:"Summer I & II \u2014 Year 3",courses:[]},
 {term:"Summer I & II \u2014 Year 4",courses:[]},
-{term:"Prior NC State Courses",courses:[]},
-{term:"Transfer / Test / Prior Credit",courses:[]}
+{term:"Completed NC State Courses",courses:[]},
+{term:"Transfer / Test / Prior Credit",courses:[]},
+{term:"In Progress / Planned from Audit",courses:[]}
 ];
 
 var plan=JSON.parse(JSON.stringify(DEFAULT_PLAN));
 var showPrereqs=true,showValidation=false,transferMode=false;
 
+function isPriorTerm(term){return term&&term.indexOf('Prior NC State')===0;}
+function isCompletedNcTerm(term){return term&&(term.indexOf('Completed NC State')===0||term.indexOf('Prior NC State')===0);}
+function isTransferTerm(term){return term&&term.indexOf('Transfer')===0;}
+function isPlannedAuditTerm(term){return term&&term.indexOf('In Progress / Planned from Audit')===0;}
+function isSummerTerm(term){return term&&term.indexOf('Summer')===0;}
+function isSpecialTerm(term){return isCompletedNcTerm(term)||isTransferTerm(term)||isPlannedAuditTerm(term);}
+function isTopAuditSection(section){
+if(window.PawPlanAuditCore&&window.PawPlanAuditCore.isTopAuditSection)return window.PawPlanAuditCore.isTopAuditSection(section);
+return section&&section.term&&(
+section.term.indexOf('Transfer')===0||
+section.term.indexOf('Prior NC')===0||
+section.term.indexOf('Completed NC State')===0||
+section.term.indexOf('Planned / Current')===0||
+section.term.indexOf('In Progress')===0
+);
+}
+function isSchedulableSemester(section){
+if(window.PawPlanAuditCore&&window.PawPlanAuditCore.isSchedulableSemester)return window.PawPlanAuditCore.isSchedulableSemester(section);
+return section&&section.term&&!isTopAuditSection(section)&&
+section.term.indexOf('Advisor Review')===-1&&
+section.term.indexOf('Non-Degree')===-1&&
+section.term.indexOf('Not Applied')===-1;
+}
+function isRegularTerm(term){return isSchedulableSemester({term:term})&&!isSummerTerm(term);}
+function isEarnedClassification(c){
+return c&&(c.classification==='completed_nc_state'||c.classification==='transfer_posted'||c.classification==='transfer_test_prior');
+}
+
 // Extend plan to accommodate more years if needed
 function ensureSemesterExists(semIdx){
 while(semIdx>=plan.length){
-// Count semester types — exclude Prior NC State and Transfer (special sections)
+// Count semester types â€” exclude Prior NC State and Transfer (special sections)
 var regularCount=0;
 var summerCount=0;
 plan.forEach(function(s){
-if(s.term.indexOf('Summer')===0)summerCount++;
-else if(s.term.indexOf('Prior NC State')!==0&&s.term.indexOf('Transfer')!==0)regularCount++;
+if(isSummerTerm(s.term))summerCount++;
+else if(isRegularTerm(s.term))regularCount++;
 });
 var yearNum=Math.floor(regularCount/2)+1;
 if(semIdx<regularCount+2){
@@ -651,6 +962,7 @@ plan.splice(summerInsertIdx,0,{term:"Summer I & II \u2014 Year "+(summerCount+1)
 var transferredCourses=[];
 var withdrawnCoursesGlobal=[];
 var nonDegreeCourses=[];
+var advisorReviewCourses=[];
 var undoStack=[];
 var currentPickerTarget=null;
 
@@ -660,7 +972,13 @@ setTimeout(function(){t.classList.remove('show');},5000);
 }
 
 function saveUndo(){
-undoStack.push({plan:JSON.parse(JSON.stringify(plan)),transferred:JSON.parse(JSON.stringify(transferredCourses))});
+undoStack.push({
+plan:JSON.parse(JSON.stringify(plan)),
+transferred:JSON.parse(JSON.stringify(transferredCourses)),
+nonDegree:JSON.parse(JSON.stringify(nonDegreeCourses)),
+advisorReview:JSON.parse(JSON.stringify(advisorReviewCourses)),
+withdrawn:JSON.parse(JSON.stringify(withdrawnCoursesGlobal))
+});
 if(undoStack.length>30)undoStack.shift();
 updateUndoBtn();
 }
@@ -670,6 +988,9 @@ if(undoStack.length===0)return;
 var prev=undoStack.pop();
 plan=prev.plan;
 transferredCourses=prev.transferred;
+nonDegreeCourses=prev.nonDegree||[];
+advisorReviewCourses=prev.advisorReview||[];
+withdrawnCoursesGlobal=prev.withdrawn||[];
 render();
 showToast('Undone!');
 updateUndoBtn();
@@ -690,11 +1011,12 @@ return '<div class="legend-item"><div class="legend-dot" style="background:'+v.c
 function render(){
 var main=document.getElementById('main');main.innerHTML='';
 
-// Find Prior NC State and Transfer section indices
-var priorNcIdx=-1, transferIdx=-1;
+// Find top classification section indices
+var priorNcIdx=-1, transferIdx=-1, plannedAuditIdx=-1;
 plan.forEach(function(s,si){
-if(s.term.indexOf('Prior NC State')===0)priorNcIdx=si;
-if(s.term.indexOf('Transfer')===0)transferIdx=si;
+if(isCompletedNcTerm(s.term))priorNcIdx=si;
+if(isTransferTerm(s.term))transferIdx=si;
+if(isPlannedAuditTerm(s.term))plannedAuditIdx=si;
 });
 
 // Helper to render a "special" wide top section (Prior NC State, Transfer)
@@ -716,15 +1038,18 @@ trow.appendChild(td);
 tg.appendChild(trow);main.appendChild(tg);
 }
 
-// Render Prior NC State Courses section (blue theme, compact — completed at NC State)
-renderSpecialSection(priorNcIdx,'&#10003;','Prior NC State Courses','Courses you have already completed at NC State','#1D4ED8',true);
+// Render Prior NC State Courses section (blue theme, compact â€” completed at NC State)
+renderSpecialSection(priorNcIdx,'&#10003;','Completed NC State Courses','Courses you have already completed at NC State','#1D4ED8',true);
 
-// Render Transfer / Test / Prior Credit section (green theme — external credit)
+// Render Transfer / Test / Prior Credit section (green theme â€” external credit)
 renderSpecialSection(transferIdx,'&#8644;','Transfer / Test / Prior Credit','Courses already completed or expected through transfer, test credit, dual enrollment, or another institution','#059669',false);
+
+// Render In Progress / Planned from Audit section (gold theme)
+renderSpecialSection(plannedAuditIdx,'&#9711;','In Progress / Planned from Audit','Current or planned courses found in the audit; not counted as earned','#D97706',false);
 
 // Dynamically determine regular semesters (non-Summer, non-Transfer, non-Prior)
 var regularSems=[];
-plan.forEach(function(s,si){if(s.term.indexOf('Summer')!==0&&s.term.indexOf('Transfer')!==0&&s.term.indexOf('Prior NC State')!==0)regularSems.push(si);});
+plan.forEach(function(s,si){if(isRegularTerm(s.term))regularSems.push(si);});
 // Group regular semesters into years of 2
 var years=[];
 var yearLabels=['Freshman','Sophomore','Junior','Senior','Year 5','Year 6','Year 7'];
@@ -750,7 +1075,7 @@ g.appendChild(row);main.appendChild(g);
 });
 // Render Summer sections
 var summerSems=[];
-plan.forEach(function(s,si){if(s.term.indexOf('Summer')===0)summerSems.push(si);});
+plan.forEach(function(s,si){if(isSummerTerm(s.term))summerSems.push(si);});
 if(summerSems.length>0){
 var sg=document.createElement('div');sg.className='year-group';
 sg.innerHTML='<div class="year-label">Summer Courses <span style="font-weight:400;font-size:0.8rem;color:var(--text-3)">(optional \u2014 drag courses here to lighten your semester load)</span></div>';
@@ -784,27 +1109,35 @@ trow.appendChild(item);
 });
 tg.appendChild(trow);main.appendChild(tg);
 }
-// Render Non-Degree Courses section
-if(nonDegreeCourses.length>0){
+// Render Advisor Review / Not Applied / Non-Degree section
+var reviewItems=advisorReviewCourses.concat(nonDegreeCourses);
+if(reviewItems.length>0){
 var ng=document.createElement('div');ng.className='year-group';
-var ndCr=nonDegreeCourses.reduce(function(s,c){return s+c.units;},0);
-ng.innerHTML='<div class="year-label" style="color:#737373">Non-Degree Courses <span style="font-weight:400;font-size:0.8rem">('+ndCr+' cr \u2014 completed but not filling a degree requirement)</span></div>';
+var ndCr=reviewItems.reduce(function(s,c){return s+(c.units||0);},0);
+ng.innerHTML='<div class="year-label" style="color:#737373">Advisor Review / Not Applied / Non-Degree <span style="font-weight:400;font-size:0.8rem">('+ndCr+' cr visible here, not counted as earned/applied)</span></div>';
 var nrow=document.createElement('div');nrow.style.cssText='display:flex;flex-wrap:wrap;gap:0.5rem;padding:0 1rem 1rem';
-nonDegreeCourses.forEach(function(c){
+reviewItems.forEach(function(c){
 var item=document.createElement('div');
 item.className='course';
 item.style.cssText='border:1.5px solid #A3A3A3;background:rgba(163,163,163,0.06);min-width:180px;max-width:250px';
 var termLabel=c.term?'<span style="font-size:0.65rem;color:#737373;margin-left:0.3rem">'+c.term+'</span>':'';
-item.innerHTML='<div class="cat-stripe" style="background:#A3A3A3"></div><div class="course-info"><div class="course-code">'+c.code+termLabel+'</div><div class="course-name">'+c.name+'</div></div><div class="course-right"><div class="course-cr">'+c.units+' cr</div><div class="course-cat-label" style="background:#A3A3A3">Non-Degree</div></div>';
+var reviewLabel=c.reviewType||'Review';
+var reviewNote=c.reviewReason?'<div class="course-name" style="white-space:normal">'+c.reviewReason+'</div>':'<div class="course-name">'+c.name+'</div>';
+item.innerHTML='<div class="cat-stripe" style="background:#A3A3A3"></div><div class="course-info"><div class="course-code">'+c.code+termLabel+'</div>'+reviewNote+'</div><div class="course-right"><div class="course-cr">'+(c.units||0)+' cr</div><div class="course-cat-label" style="background:#A3A3A3">'+reviewLabel+'</div></div>';
 nrow.appendChild(item);
 });
 ng.appendChild(nrow);main.appendChild(ng);
 }
-// Update transfer counter
-document.getElementById('transfer-cr').textContent=transferredCourses.reduce(function(s,c){return s+c.units;},0);
+// Update transfer counter (posted transfer/test/prior only; TIP/review items stay out)
+var postedTransferCr=transferredCourses.reduce(function(s,c){return s+(c.units||0);},0);
+plan.forEach(function(s){
+if(!isTransferTerm(s.term))return;
+s.courses.forEach(function(c){postedTransferCr+=(c.units||0);});
+});
+document.getElementById('transfer-cr').textContent=postedTransferCr;
 
 // Show extended plan banner if more than 8 regular semesters (excluding special sections)
-var regularSems=plan.filter(function(s){return s.term.indexOf('Summer')!==0&&s.term.indexOf('Prior NC State')!==0&&s.term.indexOf('Transfer')!==0;}).length;
+var regularSems=plan.filter(function(s){return isRegularTerm(s.term);}).length;
 var extBanner=document.getElementById('extended-plan-banner');
 if(!extBanner){
 extBanner=document.createElement('div');
@@ -829,7 +1162,8 @@ var cat=CATEGORIES[c.cat]||CATEGORIES.free;
 var codeEsc=c.code.replace(/'/g,"&#39;");
 var tagLabel=c.tag||cat.label;
 var pickClass=c.picker?' pickable':'';
-return '<div class="course'+pickClass+'" draggable="true" data-sem="'+si+'" data-ci="'+ci+'" data-code="'+c.code+'" data-id="'+c.id+'" onclick="handleTransferClick('+si+','+ci+')" onmouseenter="hlPrereqs(this.dataset.code,true)" onmouseleave="hlPrereqs(this.dataset.code,false)"><div class="cat-stripe" style="background:'+cat.color+'"></div><div class="course-info"><div class="course-code">'+c.code+'</div><div class="course-name">'+c.name+'</div></div><div class="course-right"><div class="course-cr">'+c.units+' cr</div><div class="course-cat-label" style="background:'+cat.color+'">'+tagLabel+'</div></div></div>';
+var canDrag=!(plan[si]&&(isPriorTerm(plan[si].term)||isTransferTerm(plan[si].term)));
+return '<div class="course'+pickClass+'" draggable="'+(canDrag?'true':'false')+'" data-sem="'+si+'" data-ci="'+ci+'" data-code="'+c.code+'" data-id="'+c.id+'" onclick="handleTransferClick('+si+','+ci+')" onmouseenter="hlPrereqs(this.dataset.code,true)" onmouseleave="hlPrereqs(this.dataset.code,false)"><div class="cat-stripe" style="background:'+cat.color+'"></div><div class="course-info"><div class="course-code">'+c.code+'</div><div class="course-name">'+c.name+'</div></div><div class="course-right"><div class="course-cr">'+c.units+' cr</div><div class="course-cat-label" style="background:'+cat.color+'">'+tagLabel+'</div></div></div>';
 }
 
 // PREREQ-ENFORCED DRAG
@@ -908,7 +1242,7 @@ function checkPrereqViolation(course,fromSem,toSem){
 var code=course.code;
 var semOf={};
 var origMap={"MA121":"MA 121/131/141","MATH2":"MA 114 or ST 311","ST311":"ST 311 or MA 114","COM112":"COM 112/211/226 or ENG 332","ARE306":"ARE 306/309","ARE303":"ARE 303/304","ARE312":"ARE 311/312","ARE321":"ARE 321/323/BUS 320","BIO":"BIO 105/106/181 or PB 200","MEA":"Natural Science Elective (4 cr)","NATSCI1":"Natural Science Elective (3 cr)","IDS201":"Interdisc Perspectives"};
-// Code → equivalent alt-forms used as keys/values in PREREQS.
+// Code â†’ equivalent alt-forms used as keys/values in PREREQS.
 // e.g. "MA 121" and "MA 121/131/141" represent the same course; "ARE 301" and "EC/ARE 301" likewise.
 function altForms(c){
 if(c==='MA 121'||c==='MA 131'||c==='MA 141'||c==='MA 121/131/141')return ['MA 121','MA 131','MA 141','MA 121/131/141'];
@@ -947,7 +1281,7 @@ return myPrereqs[i]+' is highly recommended to be taken before ARE 336.';
 // If this prereq is also listed as SOFT for this course, use the friendly message.
 var isSoftPrereq=mySoftPrereqs.indexOf(myPrereqs[i])!==-1;
 if(isSoftPrereq){
-return 'Take MA 121 as early as possible — ARE 301 and ARE 433 depend on it.';
+return 'Take MA 121 as early as possible â€” ARE 301 and ARE 433 depend on it.';
 }
 return 'Advisor review needed: '+myPrereqs[i]+' is a prerequisite for '+code+'.';
 }
@@ -956,7 +1290,7 @@ return 'Advisor review needed: '+myPrereqs[i]+' is a prerequisite for '+code+'.'
 for(var si2=0;si2<mySoftPrereqs.length;si2++){
 var sps=semOf[mySoftPrereqs[si2]];
 if(sps!==undefined&&sps>=toSem){
-return 'Take MA 121 as early as possible — ARE 301 and ARE 433 depend on it.';
+return 'Take MA 121 as early as possible â€” ARE 301 and ARE 433 depend on it.';
 }
 }
 // Check: does moving this course break dependents?
@@ -971,10 +1305,10 @@ if(ds!==undefined&&ds<=toSem){
 // Check whether this relationship is a SOFT prereq (placement preference only).
 var isSoft=SOFT_PREREQS[dep]&&movedCodes.some(function(mc){return SOFT_PREREQS[dep].indexOf(mc)!==-1;});
 if(isSoft){
-return 'Take MA 121 as early as possible — ARE 301 and ARE 433 depend on it.';
+return 'Take MA 121 as early as possible â€” ARE 301 and ARE 433 depend on it.';
 }
 // ARE 336 prereq is enforced for placement but framed as a recommendation to users
-// (not officially a co-requisite — but strongly recommended ordering).
+// (not officially a co-requisite â€” but strongly recommended ordering).
 if(dep==='ARE 336'){
 return code+' is highly recommended to be taken before ARE 336.';
 }
@@ -998,11 +1332,25 @@ return 'Heavy load: ACC 210 and ARE 301 in the same semester is challenging. We 
 if((movedIsACC210&&targetHasST311)||(movedIsST311&&targetHasACC210)){
 return 'Heavy load: ACC 210 and ST 311 (or equivalent) in the same semester is challenging. We recommend splitting them across semesters.';
 }
-// === ARE 490 YEAR WARNING ===
-// ARE 490 is a career seminar meant for junior/senior year.
-// Year 1 = sem 0-1, Year 2 = sem 2-3, Year 3 = sem 4-5 (junior), Year 4 = sem 6-7 (senior).
-if(code==='ARE 490'&&toSem<4){
-return 'ARE 490 is a career seminar — recommended for junior or senior year.';
+// === ARE 490 NEAR-END WARNING ===
+// ARE 490 is a capstone-style career seminar. It should stay in one of the
+// last three active regular coursework semesters, even for compressed plans.
+if(code==='ARE 490'){
+var active=[];
+plan.forEach(function(s,idx){
+if(!isRegularTerm(s.term))return;
+var hasCourses=s.courses.length>0;
+if(idx===toSem)hasCourses=true;
+if(idx===fromSem&&s.courses.length===1)hasCourses=false;
+if(hasCourses)active.push(idx);
+});
+var allowed=active.slice(-3);
+if(allowed.length>0&&allowed.indexOf(toSem)===-1){
+return 'ARE 490 should stay near the end of the plan — one of the last three active coursework semesters.';
+}
+if(active.length>1&&toSem===active[0]){
+return 'ARE 490 should not be in the first active coursework semester, even in a compressed plan.';
+}
 }
 return null;
 }
@@ -1296,7 +1644,7 @@ bar.innerHTML+='<div class="validation-msg error">\u26A0 <strong>Advisor review:
 }});
 });
 plan.forEach(function(s){
-if(s.term.indexOf('Summer')===0)return;// skip summer for load checks
+if(!isSchedulableSemester(s)||isSummerTerm(s.term))return;// skip top/review sections and summer for load checks
 var cr=s.courses.reduce(function(a,c){return a+c.units;},0);
 if(cr>18){issues++;bar.innerHTML+='<div class="validation-msg warn">\u26A1 <strong>'+s.term+'</strong> has '+cr+' credits (max recommended: 18)</div>';}
 if(cr>0&&cr<12){issues++;bar.innerHTML+='<div class="validation-msg warn">\u26A1 <strong>'+s.term+'</strong> has '+cr+' credits (below full-time: 12)</div>';}
@@ -1307,13 +1655,35 @@ if(!issues)bar.innerHTML='<div class="validation-msg ok">\u2713 All prereqs sati
 }
 
 function updateTotals(){
-var tot=plan.reduce(function(a,s){return a+s.courses.reduce(function(b,c){return b+c.units;},0);},0);
-var tCr=transferredCourses.reduce(function(s,c){return s+c.units;},0);
-tot+=tCr;
+var buckets={
+completedCredits:0,
+appliedCredits:0,
+transferPostedCredits:0,
+transferInProgressCredits:0,
+plannedCredits:0,
+advisorReviewCredits:0,
+nonDegreeCredits:0
+};
+plan.forEach(function(s){
+s.courses.forEach(function(c){
+var u=c.units||0;
+if(c.classification==='completed_nc_state'){buckets.completedCredits+=u;buckets.appliedCredits+=u;}
+else if(c.classification==='transfer_posted'||c.classification==='transfer_test_prior'){buckets.transferPostedCredits+=u;buckets.appliedCredits+=u;}
+else if(c.classification==='transfer_in_progress'){buckets.transferInProgressCredits+=u;}
+else if(c.classification==='planned_in_progress'){buckets.plannedCredits+=u;}
+else if(!(c.name&&c.name.indexOf('Click')===0)){buckets.plannedCredits+=u;}
+});
+});
+transferredCourses.forEach(function(c){var u=c.units||0;buckets.transferPostedCredits+=u;buckets.appliedCredits+=u;});
+advisorReviewCourses.forEach(function(c){buckets.advisorReviewCredits+=(c.units||0);});
+nonDegreeCourses.forEach(function(c){buckets.nonDegreeCredits+=(c.units||0);});
+window.pawPlanCreditBuckets=buckets;
+var tot=buckets.appliedCredits+buckets.plannedCredits;
+var tCr=buckets.transferPostedCredits;
 var el=document.getElementById('total-planned');el.textContent=tot;
 el.className='cb-value '+(tot<120?'warning':'ok');
-var regSems=plan.filter(function(s){return s.term.indexOf('Summer')!==0&&s.term.indexOf('Prior NC State')!==0&&s.term.indexOf('Transfer')!==0;}).length;
-document.getElementById('avg-per-sem').textContent=Math.round((tot-tCr)/regSems);
+var regSems=plan.filter(function(s){return isRegularTerm(s.term);}).length;
+document.getElementById('avg-per-sem').textContent=Math.round((buckets.plannedCredits)/Math.max(regSems,1));
 }
 
 function updateStrip(){
@@ -1354,7 +1724,7 @@ showValidation=!showValidation;this.classList.toggle('active',showValidation);
 if(showValidation)validate();else document.getElementById('validation-bar').innerHTML='';
 });
 document.getElementById('reset-btn').addEventListener('click',function(){
-plan=JSON.parse(JSON.stringify(DEFAULT_PLAN));transferredCourses=[];withdrawnCoursesGlobal=[];nonDegreeCourses=[];undoStack=[];updateUndoBtn();render();
+plan=JSON.parse(JSON.stringify(DEFAULT_PLAN));transferredCourses=[];withdrawnCoursesGlobal=[];nonDegreeCourses=[];advisorReviewCourses=[];undoStack=[];updateUndoBtn();render();
 showToast('Plan reset to default');
 });
 
@@ -1394,7 +1764,7 @@ render();
 }
 
 document.getElementById('save-btn').addEventListener('click',function(){
-var data={plan:plan,transferred:transferredCourses,version:1,savedAt:new Date().toISOString()};
+var data={plan:plan,transferred:transferredCourses,nonDegree:nonDegreeCourses,advisorReview:advisorReviewCourses,withdrawn:withdrawnCoursesGlobal,creditBuckets:window.pawPlanCreditBuckets||null,version:2,savedAt:new Date().toISOString()};
 var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
 var a=document.createElement('a');
 a.href=URL.createObjectURL(blob);
@@ -1418,6 +1788,9 @@ var data=JSON.parse(ev.target.result);
 if(data.plan&&Array.isArray(data.plan)){
 plan=data.plan;
 transferredCourses=data.transferred||[];
+nonDegreeCourses=data.nonDegree||[];
+advisorReviewCourses=data.advisorReview||[];
+withdrawnCoursesGlobal=data.withdrawn||[];
 render();
 showToast('Plan loaded successfully!');
 }else{
@@ -1516,7 +1889,617 @@ var COURSE_CREDITS={'ENG 101':4,'MEA 100':4,'MEA 135':1,'CH 102':1,'PY 212':1,
 'FLS 100':0,'WLSP 100':0,'LAT 100':0};
 function getCourseCredits(code){return COURSE_CREDITS[code]||3;}
 
-function processDegreeAudit(text){
+function cloneCourse(c){return JSON.parse(JSON.stringify(c));}
+function termToParts(term){
+var m=String(term||'').match(/^(Fall|Spring|Summer)\s+(?:'|20)?(\d{2,4})$/);
+if(!m)return null;
+var year=parseInt(m[2],10);
+if(year<100)year+=2000;
+return {season:m[1],year:year};
+}
+function formatCalendarTerm(parts){
+return parts&&parts.season&&parts.year?parts.season+' '+parts.year:'';
+}
+function nextRegularTerm(term){
+var p=termToParts(term);
+if(!p)return '';
+if(p.season==='Fall')return 'Spring '+(p.year+1);
+return 'Fall '+p.year;
+}
+function termSortValue(term){
+var p=termToParts(term);
+if(!p)return 999999;
+var seasonOffset=p.season==='Spring'?0:p.season==='Summer'?1:2;
+return p.year*3+seasonOffset;
+}
+function addRegularTerms(term,count){
+var out=[];
+var current=term;
+for(var i=0;i<count;i++){
+out.push(current);
+current=nextRegularTerm(current);
+}
+return out;
+}
+function inferPlanningStartTerm(sections){
+var terms=[];
+(sections.plannedCurrent||[]).forEach(function(item){
+var p=termToParts(item.term);
+if(p&&(p.season==='Fall'||p.season==='Spring'))terms.push(formatCalendarTerm(p));
+});
+terms.sort(function(a,b){
+var pa=termToParts(a),pb=termToParts(b);
+var va=pa.year*2+(pa.season==='Spring'?1:0);
+var vb=pb.year*2+(pb.season==='Spring'?1:0);
+return va-vb;
+});
+return terms[0]||'';
+}
+function createPlanFromPlanningAnchor(anchorTerm,baseTerm){
+var newPlan=JSON.parse(JSON.stringify(DEFAULT_PLAN));
+baseTerm=baseTerm||anchorTerm;
+var regularTerms=addRegularTerms(baseTerm,8);
+var summerYear=termToParts(baseTerm);
+var regularIndex=0;
+var summerIndex=0;
+newPlan.forEach(function(section){
+if(isTopAuditSection(section))return;
+if(isSummerTerm(section.term)){
+var baseYear=summerYear?summerYear.year:2026;
+section.term='Summer '+(baseYear+summerIndex);
+summerIndex++;
+} else if(isSchedulableSemester(section)){
+if(regularTerms[regularIndex])section.term=regularTerms[regularIndex];
+regularIndex++;
+}
+});
+var anchorValue=termSortValue(anchorTerm);
+return newPlan.filter(function(section){
+if(isTopAuditSection(section))return true;
+var sectionValue=termSortValue(section.term);
+return sectionValue>=anchorValue;
+});
+}
+function defaultNextRegularTerm(){
+var now=new Date();
+var year=now.getFullYear();
+var month=now.getMonth()+1;
+if(month<=5)return 'Fall '+year;
+if(month<=10)return 'Spring '+(year+1);
+return 'Fall '+(year+1);
+}
+function showPlanningStartConfirmation(detectedTerm,onConfirm){
+var body=document.getElementById('modal-body');
+var input=document.getElementById('modal-search-input');
+document.getElementById('modal-title').textContent='Confirm Planning Start';
+input.style.display='none';
+var fallback=detectedTerm||defaultNextRegularTerm();
+var nextTerm=nextRegularTerm(fallback)||defaultNextRegularTerm();
+var prompt=detectedTerm?
+'Paw Plan detected <strong>'+detectedTerm+'</strong> as your active/planned term. When should your future plan begin?'
+:'We could not confidently detect your starting term. When should your future plan begin?';
+var options=detectedTerm?
+[
+{label:'Start with detected term',term:detectedTerm},
+{label:'Start with the next term',term:nextTerm}
+]:
+[
+{label:'Start with next upcoming term',term:fallback},
+{label:'Start with the following term',term:nextTerm}
+];
+var html='<div style="padding:1.25rem;font-size:0.9rem;color:var(--text-1);line-height:1.6">';
+html+='<p style="margin:0 0 1rem 0">'+prompt+'</p>';
+options.forEach(function(opt,idx){
+html+='<button id="planning-anchor-'+idx+'" style="display:block;width:100%;text-align:left;margin:0.5rem 0;padding:0.8rem 0.9rem;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-weight:600;cursor:pointer">'+opt.label+' <span style="color:var(--text-2);font-weight:500">('+opt.term+')</span></button>';
+});
+html+='<div style="display:flex;gap:0.5rem;align-items:center;margin-top:1rem">';
+html+='<select id="planning-anchor-season" style="padding:0.55rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><option>Fall</option><option>Spring</option></select>';
+html+='<input id="planning-anchor-year" type="number" min="2020" max="2040" value="'+(termToParts(fallback).year)+'" style="width:7rem;padding:0.55rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">';
+html+='<button id="planning-anchor-custom" style="padding:0.6rem 0.9rem;border:none;border-radius:8px;background:var(--red);color:white;font-weight:700;cursor:pointer">Choose another term</button>';
+html+='</div>';
+html+='<p style="margin:1rem 0 0;color:var(--text-2);font-size:0.78rem">Completed NC State courses and posted transfer/test credit stay above the plan and are not used to choose this start term.</p>';
+html+='</div>';
+body.innerHTML=html;
+document.getElementById('modal-overlay').classList.add('open');
+options.forEach(function(opt,idx){
+document.getElementById('planning-anchor-'+idx).addEventListener('click',function(){
+closeModal();
+onConfirm(opt.term);
+});
+});
+document.getElementById('planning-anchor-custom').addEventListener('click',function(){
+var season=document.getElementById('planning-anchor-season').value;
+var year=parseInt(document.getElementById('planning-anchor-year').value,10)||termToParts(fallback).year;
+closeModal();
+onConfirm(season+' '+year);
+});
+}
+function findSpecialSectionIndex(predicate,termName){
+var idx=-1;
+plan.forEach(function(s,si){if(predicate(s.term))idx=si;});
+if(idx===-1){plan.push({term:termName,courses:[]});idx=plan.length-1;}
+return idx;
+}
+function findDefaultSlot(slotId){
+var found=null;
+DEFAULT_PLAN.forEach(function(s){s.courses.forEach(function(c){if(c.id===slotId&&!found)found=c;});});
+return found;
+}
+function auditItemToCourse(item,slotInfo){
+slotInfo=slotInfo||{};
+var code=item.code||item.requirementKind||'Requirement';
+var status=item.classification==='completed_nc_state'?'(Completed)':
+item.classification==='transfer_posted'?'(Transfer Credit)':
+item.classification==='planned_current'?'(In Progress)':
+item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
+if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
+return {
+id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
+code:code,
+name:status,
+units:item.units||getCourseCredits(code),
+cat:slotInfo.cat||item.cat||'free',
+tag:slotInfo.tag||item.requirementKind||'',
+picker:slotInfo.picker||'',
+term:item.term||'',
+slotId:slotInfo.slotId||item.matchedRequirement&&item.matchedRequirement.id||'',
+classification:item.classification,
+placementStatus:item.classification==='planned_current'?'unplaced':'placed',
+placementReason:item.statusNote||item.reviewReason||'Imported from degree audit.',
+confidence:item.confidence||'high',
+reviewType:item.reviewType||'Review',
+reviewReason:item.reviewReason||item.statusNote||'',
+excessUnitsFlag:!!item.excessUnitsFlag,
+reviewNote:item.reviewNote||''
+};
+}
+function requirementGroupToPlanSlots(item){
+var kind=item.requirementKind||'Requirement Group';
+var slots=[];
+function mk(id,code,name,units,cat,picker,tag){
+var base=findDefaultSlot(id)||{};
+return {
+id:id+'_'+Math.random().toString(36).substr(2,3),
+slotId:id,
+code:code||base.code||kind,
+name:name||'Click to choose',
+units:units||base.units||3,
+cat:cat||base.cat||'free',
+picker:picker||base.picker||'',
+tag:tag||base.tag||kind,
+requirementGroup:kind,
+classification:'unmet_requirement',
+placementStatus:'unplaced',
+placementReason:'Requirement group from degree audit.',
+confidence:'medium'
+};
+}
+if(kind==='Humanities Elective'){slots.push(mk('GEPHUMANITIES','GEP Humanities','Click to select course',3,'gep','hum','Humanities GEP'));slots.push(mk('HUMGEP','GEP Humanities 2','Click to select course',3,'gep','hum','Humanities GEP'));}
+else if(kind==='Technical Electives'){var techCount=Math.max(1,Math.ceil((item.units||9)/3));for(var ti=0;ti<techCount;ti++)slots.push(mk('RSTD'+(ti+1),'Technical Elective','Click to choose',ti===techCount-1&&item.units%3?item.units%3:3,'restricted','tech','Tech Elective'));}
+else if(kind==='Departmental or Technical Electives'){var dtCount=Math.max(1,Math.ceil((item.units||6)/3));for(var di=0;di<dtCount;di++)slots.push(mk('RSTD'+(di+4),'Dept or Technical Elective','Click to choose',di===dtCount-1&&item.units%3?item.units%3:3,'restricted','depttech','Dept/Tech Elective'));}
+else if(kind==='ARE 400-level Electives'){slots.push(mk('ARE4A','ARE 4XX','Click to choose',3,'dept','are4xx','ARE 4XX'));slots.push(mk('ARE4B','ARE 4XX','Click to choose',3,'dept','are4xx','ARE 4XX'));}
+else if(kind==='ARE Elective'){slots.push(mk('ARE3A','ARE 3XX','Click to choose',3,'dept','are3xx','ARE 3XX+'));slots.push(mk('ARE3B','ARE 3XX','Click to choose',3,'dept','are3xx','ARE 3XX+'));}
+else if(kind==='Free Electives'){var remaining=Math.max(1,Math.ceil((item.units||3)/3));for(var i=0;i<remaining;i++)slots.push(mk('FREE'+(i+1),'Free Elective','Click to choose',i===remaining-1&&item.units%3?item.units%3:3,'free','free','Free Elective'));}
+else if(kind==='HES Fitness')slots.push(mk('HESF1','HESF 1XX','Click to choose (100-level)',1,'gep','hesf1','Health GEP'));
+else if(kind==='HES Activity')slots.push(mk('HESF2','HES 100/200','Click to choose (100 or 200-level)',1,'gep','hesf2','Health GEP'));
+else if(kind==='Social Science Elective')slots.push(mk('SOCSCI','Social Science Elective','Click to select course',3,'gep','socsci','Social Science GEP'));
+else if(kind==='ALS Orientation Choice')slots.push(mk('ALS103','ALS 103/303 or ARE 290','Click to choose',1,'orientation','','Orientation'));
+else if(kind==='AEE/CSC 200 Choice')slots.push(mk('AEE226','AEE 226 or CSC 200','Click to choose',3,'comm','','Comm/Computing'));
+else if(kind==='Math Choice')slots.push(mk('MATH2','MA 114, 231 or 241','Click to choose',3,'math','','Math'));
+else if(kind==='Statistics Choice')slots.push(mk('ST311','ST 311, BUS 350 or ST 350','Click to choose',3,'math','','Statistics'));
+else if(kind==='Interdisciplinary Perspectives')slots.push(mk('IDS201','Interdisc Perspectives','Click to choose',2,'gep','interdisc','GEP'));
+else if(kind==='GEP Global Knowledge')slots.push(mk('GEPGLOBAL','GEP Global Knowledge','Click to choose',3,'gep','global','GEP'));
+else if(kind==='American Democracy')slots.push(mk('GEPDEMOCRACY','American Democracy','Click to choose',3,'gep','democracy','GEP'));
+else if(kind==='Communications Choice')slots.push(mk('COM112','COM 112/211/226 or ENG 332','Click to choose',3,'comm','com112','Communications'));
+else if(kind==='Accounting Choice')slots.push(mk('ACC210','ACC 200 or ACC 210','Click to choose',3,'dept','','Accounting'));
+else if(kind==='ARE 303/304')slots.push(mk('ARE303','ARE 303/304','Click to choose',3,'dept','are303','ARE Core'));
+else if(kind==='ARE 306/309')slots.push(mk('ARE306','ARE 306/309','Click to choose',3,'dept','are306','ARE Core'));
+else if(kind==='ARE 311/312')slots.push(mk('ARE312','ARE 311/312','Click to choose',3,'dept','are312','ARE Core'));
+else if(kind==='ARE 321/323/BUS 320')slots.push(mk('ARE321','ARE 321/323/BUS 320','Click to choose',3,'dept','are321','ARE Core'));
+else if(kind==='ARE/EC 301')slots.push(mk('EC301','EC/ARE 301','Intermediate Microeconomics',3,'dept','','Intermed Micro'));
+else slots.push(mk('REQ','Requirement Group','Click to choose',item.units||3,'free','','Requirement'));
+return slots;
+}
+function getSlotInfoForImportedItem(item,requirementCatalog){
+var req=item.matchedRequirement||requirementCatalog[item.code]||{};
+var slotId=(typeof req==='string')?req:(req.id||'');
+var found=slotId?findDefaultSlot(slotId):null;
+if(found)return {slotId:slotId,cat:found.cat,tag:found.tag||CATEGORIES[found.cat].label,picker:found.picker||''};
+return {slotId:slotId,cat:'free',tag:item.requirementKind||'',picker:''};
+}
+function removeSatisfiedFutureSlots(sections,requirementCatalog){
+var satisfied={};
+['completedNcState','transferPrior','plannedCurrent'].forEach(function(k){
+(sections[k]||[]).forEach(function(item){
+var req=item.matchedRequirement||requirementCatalog[item.code]||{};
+var slotId=(typeof req==='string')?req:(req.id||'');
+if(slotId)satisfied[slotId]=true;
+});
+});
+var alternates={
+ARE201:['ARE201'],EC202:['EC202'],ACC210:['ACC210'],ARE303:['ARE303'],ARE306:['ARE306'],ARE312:['ARE312'],ARE321:['ARE321'],EC301:['EC301'],ARE433:['ARE433'],ARE490:['ARE490'],ARE336:['ARE336'],
+COM110:['COM110'],COM112:['COM112'],AEE226:['AEE226'],MA121:['MA121'],MATH2:['MATH2'],ST311:['ST311'],ENG101:['ENG101'],BIO:['BIO'],MEA:['MEA'],NATSCI1:['NATSCI1'],SOCSCI:['SOCSCI'],IDS201:['IDS201']
+};
+Object.keys(satisfied).forEach(function(slotId){
+var ids=alternates[slotId]||[slotId];
+plan.forEach(function(s){
+if(!isSchedulableSemester(s))return;
+for(var ci=s.courses.length-1;ci>=0;ci--){
+if(ids.indexOf(s.courses[ci].id)!==-1) s.courses.splice(ci,1);
+}
+});
+});
+return satisfied;
+}
+function filterFuturePlanToAuditRequirements(sections,requirementCatalog){
+var allowed={};
+(sections.futureRequirements||[]).forEach(function(item){
+var slotInfo=getSlotInfoForImportedItem(item,requirementCatalog);
+if(slotInfo.slotId)allowed[slotInfo.slotId]=true;
+if(item.requirementKind&&item.requirementKind!=='Requirement Group'){
+requirementGroupToPlanSlots(item).forEach(function(slot){allowed[slot.slotId||slot.id]=true;});
+}
+});
+plan.forEach(function(s){
+if(!isSchedulableSemester(s))return;
+for(var ci=s.courses.length-1;ci>=0;ci--){
+var c=s.courses[ci];
+var slotId=c.slotId||c.id;
+if(!allowed[slotId])s.courses.splice(ci,1);
+}
+});
+return allowed;
+}
+function suggestedRequirementGroupTargetIndex(slotCredits){
+slotCredits=slotCredits||3;
+var TARGET_LOAD=15, SOFT_MAX=17, HARD_MAX=18;
+var regularIndexes=[];
+plan.forEach(function(s,idx){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))regularIndexes.push(idx);});
+if(!regularIndexes.length)return 0;
+function load(i){return (plan[i].courses||[]).reduce(function(t,c){return t+(c.units||0);},0);}
+// Eligible = not an audit-planned semester that's already loaded
+var elig=regularIndexes.filter(function(i){return !(plan[i].hasAuditPlannedCourses&&load(i)>=TARGET_LOAD);});
+if(!elig.length)elig=regularIndexes;
+// Prefer earliest semester whose resulting load <= SOFT_MAX (17)
+for(var i=0;i<elig.length;i++){if(load(elig[i])+slotCredits<=SOFT_MAX)return elig[i];}
+// Else allow up to HARD_MAX (18)
+for(var i=0;i<elig.length;i++){if(load(elig[i])+slotCredits<=HARD_MAX)return elig[i];}
+// Else fall back to original behavior (the "year 3" slot)
+return elig[Math.min(6,elig.length-1)];
+}
+function applySharedAuditSectionsToPlan(sections,classifiedItems,requirementCatalog,planningSettings){
+planningSettings=planningSettings||{};
+var planningAnchor=planningSettings.planningStartTerm||inferPlanningStartTerm(sections)||defaultNextRegularTerm();
+var basePlanningTerm=planningSettings.detectedTerm||planningAnchor;
+plan=createPlanFromPlanningAnchor(planningAnchor,basePlanningTerm);
+transferredCourses=[];withdrawnCoursesGlobal=[];nonDegreeCourses=[];advisorReviewCourses=[];
+var completedIdx=findSpecialSectionIndex(isCompletedNcTerm,'Completed NC State Courses');
+var transferIdx=findSpecialSectionIndex(isTransferTerm,'Transfer / Test / Prior Credit');
+var plannedIdx=findSpecialSectionIndex(isPlannedAuditTerm,'In Progress / Planned from Audit');
+sections.completedNcState.forEach(function(item){plan[completedIdx].courses.push(auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog)));});
+sections.transferPrior.forEach(function(item){plan[transferIdx].courses.push(auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog)));});
+// Planned/current placement is deferred until after filtering so the actual courses land in their term semesters.
+sections.advisorReview.forEach(function(item){
+var c=auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog));
+c.classification=item.classification==='non_degree'?'non_degree':'advisor_review';
+c.reviewType=item.classification==='non_degree'?'Non-Degree':(item.grade==='TIP'?'TIP':'Review');
+c.reviewReason=item.reviewReason||item.statusNote||'Needs advisor review.';
+if(c.classification==='non_degree')nonDegreeCourses.push(c);else advisorReviewCourses.push(c);
+});
+filterFuturePlanToAuditRequirements(sections,requirementCatalog);
+var satisfiedSlotIds=removeSatisfiedFutureSlots(sections,requirementCatalog)||{};
+// Place planned/current items into their actual audit term inside the future grid (rule: planned/current is a status, not a display section).
+sections.plannedCurrent.forEach(function(item){
+var slotInfo=getSlotInfoForImportedItem(item,requirementCatalog);
+var c=auditItemToCourse(item,slotInfo);
+c.classification='planned_current';
+c.placementStatus='placed';
+var waitListed=(item.flags||[]).indexOf('Wait Listed')!==-1||item.statusNote==='Wait Listed';
+if(waitListed){c.waitListed=true;c.name='(In Progress — Wait Listed)';c.statusNote='Wait Listed';}
+if(item.excessUnitsFlag){c.excessUnitsFlag=true;c.reviewNote=item.reviewNote||'Course provides excess units';}
+var targetIdx=-1;
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&s.term===item.term)targetIdx=si;});
+c.importedFromAudit=true;c.auditStatus='planned_current';
+if(targetIdx>=0){
+plan[targetIdx].courses.push(c);
+plan[targetIdx].hasAuditPlannedCourses=true;
+} else {
+plan[plannedIdx].courses.push(c);
+}
+});
+// EARLY REFLOW with foundation-course priority.
+// Evict every non-audit-planned course from any audit-planned semester and reinsert via the
+// picker, foundation courses first (ARE 201 strongest) so they grab the earliest available
+// semester before electives/GEP can fill it.
+function foundationPriority(slot){
+var id=slot.id||'';var slotId=slot.slotId||'';var code=slot.code||'';
+if(id==='ARE201'||slotId==='ARE201'||/\bARE 201\b/.test(code))return 0;
+if(id==='ALS103'||slotId==='ALS103'||/\bALS 10[33]\b|\bARE 290\b/.test(code))return 1;
+if(id==='ENG101'||slotId==='ENG101'||/\bENG 101\b/.test(code))return 2;
+if(id==='COM110'||slotId==='COM110'||/\bCOM 110\b/.test(code))return 3;
+if(id==='MA121'||slotId==='MA121'||/\bMA 1(2|3|4)1\b/.test(code))return 4;
+return 100;
+}
+function isAuditPlannedCourse(c){return c&&(c.classification==='planned_current'||c.auditStatus==='planned_current'||c.importedFromAudit===true);}
+var earlyDisplaced=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s)||!s.hasAuditPlannedCourses)return;
+for(var i=s.courses.length-1;i>=0;i--){
+if(!isAuditPlannedCourse(s.courses[i])){
+earlyDisplaced.push({slot:s.courses[i],sourceIdx:si});
+s.courses.splice(i,1);
+}
+}
+});
+earlyDisplaced.sort(function(a,b){return foundationPriority(a.slot)-foundationPriority(b.slot);});
+earlyDisplaced.forEach(function(d){
+var target=suggestedRequirementGroupTargetIndex(d.slot.units||3);
+if(target===d.sourceIdx||(plan[target]&&plan[target].hasAuditPlannedCourses)){
+for(var i=0;i<plan.length;i++){
+if(!isSchedulableSemester(plan[i]))continue;
+if(plan[i].hasAuditPlannedCourses)continue;
+target=i;break;
+}
+}
+ensureSemesterExists(target);
+plan[target].courses.push(d.slot);
+});
+var futureGroups=sections.futureRequirements||[];
+var seenGroups={};
+futureGroups.forEach(function(item){seenGroups[item.requirementKind]=true;});
+futureGroups.forEach(function(item){
+if(item.requirementKind==='Requirement Group')return;
+var slots=requirementGroupToPlanSlots(item);
+slots.forEach(function(slot){
+// Skip re-add if this requirement slot is already satisfied by a completed/transfer/planned course.
+if(slot.slotId && satisfiedSlotIds[slot.slotId])return;
+if(slot.id && satisfiedSlotIds[slot.id])return;
+var already=false;
+plan.forEach(function(s){if(isSchedulableSemester(s)){s.courses.forEach(function(c){if(c.id===slot.id||c.id===slot.slotId||c.slotId===slot.slotId||c.code===slot.code)already=true;});}});
+if(!already){
+var target=suggestedRequirementGroupTargetIndex(slot.units||3);
+ensureSemesterExists(target);
+plan[target].courses.push(slot);
+}
+});
+});
+// FINAL POST-PLACEMENT REFLOW
+// Any future semester containing audit-planned/current courses is treated as student-scheduled.
+// Sweep out every course that is NOT audit-planned and reinsert it elsewhere via the picker.
+// This runs LAST so nothing in earlier passes can leave default-template leftovers behind.
+function isAuditPlanned(c){return c&&(c.classification==='planned_current'||c.auditStatus==='planned_current'||c.importedFromAudit===true);}
+var displacedAll=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+var hasPlanned=(s.courses||[]).some(isAuditPlanned);
+if(!hasPlanned)return;
+s.hasAuditPlannedCourses=true;
+for(var i=s.courses.length-1;i>=0;i--){
+if(!isAuditPlanned(s.courses[i])){
+displacedAll.push({slot:s.courses[i],sourceIdx:si});
+s.courses.splice(i,1);
+}
+}
+});
+displacedAll.forEach(function(d){
+var target=suggestedRequirementGroupTargetIndex(d.slot.units||3);
+// Belt-and-braces: never put a displaced slot back into the same audit-planned term.
+if(target===d.sourceIdx||(plan[target]&&plan[target].hasAuditPlannedCourses)){
+for(var i=0;i<plan.length;i++){
+if(!isSchedulableSemester(plan[i]))continue;
+if(plan[i].hasAuditPlannedCourses)continue;
+target=i;break;
+}
+}
+ensureSemesterExists(target);
+plan[target].courses.push(d.slot);
+});
+// COMPACTION PASS
+// Pull movable courses from later semesters into earlier ones that are below the target
+// load (15 cr), up to the soft max (17 cr). Preserves: audit-planned semesters (skipped
+// as targets and their planned courses never move), ARE 490 (never moved),
+// "no auto >18 cr", and prerequisite order (a course is only pulled into a semester
+// where all of its PREREQS are already satisfied by earlier semesters or top sections).
+function _isMovableForCompaction(c){
+if(!c)return false;
+if(c.classification==='planned_current'||c.auditStatus==='planned_current'||c.importedFromAudit===true)return false;
+if(c.id==='ARE490'||c.code==='ARE 490')return false;
+return true;
+}
+var _PREREQ_ALT={
+"ARE 201":["ARE 201","EC 201","ARE 201 or EC 201"],
+"EC/ARE 301":["EC/ARE 301","EC 301","ARE 301","ARE 301 or EC 301"],
+"MA 121/131/141":["MA 121/131/141","MA 121","MA 131","MA 141"],
+"ARE 303/304":["ARE 303/304","ARE 303","ARE 304"],
+"ARE 311/312":["ARE 311/312","ARE 311","ARE 312"],
+"ARE 321/323/BUS 320":["ARE 321/323/BUS 320","ARE 321","ARE 323","BUS 320"],
+"ARE 306/309":["ARE 306/309","ARE 306","ARE 309"]
+};
+function _coursesDoneBy(targetIdx){
+var done={};
+plan.forEach(function(s,si){
+var include=false;
+if(isTopAuditSection(s))include=true;
+else if(isSchedulableSemester(s)&&si<targetIdx)include=true;
+if(!include)return;
+(s.courses||[]).forEach(function(c){
+if(!c||!c.code)return;
+done[c.code]=true;
+Object.keys(_PREREQ_ALT).forEach(function(k){if(_PREREQ_ALT[k].indexOf(c.code)!==-1)done[k]=true;});
+});
+});
+return done;
+}
+function _prereqsOkAt(course,targetIdx){
+if(!course||!course.code)return true;
+var reqs=(typeof PREREQS!=='undefined'&&PREREQS[course.code])||[];
+if(!reqs.length)return true;
+var done=_coursesDoneBy(targetIdx);
+for(var pi=0;pi<reqs.length;pi++){
+var alts=_PREREQ_ALT[reqs[pi]]||[reqs[pi]];
+var ok=false;
+for(var ai=0;ai<alts.length;ai++){if(done[alts[ai]]){ok=true;break;}}
+if(!ok)return false;
+}
+return true;
+}
+var _compactRegIdx=[];
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))_compactRegIdx.push(si);});
+for(var _pass=0;_pass<5;_pass++){
+var _moved=false;
+// Refresh index list each pass in case prior trims changed things
+_compactRegIdx=[];
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))_compactRegIdx.push(si);});
+for(var _ci=0;_ci<_compactRegIdx.length-1;_ci++){
+var _ti=_compactRegIdx[_ci];
+if(plan[_ti].hasAuditPlannedCourses)continue;
+var _loadTi=plan[_ti].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadTi>=15)continue;
+for(var _cj=_ci+1;_cj<_compactRegIdx.length;_cj++){
+var _fi=_compactRegIdx[_cj];
+for(var _ck=plan[_fi].courses.length-1;_ck>=0;_ck--){
+var _cc=plan[_fi].courses[_ck];
+if(!_isMovableForCompaction(_cc))continue;
+var _cu=_cc.units||0;
+if(_loadTi+_cu>17)continue;
+if(!_prereqsOkAt(_cc,_ti))continue;
+plan[_ti].courses.push(_cc);
+plan[_fi].courses.splice(_ck,1);
+_loadTi+=_cu;
+_moved=true;
+if(_loadTi>=15)break;
+}
+if(_loadTi>=15)break;
+}
+}
+if(!_moved)break;
+}
+// Trim trailing empty regular semesters (after the last non-empty regular).
+// Summer sections and top sections are preserved; middle empties stay so the student can drag into them.
+var _lastNonEmpty=-1;
+for(var _ti=0;_ti<plan.length;_ti++){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&plan[_ti].courses&&plan[_ti].courses.length>0)_lastNonEmpty=_ti;
+}
+if(_lastNonEmpty>=0){
+for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
+}
+}
+// ARE 490 tail cleanup: if ARE 490 is alone in its semester AND there are empty semesters
+// between it and the last semester with non-ARE 490 work, pull it forward so it lands in the
+// final active coursework term (or one earlier if soft max would be exceeded).
+var _are490Loc=null;
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+(s.courses||[]).forEach(function(c,ci){if(c.id==='ARE490'||c.code==='ARE 490')_are490Loc={si:si,ci:ci,course:c};});
+});
+if(_are490Loc&&plan[_are490Loc.si].courses.length===1){
+var _lastRealIdx=-1;
+for(var _ti=_are490Loc.si-1;_ti>=0;_ti--){
+if(!isSchedulableSemester(plan[_ti]))continue;
+if(isSummerTerm(plan[_ti].term))continue;
+if((plan[_ti].courses||[]).length>0){_lastRealIdx=_ti;break;}
+}
+if(_lastRealIdx>=0&&_lastRealIdx<_are490Loc.si-1){
+var _are490Units=_are490Loc.course.units||1;
+var _moveTarget=_lastRealIdx;
+var _loadTarget=plan[_moveTarget].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadTarget+_are490Units>17){
+for(var _pi=_lastRealIdx-1;_pi>=0;_pi--){
+if(!isSchedulableSemester(plan[_pi]))continue;
+if(isSummerTerm(plan[_pi].term))continue;
+if((plan[_pi].courses||[]).length===0)continue;
+var _loadPi=plan[_pi].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadPi+_are490Units<=17){_moveTarget=_pi;break;}
+}
+}
+if(_moveTarget!==_are490Loc.si){
+plan[_are490Loc.si].courses.splice(_are490Loc.ci,1);
+plan[_moveTarget].courses.push(_are490Loc.course);
+}
+}
+}
+// Re-trim trailing empty regular semesters after ARE 490 move
+_lastNonEmpty=-1;
+for(var _ti=0;_ti<plan.length;_ti++){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&plan[_ti].courses&&plan[_ti].courses.length>0)_lastNonEmpty=_ti;
+}
+if(_lastNonEmpty>=0){
+for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
+}
+}
+// Tiny-final-semester merge: if the last active term has only 1-3 cr and the previous
+// active term can absorb them without exceeding 18 cr and without breaking prereqs,
+// merge them. Never merge into an audit-planned term.
+var _lastActiveIdx=-1,_prevActiveIdx=-1;
+for(var _ti=plan.length-1;_ti>=0;_ti--){
+if(!isSchedulableSemester(plan[_ti])||isSummerTerm(plan[_ti].term))continue;
+if(!plan[_ti].courses||plan[_ti].courses.length===0)continue;
+if(_lastActiveIdx<0){_lastActiveIdx=_ti;continue;}
+_prevActiveIdx=_ti;break;
+}
+if(_lastActiveIdx>=0&&_prevActiveIdx>=0){
+var _lastSem=plan[_lastActiveIdx];
+var _lastLoad=_lastSem.courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_lastLoad>=1&&_lastLoad<=3){
+var _prevSem=plan[_prevActiveIdx];
+if(!_prevSem.hasAuditPlannedCourses){
+var _prevLoad=_prevSem.courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_prevLoad+_lastLoad<=18){
+var _canMerge=true;
+_lastSem.courses.forEach(function(c){if(!_prereqsOkAt(c,_prevActiveIdx))_canMerge=false;});
+if(_canMerge){
+var _toMove=_lastSem.courses.slice();
+_lastSem.courses=[];
+_toMove.forEach(function(c){_prevSem.courses.push(c);});
+}
+}
+}
+}
+}
+// Re-trim trailing empty regular semesters one more time
+_lastNonEmpty=-1;
+for(var _ti=0;_ti<plan.length;_ti++){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&plan[_ti].courses&&plan[_ti].courses.length>0)_lastNonEmpty=_ti;
+}
+if(_lastNonEmpty>=0){
+for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
+}
+}
+window.pawPlanLastAuditSections=sections;
+window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
+window.pawPlanBuildId='reflow-final-v6';
+updateUndoBtn();
+render();
+return summarizeImportedAuditPlan();
+}
+function summarizeImportedAuditPlan(){
+var summary={completed:[],transfer:[],plannedCurrent:[],future:[],advisorReview:[],creditBuckets:window.pawPlanCreditBuckets||{}};
+plan.forEach(function(s){
+var dest=null;
+if(isCompletedNcTerm(s.term))dest=summary.completed;
+else if(isTransferTerm(s.term))dest=summary.transfer;
+else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
+else if(isSchedulableSemester(s))dest=summary.future;
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||''});});
+});
+advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||''});});
+return summary;
+}
+window.summarizeImportedAuditPlan=summarizeImportedAuditPlan;
+function pawPlanImportAuditTextShared(text,requirementCatalog,planningSettings){
+var parsed=window.PawPlanAuditCore.parseAuditText(text);
+var classified=window.PawPlanAuditCore.classifyAuditItems(parsed);
+var matched=window.PawPlanAuditCore.matchItemsToRequirements(classified,requirementCatalog);
+var sections=window.PawPlanAuditCore.buildPlanSections(classified,matched,{});
+window.pawPlanLastAuditModel={parsedItems:parsed,classifiedItems:matched,sections:sections};
+return applySharedAuditSectionsToPlan(sections,matched,requirementCatalog,planningSettings);
+}
+window.pawPlanImportAuditTextForTest=function(text,planningSettings){return processDegreeAudit(text,true,planningSettings||{});};
+
+function processDegreeAudit(text,returnSummaryOnly,planningSettings){
 showToast('Parsing degree audit: '+text.length+' chars');
 // Detect image-only PDFs (text extraction returns very little or nothing)
 // If we extracted fewer than 100 chars or there are no course codes anywhere, the PDF is likely an image.
@@ -1546,8 +2529,13 @@ try{
 var lines=text.split('\n');
 var allLines=[];
 lines.forEach(function(l){l=l.trim();if(l)allLines.push(l);});
+var sharedParsedItems=window.PawPlanAuditCore?window.PawPlanAuditCore.parseAuditText(text):[];
+var sharedClassifiedItems=window.PawPlanAuditCore?window.PawPlanAuditCore.classifyAuditItems(sharedParsedItems):[];
+var sharedMatchedItems=window.PawPlanAuditCore?window.PawPlanAuditCore.matchItemsToRequirements(sharedClassifiedItems,codeToSlot||{}):[];
+var sharedPlanSections=window.PawPlanAuditCore?window.PawPlanAuditCore.buildPlanSections(sharedClassifiedItems,sharedMatchedItems,{}):null;
+window.pawPlanLastAuditModel={parsedItems:sharedParsedItems,classifiedItems:sharedClassifiedItems,sections:sharedPlanSections};
 
-// Parse "Req Term" — this is the official major start term (e.g. "Fall '25").
+// Parse "Req Term" â€” this is the official major start term (e.g. "Fall '25").
 // Use it to anchor startYear instead of the earliest course term, since students often
 // have pre-major non-degree credits from earlier years (e.g. ED 103 in Fall '24).
 var auditReqTermYear=null;
@@ -1628,6 +2616,37 @@ var codeToSlot={
 'USC 102':'ALS103','E 101':'ALS103'
 };
 
+if(window.PawPlanAuditCore){
+saveUndo();
+var detectedPlanningTerm=inferPlanningStartTerm(sharedPlanSections||{});
+if(!returnSummaryOnly){
+showPlanningStartConfirmation(detectedPlanningTerm,function(selectedPlanningTerm){
+var sharedSummaryConfirmed=pawPlanImportAuditTextShared(text,codeToSlot,{planningStartTerm:selectedPlanningTerm,detectedTerm:detectedPlanningTerm||selectedPlanningTerm,source:'user_confirmed'});
+document.body.classList.add('uploaded-mode');
+document.body.classList.remove('sample-mode');
+var wcConfirmed=document.getElementById('welcome-card');if(wcConfirmed)wcConfirmed.style.display='none';
+var sbConfirmed=document.getElementById('sample-banner');if(sbConfirmed)sbConfirmed.style.display='none';
+showToast('Degree Audit loaded from shared parser.');
+});
+return {needsPlanningStart:true,detectedTerm:detectedPlanningTerm||'',sections:sharedPlanSections};
+}
+planningSettings=planningSettings||{};
+if(!planningSettings.planningStartTerm)planningSettings.planningStartTerm=detectedPlanningTerm||defaultNextRegularTerm();
+if(!planningSettings.detectedTerm)planningSettings.detectedTerm=detectedPlanningTerm||planningSettings.planningStartTerm;
+if(!planningSettings.source)planningSettings.source=detectedPlanningTerm?'test_detected_default':'test_default_next_term';
+var sharedSummary=pawPlanImportAuditTextShared(text,codeToSlot,planningSettings);
+if(returnSummaryOnly)return sharedSummary;
+document.body.classList.add('uploaded-mode');
+document.body.classList.remove('sample-mode');
+var wcShared=document.getElementById('welcome-card');if(wcShared)wcShared.style.display='none';
+var sbShared=document.getElementById('sample-banner');if(sbShared)sbShared.style.display='none';
+showToast('Degree Audit loaded from shared parser.');
+return sharedSummary;
+}
+// Shared audit core missing — refuse to fall through to the legacy default skeleton.
+showToast('Paw Plan could not load the audit parser. Please refresh and try again.');
+return;
+
 // SIMPLE APPROACH: parse each line for course code + term + grade
 // Browser pdf.js gives single-line format like:
 // "10 Intr Univ ED II USC 102 Spring '25 A- 1.000 Rqmnt Details Move"
@@ -1635,6 +2654,7 @@ saveUndo();
 var matched=[];
 var withdrawnCourses=[];
 nonDegreeCourses=[];
+advisorReviewCourses=[];
 var startYear=9999;
 
 // PRE-PASS: build a lookup of (section, code, occurrence) -> sub-header.
@@ -1736,7 +2756,38 @@ return -1;
 var currentSection='';
 var auditCourses=[];
 
-allLines.forEach(function(line){
+function makeAuditCourse(code,status,units,slotInfo,term,extra){
+extra=extra||{};
+return {
+id:extra.id||('AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4)),
+code:code,
+name:status,
+units:units,
+cat:(slotInfo&&slotInfo.cat)||extra.cat||'free',
+tag:(slotInfo&&slotInfo.tag)||extra.tag||'',
+picker:(slotInfo&&slotInfo.picker)||'',
+term:term||'',
+slotId:(slotInfo&&slotInfo.slotId)||extra.slotId||'',
+classification:extra.classification||'advisor_review',
+placementStatus:extra.placementStatus||'advisor_review',
+placementReason:extra.placementReason||'',
+confidence:extra.confidence||'low',
+reviewType:extra.reviewType||'Review',
+reviewReason:extra.reviewReason||''
+};
+}
+function addAdvisorReviewCourse(code,status,units,slotInfo,term,reason,type){
+advisorReviewCourses.push(makeAuditCourse(code,status,units,slotInfo,term,{
+classification:'advisor_review',
+placementStatus:'advisor_review',
+placementReason:reason,
+confidence:'low',
+reviewType:type||'Review',
+reviewReason:reason
+}));
+}
+
+allLines.forEach(function(line,lineIdx){
 // Track section headers (e.g. "8 - General Education")
 var secMatch=line.match(/^(\d+)\s*-\s/);
 if(secMatch){currentSection=secMatch[1];}
@@ -1758,6 +2809,8 @@ if(courseMatch)isPlaceholder=true;
 }
 if(!courseMatch)return;
 var code=courseMatch[1]+' '+courseMatch[2];
+var hasWildcard=code.indexOf('*')!==-1;
+var hasExcessNote=(allLines[lineIdx+1]||'').indexOf('Course provides excess units')!==-1||line.indexOf('Course provides excess units')!==-1;
 
 // Skip non-course prefixes
 if(['PRK','GPA','Cum','Page','SAO','ARE'].indexOf(courseMatch[1])!==-1){
@@ -1794,7 +2847,7 @@ if(!grade){
 gradeMatch=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d+\.\d{3}/);
 if(gradeMatch)grade=gradeMatch[1];
 }
-// If still no grade, try looking for MET at end of line (special case — MET rows have no units)
+// If still no grade, try looking for MET at end of line (special case â€” MET rows have no units)
 if(!grade){
 var metMatch=line.match(/\s(MET|PF|Verify)\s*$/);
 if(metMatch)grade=metMatch[1]==='Verify'?'':metMatch[1];
@@ -1809,7 +2862,7 @@ withdrawnCourses.push({code:code,term:term,note:grade==='F'?'F':grade==='U'?'U':
 if(isNonDeg){
 nonDegreeCourses.push({id:'ND_'+code.replace(/\s/g,''),code:code,
 name:grade==='W'?'(Withdrawn)':grade==='F'?'(Failed)':'(Unsatisfactory)',
-units:getCourseCredits(code),cat:'free',term:term});
+units:getCourseCredits(code),cat:'free',term:term,classification:'non_degree',placementStatus:'advisor_review',confidence:'high',reviewType:'Non-Degree',reviewReason:'Audit lists this unsuccessful item in Section 99 - Non-degree Courses.'});
 }
 matched.push(code);
 return;
@@ -1828,27 +2881,31 @@ if(!grade||grade==='')status='(In Progress)';
 else status='(Completed)';
 if(grade==='TA'||grade==='CR'||grade==='PF'||grade==='TB'||grade==='TB-'||grade==='TB+'||grade==='TC'||grade==='TC-'||grade==='TC+'||grade==='TD'||grade==='TD-'||grade==='TD+'||grade==='TR')status='(Transfer Credit)';
 if(grade==='TIP')status='(Transfer In Progress)';
-// MET means "this requirement is met by a course already counted elsewhere" — skip to avoid duplicate placement
-if(grade==='MET')return;
+// MET means this requirement is met by a course counted elsewhere: preserve, but do not count/place.
+if(grade==='MET'){
+addAdvisorReviewCourse(code,'(Verification / Duplicate)',actualUnits,null,term,'MET row is verification or duplicate evidence and should not double-count.','Verify');
+auditCourses.push({code:code,grade:grade,term:term,section:currentSection,classification:'advisor_review'});
+return;
+}
 // If there's no term AND no grade, this row is just listing the required course (e.g. "ARE 433 U S Agric Policy")
-// not indicating the student has taken it. Skip placement entirely — the default plan slot will handle it.
+// not indicating the student has taken it. Skip placement entirely â€” the default plan slot will handle it.
 // Don't count it in matched either, since it's not an actual student course.
 if(!term&&(!grade||grade==='')){return;}
 
 // Non-degree section
 if(isNonDeg){
 nonDegreeCourses.push({id:'ND_'+code.replace(/\s/g,''),code:code,name:status,
-units:actualUnits,cat:'free',term:term});
+units:actualUnits,cat:'free',term:term,classification:'non_degree',placementStatus:'advisor_review',confidence:'high',reviewType:'Non-Degree',reviewReason:'Audit lists this item in Section 99 - Non-degree Courses.'});
 matched.push(code);
 return;
 }
 
 // DETERMINE THE TAG/CATEGORY based on audit's section + sub-header
-// This works regardless of whether a slot is "available" — we just label correctly.
+// This works regardless of whether a slot is "available" â€” we just label correctly.
 // Returns {cat, tag, picker, slotId} for the requirement type the audit places this course under.
 function getSlotInfoFromAudit(){
 var info={cat:'free',tag:'',picker:'',slotId:''};
-// First, check if the course has a direct codeToSlot mapping — if so, use that slot's tag/cat
+// First, check if the course has a direct codeToSlot mapping â€” if so, use that slot's tag/cat
 if(!isPlaceholder&&codeToSlot[code]){
 var targetSlotId=codeToSlot[code];
 var foundSlot=null;
@@ -1917,13 +2974,13 @@ if(auditSub6==='10')return {cat:'restricted',tag:'Tech Elective',picker:'tech',s
 if(auditSub6==='20')return {cat:'restricted',tag:'Dept/Tech Elective',picker:'depttech',slotId:'RSTD4'};
 return {cat:'restricted',tag:'Tech Elective',picker:''};
 }
-// Section 8: GEP — use sub-header
+// Section 8: GEP â€” use sub-header
 if(currentSection==='8'){
 if(!codeOccCount[code])codeOccCount[code]=0;
 var auditSub=getSubHeaderForCode('8',code,codeOccCount[code]);
 codeOccCount[code]++;
 // Sub-headers 80, 90, 100 are verify-only requirements (Global Knowledge, American Democracy, World Language)
-// — they confirm a course already counted elsewhere satisfies that verification, not a separate credit slot.
+// â€” they confirm a course already counted elsewhere satisfies that verification, not a separate credit slot.
 // These should be skipped entirely (we already skip MET grade above; this catches PF-graded verify rows).
 if(auditSub==='80'||auditSub==='90'||auditSub==='100')return null;
 if(auditSub==='10')return {cat:'gep',tag:'Writing GEP',picker:'',slotId:'ENG101'};
@@ -1941,24 +2998,45 @@ return info;
 }
 
 // For transfer credits and prior NC State courses, place directly in special section with proper tag
-if(status==='(Transfer Credit)'||status==='(Transfer In Progress)'||(/^[A-D][+-]?$/.test(grade))){
+if(status==='(Transfer Credit)'||status==='(Transfer In Progress)'||status==='(In Progress)'||(/^[A-D][+-]?$/.test(grade))){
 var slotInfo=getSlotInfoFromAudit();
-// null means a verify-only requirement (sub-headers 80/90/100 in section 8) — skip entirely
-if(slotInfo===null){return;}  // verify-only requirement — skip entirely
+// null means a verify-only requirement (sub-headers 80/90/100 in section 8) â€” skip entirely
+if(slotInfo===null){
+addAdvisorReviewCourse(code,status,actualUnits,null,term,'Verify-only requirement row; preserve without counting or placement.','Verify');
+auditCourses.push({code:code,grade:grade,term:term,section:currentSection,classification:'advisor_review'});
+return;
+}
 var targetSemIdx=-1;
+if(status==='(Transfer In Progress)'){
+addAdvisorReviewCourse(code,status,actualUnits,slotInfo,term,'Transfer-in-progress credit is not posted and should not count as earned/applied until verified.','TIP');
+matched.push(code);
+auditCourses.push({code:code,grade:grade,term:term,section:currentSection,classification:'transfer_in_progress'});
+return;
+}
+if(hasWildcard||hasExcessNote){
+addAdvisorReviewCourse(code,status,actualUnits,slotInfo,term,(hasWildcard?'Wildcard/placeholder transfer code needs advisor confirmation.':'Course provides excess units and should not be double-counted.'),hasWildcard?'Wildcard':'Excess');
+matched.push(code);
+auditCourses.push({code:code,grade:grade,term:term,section:currentSection,classification:'advisor_review'});
+return;
+}
 if(status==='(Transfer Credit)'||status==='(Transfer In Progress)'){
-plan.forEach(function(s,si){if(s.term.indexOf('Transfer')===0)targetSemIdx=si;});
+plan.forEach(function(s,si){if(isTransferTerm(s.term))targetSemIdx=si;});
+} else if(status==='(In Progress)'){
+plan.forEach(function(s,si){if(isPlannedAuditTerm(s.term))targetSemIdx=si;});
 } else {
-plan.forEach(function(s,si){if(s.term.indexOf('Prior NC State')===0)targetSemIdx=si;});
+plan.forEach(function(s,si){if(isPriorTerm(s.term))targetSemIdx=si;});
 }
 if(targetSemIdx>=0){
-plan[targetSemIdx].courses.push({
-id:'XFER_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
-code:code,name:status,units:actualUnits,
-cat:slotInfo.cat,tag:slotInfo.tag,picker:slotInfo.picker,term:term,slotId:slotInfo.slotId
-});
+var classification=status==='(Transfer Credit)'?'transfer_posted':(status==='(In Progress)'?'planned_in_progress':'completed_nc_state');
+plan[targetSemIdx].courses.push(makeAuditCourse(code,status,actualUnits,slotInfo,term,{
+id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
+classification:classification,
+placementStatus:status==='(In Progress)'?'unplaced':'placed',
+placementReason:status==='(In Progress)'?'Planned/current course from audit; not earned.':'Classified from audit grade/status and placed in top section.',
+confidence:'high'
+}));
 matched.push(code);
-auditCourses.push({code:code,grade:grade,term:term,section:currentSection});
+auditCourses.push({code:code,grade:grade,term:term,section:currentSection,classification:classification});
 return;  // Skip slot filling, course is already placed
 }
 }
@@ -1981,7 +3059,7 @@ var freeNum=1;
 while(plan.some(function(s){return s.courses.some(function(c){return c.id==='FREE'+freeNum;});}))freeNum++;
 // Add it to the last regular semester (Spring Y4 by default)
 var lastReg=-1;
-plan.forEach(function(s,si){if(s.term.indexOf('Summer')!==0&&s.term.indexOf('Prior NC State')!==0&&s.term.indexOf('Transfer')!==0)lastReg=si;});
+plan.forEach(function(s,si){if(isRegularTerm(s.term))lastReg=si;});
 if(lastReg>=0){
 var newId='FREE'+freeNum;
 plan[lastReg].courses.push({id:newId,code:'Free Elective',name:'Click to choose',units:3,cat:'free',picker:'free'});
@@ -2110,7 +3188,10 @@ if(c.id===slotId&&!filled){
 // Only fill if slot hasn't been filled by another course already
 var isAvailable=!c.name||c.name.indexOf('Click')===0||(c.name.indexOf('(Completed)')===-1&&c.name.indexOf('(In Progress)')===-1&&c.name.indexOf('(Transfer Credit)')===-1);
 if(isAvailable){
-c.code=code;c.name=status;c.units=actualUnits;filled=true;
+c.code=code;c.name=status;c.units=actualUnits;
+c.classification=status==='(Completed)'?'completed_nc_state':(status==='(In Progress)'?'planned_in_progress':'planned_requirement');
+c.placementStatus='placed';c.placementReason='Matched to requirement slot from audit.';c.confidence='medium';
+filled=true;
 }
 }
 });});
@@ -2131,9 +3212,9 @@ c.code=code;c.name=status;c.units=actualUnits;filled=true;
 }
 if(filled)matched.push(code);
 } else {
-// No slot found — put in non-degree section so it's visible
+// No slot found â€” put in non-degree section so it's visible
 nonDegreeCourses.push({id:'ND_'+code.replace(/\s/g,'')+'_'+Math.random().toString(36).substr(2,4),
-code:code,name:status,units:actualUnits,cat:'free',term:term||''});
+code:code,name:status,units:actualUnits,cat:'free',term:term||'',classification:'advisor_review',placementStatus:'advisor_review',confidence:'low',reviewType:'Review',reviewReason:'No confident ABM requirement slot was found for this audit item.'});
 matched.push(code);
 }
 
@@ -2146,15 +3227,15 @@ var earliestFall=9999;
 var earliestSpring=9999;
 auditCourses.forEach(function(ac){
 if(ac.section==='99')return;  // skip non-degree
+if(ac.classification!=='planned_in_progress')return;  // posted/completed credits do not anchor future planning
 if(ac.term){
 var y=parseInt(ac.term.split(' ')[1]);
 if(ac.term.indexOf('Fall')!==-1&&y<earliestFall)earliestFall=y;
 if(ac.term.indexOf('Spring')!==-1&&y<earliestSpring)earliestSpring=y;
 }
 });
-// startYear = the Fall that begins the academic year of the student's earliest in-degree term.
-// Prefer the earliest course term (so Year 1 always shows the student's first coursework).
-// Use Req Term only as a fallback if there are no in-degree courses yet.
+// startYear = the Fall that begins the academic year of the first active planning term.
+// Completed NC State and posted transfer/test credit do not anchor future placement.
 var candFromCourses=null;
 if(earliestFall<=9998){
 candFromCourses=earliestFall;
@@ -2167,13 +3248,14 @@ if(auditReqTermYear!==null){
 if(auditReqTermSeason==='Spring')candFromReq=auditReqTermYear-1;
 else candFromReq=auditReqTermYear;
 }
+var today=new Date();
+var defaultFutureStart=(today.getMonth()<7)?today.getFullYear():today.getFullYear()+1;
 if(candFromCourses!==null){
 startYear=candFromCourses;
-} else if(candFromReq!==null){
-startYear=candFromReq;
 } else {
-startYear=2023;
+startYear=defaultFutureStart;
 }
+window.pawPlanPlanningAnchor={startYear:startYear,source:candFromCourses!==null?'audit_planned_current':'default_next_fall'};
 
 // Determine how many semesters are needed
 var maxSemIdx=0;
@@ -2188,7 +3270,7 @@ if(idx>maxSemIdx)maxSemIdx=idx;
 // Regular semesters are 0-7 (4 years), summers are 8-11
 var extraYearsNeeded=0;
 if(maxSemIdx>=8){
-// It's a summer index — check if it exceeds our summer slots
+// It's a summer index â€” check if it exceeds our summer slots
 // Summers are 8+ so year = semIdx-8+1
 } else if(maxSemIdx>7){
 extraYearsNeeded=Math.ceil((maxSemIdx-7)/2);
@@ -2208,19 +3290,21 @@ if(season==='Fall'||season==='Spring')neededRegularSems=idx;
 
 // Move courses to correct semesters
 // Find the Transfer and Prior NC State section indices
-var transferSemIdx=-1, priorNcSemIdx=-1;
+var transferSemIdx=-1, priorNcSemIdx=-1, plannedAuditSemIdx=-1;
 plan.forEach(function(s,si){
-if(s.term.indexOf('Transfer')===0)transferSemIdx=si;
-if(s.term.indexOf('Prior NC State')===0)priorNcSemIdx=si;
+if(isTransferTerm(s.term))transferSemIdx=si;
+if(isPriorTerm(s.term))priorNcSemIdx=si;
+if(isPlannedAuditTerm(s.term))plannedAuditSemIdx=si;
 });
 
 auditCourses.forEach(function(ac){
 if(matched.indexOf(ac.code)===-1)return;
+if(ac.classification==='planned_in_progress')return;  // keep audit-planned/current items in their top section
 // Transfer Credit and Transfer In Progress courses go to the Transfer section
 var isTransfer=ac.grade==='TIP'||ac.grade==='TC'||ac.grade==='TC+'||ac.grade==='TC-'||ac.grade==='TA'||ac.grade==='TB'||ac.grade==='TB+'||ac.grade==='TB-'||ac.grade==='TD'||ac.grade==='TD+'||ac.grade==='TD-'||ac.grade==='CR'||ac.grade==='PF'||ac.grade==='TR';
 // Standard letter grades (A, B, C, D) without T prefix mean completed at NC State.
 // Also S/U/CR/PF without T prefix indicate a completed NC State pass-fail course
-// (e.g. E 115 with grade "S" Spring '26 — student already took it, shouldn't appear in future plan).
+// (e.g. E 115 with grade "S" Spring '26 â€” student already took it, shouldn't appear in future plan).
 var isPriorNc=!isTransfer&&ac.grade&&(/^[A-D][+-]?$/.test(ac.grade)||ac.grade==='S'||ac.grade==='U'||ac.grade==='CR'||ac.grade==='PF');
 var semIdx;
 if(isTransfer&&transferSemIdx>=0){
@@ -2258,6 +3342,7 @@ var currentSem=-1;
 auditCourses.forEach(function(ac){
 if(!ac.term)return;
 if(ac.grade==='MET')return;
+if(ac.classification!=='planned_in_progress')return;
 // Only consider regular semester terms (not summer for this purpose)
 var idx=auditTermToSemIndex(ac.term);
 if(idx>=0&&idx<8&&idx>currentSem)currentSem=idx;
@@ -2267,7 +3352,7 @@ if(idx>=0&&idx<8&&idx>currentSem)currentSem=idx;
 // We track CREDITS satisfied per slot id (not course count) since some transfers
 // are partial credits (e.g. 1cr lab) and shouldn't remove a full 3cr requirement slot.
 var satisfiedSlotCredits={};  // slotId -> total credits transferred toward that slot
-[transferSemIdx,priorNcSemIdx].forEach(function(idx){
+[transferSemIdx,priorNcSemIdx,plannedAuditSemIdx].forEach(function(idx){
 if(idx<0)return;
 plan[idx].courses.forEach(function(c){
 if(c.slotId){
@@ -2305,7 +3390,7 @@ var credits=satisfiedSlotCredits[slotId];
 var altList=slotIdAlternates[slotId]||[slotId];
 plan.forEach(function(s,si){
 if(credits<=0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(isTopAuditSection(s))return;
 for(var ci=s.courses.length-1;ci>=0;ci--){
 if(credits<=0)break;
 var c=s.courses[ci];
@@ -2337,8 +3422,8 @@ if(earliestCourseSem<999)firstActiveSem=earliestCourseSem;
 // Collect ALL unfilled courses from every semester (past and future)
 var displacedCourses=[];
 for(var si=0;si<plan.length;si++){
-if(plan[si].term.indexOf('Summer')===0)continue;
-if(plan[si].term.indexOf('Transfer')===0||plan[si].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[si].term))continue;
+if(!isSchedulableSemester(plan[si]))continue;
 for(var ci=plan[si].courses.length-1;ci>=0;ci--){
 var c=plan[si].courses[ci];
 var isUnfilled=c.name&&c.name.indexOf('Click')===0;
@@ -2389,6 +3474,17 @@ if(c.cat==='free')return 5;
 return 3;
 }
 
+function isEarlyAbmCoreCourse(c){
+if(!c)return false;
+var id=c.id||c.slotId||'';
+var code=c.code||'';
+var coreIds=['ARE303','ARE306','ARE312','ARE321','EC301','ARE336','ARE433'];
+if(coreIds.indexOf(id)!==-1)return true;
+return code==='ARE 303/304'||code==='ARE 306/309'||code==='ARE 311/312'||
+code==='ARE 321/323/BUS 320'||code==='EC/ARE 301'||code==='ARE 301'||code==='EC 301'||
+code==='ARE 336'||code==='ARE 433';
+}
+
 // Tight-chain preferences (used by both sort and placement). Declared early so sort can reference.
 // Preferred sequence (configured via the sequencer UI):
 //   Anchor (sem 0):  ARE 201 + one restricted elective (RSTD1, e.g. ARE 270)
@@ -2437,7 +3533,7 @@ if(isAvoidedPair(courseCode,plan[semIdx].courses[i].code))return false;
 return true;
 }
 // Avoid-SAME-YEAR rules: keep these courses (matched by slot id) in different academic years.
-// Pairs of slot ids — order doesn't matter.
+// Pairs of slot ids â€” order doesn't matter.
 var avoidSameYearById=[
 ['HESF1','HESF2']
 ];
@@ -2465,7 +3561,7 @@ return true;
 }
 
 displacedCourses.sort(function(a,b){
-// Anchor courses — courses that other tight-chain rules depend on — must be placed FIRST.
+// Anchor courses â€” courses that other tight-chain rules depend on â€” must be placed FIRST.
 // Also includes courses that are HARD PREREQS for tight-chain courses (e.g. MA 121 for EC 301).
 // MUST happen before depth check (anchors might have higher depth in some chains).
 var anchorCodes={};
@@ -2533,7 +3629,7 @@ if(pc.code===courseCode)return pi;
 // Match alt codes for slash-form prereqs
 if(courseCode==='EC/ARE 301'&&(pc.code==='EC 301'||pc.code==='ARE 301'||pc.code==='EC/ARE 301'))return pi;
 if(courseCode==='MA 121/131/141'&&(pc.code==='MA 121'||pc.code==='MA 131'||pc.code==='MA 141'||pc.code==='MA 121/131/141'))return pi;
-// Match by slot id — e.g. EC 201 transfer is placed in slot ARE201, satisfies ARE 201 prereq.
+// Match by slot id â€” e.g. EC 201 transfer is placed in slot ARE201, satisfies ARE 201 prereq.
 // Also MA 141/MA 131 transfer placed in slot MA121, satisfies MA 121/131/141 prereq.
 if(courseCode==='ARE 201'&&pc.slotId==='ARE201')return pi;
 if(courseCode==='MA 121/131/141'&&pc.slotId==='MA121')return pi;
@@ -2565,7 +3661,7 @@ return true;
 var allowedSemestersByCode={
 };
 
-// "Earliest allowed semester" — these courses cannot be scheduled BEFORE this sem index.
+// "Earliest allowed semester" â€” these courses cannot be scheduled BEFORE this sem index.
 // 0=Fall Y1, 1=Spring Y1, 2=Fall Y2, etc.
 // ACC 210 and EC 202 are typically taken in Year 2 (sem 2+).
 var earliestSemByCode={
@@ -2575,7 +3671,7 @@ var earliestSemByCode={
 'EC 202':2
 };
 // Same idea by slot id (for placeholder slots without specific course codes).
-// ARE 3XX and ARE 4XX placeholders should not be in the same semester as ARE 201 —
+// ARE 3XX and ARE 4XX placeholders should not be in the same semester as ARE 201 â€”
 // students need to take ARE 201 first, then start filling elective slots.
 // Setting earliest=2 means they can't be in sem 0 or sem 1.
 var earliestSemById={
@@ -2641,7 +3737,7 @@ return plan[semIdx].courses.filter(function(c){
 return c.code&&c.code.indexOf(prefix+' ')===0;
 }).length;
 }
-// Maximum number of courses per category per semester (soft limit — applied in pass 1 only).
+// Maximum number of courses per category per semester (soft limit â€” applied in pass 1 only).
 // Prevents clumping like "4 ARE + EC 202 in one semester".
 var maxPerCategory={dept:3,gep:3,natsci:2,restricted:2,math:2,comm:2};
 // Maximum number of courses sharing the same subject prefix per semester.
@@ -2686,8 +3782,8 @@ for(var ci=0;ci<candidates.length&&!placed;ci++){
 var ts=candidates[ci];
 if(ts<0||ts>=plan.length)continue;
 if(ts<startFrom)continue;
-if(plan[ts].term.indexOf('Summer')===0)continue;
-if(plan[ts].term.indexOf('Transfer')===0||plan[ts].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[ts].term))continue;
+if(!isSchedulableSemester(plan[ts]))continue;
 if(!semesterAllowed(displaced.code,ts))continue;
 if(!meetsEarliestSem(displaced,ts))continue;
 if(!prereqsSatisfiedBy(displaced.code,ts))continue;
@@ -2699,11 +3795,11 @@ if(targetCr+displaced.units<=18){plan[ts].courses.push(displaced);placed=true;}
 }
 }
 }
-// First pass: respect prereqs, allowed semesters, earliest-sem, category limits, avoid-pair, ≤15 cr
+// First pass: respect prereqs, allowed semesters, earliest-sem, category limits, avoid-pair, â‰¤15 cr
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!semesterAllowed(displaced.code,target))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 if(!prereqsSatisfiedBy(displaced.code,target))continue;
@@ -2717,11 +3813,11 @@ if(targetCr+displaced.units<=15){plan[target].courses.push(displaced);placed=tru
 }
 // Second pass: relax category limit (still respect avoid-pair and earliest-sem).
 // EXCEPTION: keep dept category limit for placeholder ARE 3XX/4XX slots AND restricted
-// elective limit for Tech/Dept Elec slots — they cluster in the last sem otherwise.
+// elective limit for Tech/Dept Elec slots â€” they cluster in the last sem otherwise.
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!semesterAllowed(displaced.code,target))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 if(!prereqsSatisfiedBy(displaced.code,target))continue;
@@ -2740,8 +3836,8 @@ if(targetCr+displaced.units<=15){plan[target].courses.push(displaced);placed=tru
 // EXCEPTION: keep limits for placeholders & restricted electives.
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!semesterAllowed(displaced.code,target))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 if(!prereqsSatisfiedBy(displaced.code,target))continue;
@@ -2756,8 +3852,8 @@ if(targetCr+displaced.units<=18){plan[target].courses.push(displaced);placed=tru
 // Fourth pass: relax prereqs (still respect earliest-sem and ARE prefix limit)
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!semesterAllowed(displaced.code,target))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 if(!prefixLimitOk(displaced.code,target))continue;
@@ -2773,8 +3869,8 @@ var allowed=allowedSemestersByCode[displaced.code];
 for(var ai=0;ai<allowed.length&&!placed;ai++){
 var target=allowed[ai];
 if(target>=plan.length)continue;
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 plan[target].courses.push(displaced);
 placed=true;
 }
@@ -2783,8 +3879,8 @@ placed=true;
 // Skip semesters that already have the prefix cap (avoid the "5 ARE in last sem" pile-up).
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 if(!prefixLimitOk(displaced.code,target))continue;
 plan[target].courses.push(displaced);
@@ -2795,8 +3891,8 @@ placed=true;
 // that's not Summer/Transfer/Prior. Don't pile in the last sem.
 if(!placed){
 for(var target=startFrom;target<plan.length&&!placed;target++){
-if(plan[target].term.indexOf('Summer')===0)continue;
-if(plan[target].term.indexOf('Transfer')===0||plan[target].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[target].term))continue;
+if(!isSchedulableSemester(plan[target]))continue;
 if(!meetsEarliestSem(displaced,target))continue;
 plan[target].courses.push(displaced);
 placed=true;
@@ -2805,7 +3901,7 @@ placed=true;
 if(!placed){
 // Truly last resort: last regular sem
 var lastReg=7;
-for(var ri=plan.length-1;ri>=0;ri--){if(plan[ri].term.indexOf('Summer')!==0&&plan[ri].term.indexOf('Transfer')!==0&&plan[ri].term.indexOf('Prior NC State')!==0){lastReg=ri;break;}}
+for(var ri=plan.length-1;ri>=0;ri--){if(isRegularTerm(plan[ri].term)){lastReg=ri;break;}}
 plan[lastReg].courses.push(displaced);
 }
 });
@@ -2827,9 +3923,9 @@ while(compactSemIdx>firstActiveSem){
 var lastSem=plan[compactSemIdx];
 var lastSemCoursesToMove=lastSem.courses.slice();
 if(lastSemCoursesToMove.length===0){
-// Already empty — move back to check the one before it
+// Already empty â€” move back to check the one before it
 compactSemIdx--;
-while(compactSemIdx>=0&&(plan[compactSemIdx].term.indexOf('Summer')===0||plan[compactSemIdx].term.indexOf('Transfer')===0||plan[compactSemIdx].term.indexOf('Prior NC State')===0))compactSemIdx--;
+while(compactSemIdx>=0&&!isRegularTerm(plan[compactSemIdx].term))compactSemIdx--;
 continue;
 }
 // Simulate moves
@@ -2841,8 +3937,8 @@ var lc=lastSemCoursesToMove[lci];
 var moveTarget=-1;
 for(var ts=Math.max(currentSem+1,firstActiveSem);ts<compactSemIdx&&moveTarget===-1;ts++){
 var tt=plan[ts].term;
-if(tt.indexOf('Summer')===0)continue;
-if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(tt))continue;
+if(!isSchedulableSemester(plan[ts]))continue;
 if(!semesterAllowed(lc.code,ts))continue;
 if(!prereqsSatisfiedBy(lc.code,ts))continue;
 var existingCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
@@ -2863,7 +3959,7 @@ plan[m.targetSem].courses.push(lastSemCoursesToMove[m.courseIdx]);
 lastSem.courses=[];
 // Step back to next-earlier regular semester and try again
 compactSemIdx--;
-while(compactSemIdx>=0&&(plan[compactSemIdx].term.indexOf('Summer')===0||plan[compactSemIdx].term.indexOf('Transfer')===0||plan[compactSemIdx].term.indexOf('Prior NC State')===0))compactSemIdx--;
+while(compactSemIdx>=0&&!isRegularTerm(plan[compactSemIdx].term))compactSemIdx--;
 }
 (function(){
 plan.forEach(function(s,si){
@@ -2882,7 +3978,7 @@ var lastN=constraint.lastN||1;
 // Find which semester the course is currently in
 var currentSemForCourse=-1, currentCourseIdx=-1, currentCourseObj=null;
 plan.forEach(function(s,si){
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isSchedulableSemester(s))return;
 s.courses.forEach(function(c,ci){
 if(c.code===courseCode){currentSemForCourse=si;currentCourseIdx=ci;currentCourseObj=c;}
 });
@@ -2891,12 +3987,11 @@ if(currentSemForCourse===-1)return;  // Course not scheduled; nothing to do
 // Identify the last N regular semesters that have actual coursework
 var semsWithCoursework=[];
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 if(s.courses.length>0)semsWithCoursework.push(si);
 });
 if(semsWithCoursework.length===0)return;
-// EXCLUDE the very first semester with coursework — courses like ARE 490 should
+// EXCLUDE the very first semester with coursework â€” courses like ARE 490 should
 // never be taken in the student's first NC State semester even if they're a transfer
 // with a compressed plan. The student needs at least one semester of acclimation first.
 var allowedSemsPool=semsWithCoursework.length>1?semsWithCoursework.slice(1):semsWithCoursework;
@@ -2925,7 +4020,7 @@ plan[bestTarget].courses.push(currentCourseObj);
 // We collect all qualifying courses (matched by code or slot id) and move each to sem 1.
 var firstSemCoursesToMove=[];
 plan.forEach(function(s,si){
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isSchedulableSemester(s))return;
 s.courses.forEach(function(c,ci){
 if(nearFirstSemConstraint[c.code]||nearFirstSemConstraintByid[c.id]){
 firstSemCoursesToMove.push({sem:si,idx:ci,course:c});
@@ -2936,8 +4031,7 @@ firstSemCoursesToMove.push({sem:si,idx:ci,course:c});
 var firstSemWithCoursework=-1;
 plan.forEach(function(s,si){
 if(firstSemWithCoursework!==-1)return;
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 if(s.courses.length>0)firstSemWithCoursework=si;
 });
 if(firstSemWithCoursework>=0){
@@ -2951,7 +4045,7 @@ plan[firstSemWithCoursework].courses.push(m.course);
 }
 
 // PARTIAL COMPACTION: If the last semester with coursework has fewer than 12 credits,
-// try to move individual courses to earlier semesters (up to 18 cr each) — even if we
+// try to move individual courses to earlier semesters (up to 18 cr each) â€” even if we
 // can't empty the entire semester. This rebalances cases where the final semester ends
 // up with just 6-9 credits while earlier semesters have room.
 var lastWithWork=-1;
@@ -2963,7 +4057,7 @@ lastWithWork=ri;break;
 }
 // SPECIAL CASE: If the final semester contains ONLY a nearLastSemConstraint course
 // (e.g. ARE 490 alone at 1 credit), move it backward so the student doesn't enroll
-// for just a 1-credit semester. Otherwise leave the plan as-is — the user can drag
+// for just a 1-credit semester. Otherwise leave the plan as-is â€” the user can drag
 // courses around if they prefer a different balance.
 if(lastWithWork>firstActiveSem){
 var lastWS=plan[lastWithWork];
@@ -2974,8 +4068,8 @@ var lc=lastWS.courses[lci];
 var absorbed=false;
 for(var ts=Math.max(currentSem+1,firstActiveSem);ts<lastWithWork&&!absorbed;ts++){
 var tt=plan[ts].term;
-if(tt.indexOf('Summer')===0)continue;
-if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(tt))continue;
+if(!isSchedulableSemester(plan[ts]))continue;
 if(!semesterAllowed(lc.code,ts))continue;
 if(!prereqsSatisfiedBy(lc.code,ts))continue;
 var existingCr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
@@ -2996,8 +4090,7 @@ absorbed=true;
 (function balanceLoadAcrossSemesters(){
 var workingSems=[];  // {idx, cr}
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 if(si>=Math.max(currentSem+1,firstActiveSem)){
 var cr=s.courses.reduce(function(sum,cc){return sum+cc.units;},0);
 workingSems.push({idx:si,cr:cr});
@@ -3015,7 +4108,7 @@ workingSems.forEach(function(ws){ws.cr=plan[ws.idx].courses.reduce(function(s,cc
 var lastIdx=workingSems.length-1;
 var lastCr=workingSems[lastIdx].cr;
 if(lastCr>=12)break;
-// Find a heavier earlier semester to pull from (≥14 cr)
+// Find a heavier earlier semester to pull from (â‰¥14 cr)
 var bestSourceIdx=-1, bestSourceCr=0;
 for(var i=0;i<lastIdx;i++){
 if(workingSems[i].cr>bestSourceCr&&workingSems[i].cr>=14){
@@ -3031,6 +4124,9 @@ var moved=false;
 for(var ci=sourceSem.courses.length-1;ci>=0&&!moved;ci--){
 var c=sourceSem.courses[ci];
 if(nearFirstSemConstraint[c.code]||nearFirstSemConstraintByid[c.id])continue;
+// Keep foundational ABM core courses as early as prerequisites allow; do not
+// move them late merely to smooth credit loads.
+if(isEarlyAbmCoreCourse(c))continue;
 if(!semesterAllowed(c.code,targetSemIdx))continue;
 // Don't violate prefix limit (e.g. max 3 ARE per sem) when balancing
 if(!prefixLimitOk(c.code,targetSemIdx))continue;
@@ -3059,8 +4155,7 @@ if(!moved)break;
 Object.keys(maxPerPrefix).forEach(function(prefix){
 var max=maxPerPrefix[prefix];
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 // Get all courses in this sem with this prefix
 var prefixCourses=[];
 s.courses.forEach(function(c,ci){
@@ -3088,10 +4183,10 @@ var pc=prefixCourses[ei];
 var moved=false;
 for(var tsi=Math.max(currentSem+1,0);tsi<plan.length&&!moved;tsi++){
 if(tsi===si)continue;
-if(plan[tsi].term.indexOf('Summer')===0)continue;
-if(plan[tsi].term.indexOf('Transfer')===0||plan[tsi].term.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(plan[tsi].term))continue;
+if(!isSchedulableSemester(plan[tsi]))continue;
 if(!meetsEarliestSem(pc.course,tsi))continue;
-// HARD: respect prereqs — don't move a course to a sem before/with its prereq
+// HARD: respect prereqs â€” don't move a course to a sem before/with its prereq
 if(!prereqsSatisfiedBy(pc.course.code,tsi))continue;
 // HARD: respect avoid-pair rules
 if(!avoidPairingOk(pc.course.code,tsi))continue;
@@ -3111,7 +4206,7 @@ moved=true;
 });
 });
 
-// FINAL CLEANUP: enforce cannotBeLastSemByCode — move any such course out of the last
+// FINAL CLEANUP: enforce cannotBeLastSemByCode â€” move any such course out of the last
 // semester with coursework. They go to an earlier sem with room.
 (function enforceCannotBeLast(){
 var lastWithWork=-1;
@@ -3126,7 +4221,7 @@ var lastSem=plan[lastWithWork];
 for(var lci=lastSem.courses.length-1;lci>=0;lci--){
 var lc=lastSem.courses[lci];
 if(!cannotBeLastSemByCode[lc.code])continue;
-// Find an earlier sem with room — but not in past/current-enrollment terms
+// Find an earlier sem with room â€” but not in past/current-enrollment terms
 for(var ts=Math.max(currentSem+1,0);ts<lastWithWork;ts++){
 var tt=plan[ts].term;
 if(tt.indexOf('Summer')===0)continue;
@@ -3150,8 +4245,7 @@ var safety=20;
 while(safety-->0){
 var violations=[];
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 s.courses.forEach(function(c,ci){
 if(!c.code)return;
 if(!prereqsSatisfiedBy(c.code,si)){
@@ -3174,8 +4268,8 @@ var c=v.course;
 var target=-1;
 for(var ts=Math.max(v.minTargetSem,v.fromSem+1);ts<plan.length;ts++){
 var tt=plan[ts].term;
-if(tt.indexOf('Summer')===0)continue;
-if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(tt))continue;
+if(!isSchedulableSemester(plan[ts]))continue;
 if(!prereqsSatisfiedBy(c.code,ts))continue;
 var cr=plan[ts].courses.reduce(function(s,cc){return s+cc.units;},0);
 if(cr+c.units<=18){target=ts;break;}
@@ -3184,8 +4278,8 @@ if(cr+c.units<=18){target=ts;break;}
 if(target===-1){
 for(var ts=Math.max(v.minTargetSem,v.fromSem+1);ts<plan.length;ts++){
 var tt=plan[ts].term;
-if(tt.indexOf('Summer')===0)continue;
-if(tt.indexOf('Transfer')===0||tt.indexOf('Prior NC State')===0)continue;
+if(isSummerTerm(tt))continue;
+if(!isSchedulableSemester(plan[ts]))continue;
 if(prereqsSatisfiedBy(c.code,ts)){target=ts;break;}
 }
 }
@@ -3206,8 +4300,7 @@ withdrawnCoursesGlobal=withdrawnCourses;
 // Check for overloaded future semesters (all regular semesters, including added Year 5+)
 var overloadedSems=[];
 plan.forEach(function(s,oi){
-if(s.term.indexOf('Summer')===0)return;
-if(s.term.indexOf('Transfer')===0||s.term.indexOf('Prior NC State')===0)return;
+if(!isRegularTerm(s.term))return;
 if(oi<=currentSem)return;
 var ocr=s.courses.reduce(function(sum,c){return sum+c.units;},0);
 if(ocr>18)overloadedSems.push({term:s.term,cr:ocr});
@@ -3275,7 +4368,7 @@ html+='<p style="margin-top:1rem;margin-bottom:0.3rem;color:#DC2626"><strong>&#9
 withdrawnCourses.forEach(function(w){
 html+='<div style="display:flex;justify-content:space-between;padding:0.25rem 0.5rem;border-radius:4px;background:rgba(220,38,38,0.05);margin-bottom:0.2rem;border:1px solid rgba(220,38,38,0.1)">';
 html+='<span style="font-family:JetBrains Mono,monospace;font-weight:600">'+w.code+'</span>';
-html+='<span style="color:#DC2626;font-weight:500;font-size:0.78rem">'+(w.note||'W')+' — '+w.term+'</span></div>';
+html+='<span style="color:#DC2626;font-weight:500;font-size:0.78rem">'+(w.note||'W')+' â€” '+w.term+'</span></div>';
 });
 }
 
@@ -3656,7 +4749,7 @@ if(filled){matched.push(code);return true;}
 return false;
 }
 
-// STEP 1: Process test/transfer credits — match to slots then move to transfer section
+// STEP 1: Process test/transfer credits â€” match to slots then move to transfer section
 testCreditCourses.concat(transferCreditCourses).forEach(function(code){
 matchCourse(code,'completed');
 });
@@ -3692,7 +4785,7 @@ coursePlacements.push({code:entry.code,semIndex:semIdx,status:entry.status});
 });
 });
 
-// Match each course to its requirement slot — TWO PASSES
+// Match each course to its requirement slot â€” TWO PASSES
 // Pass A: match only courses with specific degree slots (directMap, ARE level, social sci, humanities)
 var unmatchedPlacements=[];
 coursePlacements.forEach(function(cp){
@@ -3762,11 +4855,11 @@ else if(hesNum>=200&&hesNum<300)filled=fillFirstEmpty(['HESF2'],'HESF 2XX',code,
 if(filled){matched.push(code);return;}
 }
 
-// Not matched to a specific slot — save for fallback pass
+// Not matched to a specific slot â€” save for fallback pass
 if(!filled)unmatchedPlacements.push(cp);
 });
 
-// Pass B: fallback — place remaining courses in elective slots
+// Pass B: fallback â€” place remaining courses in elective slots
 unmatchedPlacements.forEach(function(cp){
 var code=cp.code;
 if(matched.indexOf(code)!==-1)return;
@@ -3778,7 +4871,7 @@ if(!filled)filled=fillFirstEmpty(['GEPELEC'],'GEP Elective',code,label);
 if(!filled)filled=fillFirstEmpty(['FREE1','FREE2','FREE3'],'Free Elective',code,label);
 if(filled){matched.push(code);}
 else{
-// No empty slot available — add to Non-Degree Courses section
+// No empty slot available â€” add to Non-Degree Courses section
 nonDegreeCourses.push({
 id:'NONDEG_'+code.replace(/\s/g,''),
 code:code,
@@ -4032,7 +5125,7 @@ html+='<div style="display:flex;justify-content:space-between;padding:0.3rem 0.5
 });
 
 if(fadSatisfied){
-html+='<p style="margin-top:1rem;color:#059669;font-weight:600">&#10003; Foundations of American Democracy — Satisfied (noted on transcript)</p>';
+html+='<p style="margin-top:1rem;color:#059669;font-weight:600">&#10003; Foundations of American Democracy â€” Satisfied (noted on transcript)</p>';
 }
 
 // Show withdrawn courses
@@ -4041,7 +5134,7 @@ html+='<p style="margin-top:1rem;margin-bottom:0.5rem;color:var(--text)"><strong
 html+='<p style="font-size:0.75rem;color:var(--text-3);margin-bottom:0.4rem">These courses had a W grade and were not placed in the plan.</p>';
 withdrawnCourses.forEach(function(w){
 var wLabel=w.note==='F'?'F (Failed)':w.note==='U'?'U (Unsatisfactory)':w.note==='0cr'?'0 cr earned':'W (Withdrawn)';
-html+='<div style="display:flex;justify-content:space-between;padding:0.3rem 0.5rem;border-radius:4px;background:rgba(220,38,38,0.05);margin-bottom:0.25rem;border:1px solid rgba(220,38,38,0.1)"><span style="font-family:JetBrains Mono,monospace;font-weight:600">'+w.code+'</span><span style="color:#DC2626;font-weight:500;font-size:0.78rem">'+wLabel+' — '+w.term+'</span></div>';
+html+='<div style="display:flex;justify-content:space-between;padding:0.3rem 0.5rem;border-radius:4px;background:rgba(220,38,38,0.05);margin-bottom:0.25rem;border:1px solid rgba(220,38,38,0.1)"><span style="font-family:JetBrains Mono,monospace;font-weight:600">'+w.code+'</span><span style="color:#DC2626;font-weight:500;font-size:0.78rem">'+wLabel+' â€” '+w.term+'</span></div>';
 });
 }
 html+='<p style="margin-top:1rem;font-size:0.75rem;color:var(--text-3)">&#128274; Your transcript file is processed in your browser and is not uploaded or stored by Paw Plan.</p>';
@@ -4081,10 +5174,10 @@ description:"Develop understanding of micro/macroeconomic theory, markets, gover
 requirements:[
 {code:"EC 201 or ARE 201",cr:3,note:"Principles of Microeconomics",alts:["ARE 201","EC 201","EC 205"],status:"major",majorNote:"Already required by AgBus major"},
 {code:"EC/ARE 301",cr:3,note:"Intermediate Microeconomics",alts:["EC 301","ARE 301","EC/ARE 301"],status:"major",majorNote:"Already required by AgBus major"},
-{code:"EC 302",cr:3,note:"Intermediate Macroeconomics",alts:["EC 302"],status:"extra",majorNote:"Extra course — could use a Dept/Tech Elective slot"},
-{code:"EC 300-500 Elective #1",cr:3,note:"Any 300/400/500 level EC or ECG course",alts:[],status:"extra",majorNote:"Extra course — could use a Dept/Tech or Free Elective slot",
+{code:"EC 302",cr:3,note:"Intermediate Macroeconomics",alts:["EC 302"],status:"extra",majorNote:"Extra course â€” could use a Dept/Tech Elective slot"},
+{code:"EC 300-500 Elective #1",cr:3,note:"Any 300/400/500 level EC or ECG course",alts:[],status:"extra",majorNote:"Extra course â€” could use a Dept/Tech or Free Elective slot",
 options:["EC 305","EC 336","EC 348","EC 351","EC 404","EC 410","EC 413","EC 431","EC 437","EC 448","EC 449","EC 451","EC 468","EC 474","EC 490","EC 495"]},
-{code:"EC 300-500 Elective #2",cr:3,note:"Any 300/400/500 level EC or ECG course",alts:[],status:"extra",majorNote:"Extra course — could use a Dept/Tech or Free Elective slot",
+{code:"EC 300-500 Elective #2",cr:3,note:"Any 300/400/500 level EC or ECG course",alts:[],status:"extra",majorNote:"Extra course â€” could use a Dept/Tech or Free Elective slot",
 options:["EC 305","EC 336","EC 348","EC 351","EC 404","EC 410","EC 413","EC 431","EC 437","EC 448","EC 449","EC 451","EC 468","EC 474","EC 490","EC 495"]}
 ],
 extraCr:9,
@@ -4093,31 +5186,31 @@ notes:"Courses cannot be taken pass/fail. Up to 6 transfer credits allowed with 
 },
 "Business Administration":{
 totalCr:18,
-description:"Gain understanding of business language, economics fundamentals, financial accounting, and core business concepts. Designed primarily as a summer program — Poole recommends taking courses in summer terms. Requires 3.0 cumulative GPA to declare.",
+description:"Gain understanding of business language, economics fundamentals, financial accounting, and core business concepts. Designed primarily as a summer program â€” Poole recommends taking courses in summer terms. Requires 3.0 cumulative GPA to declare.",
 requirements:[
-{code:"MIE 201",cr:3,note:"Introduction to Business Processes",alts:["MIE 201"],status:"extra",majorNote:"Extra course — use a Dept/Tech or Free Elective slot"},
+{code:"MIE 201",cr:3,note:"Introduction to Business Processes",alts:["MIE 201"],status:"extra",majorNote:"Extra course â€” use a Dept/Tech or Free Elective slot"},
 {code:"EC 201 or ARE 201",cr:3,note:"Fundamentals of Economics (C- or better)",alts:["ARE 201","EC 201","EC 205"],status:"major",majorNote:"Already required by AgBus major"},
 {code:"ACC 210 or 220 or 280",cr:3,note:"Accounting course (C- or better)",alts:["ACC 210","ACC 220","ACC 280"],status:"major",majorNote:"ACC 210 already required by AgBus major"},
-{code:"BUS/MIE Elective #1",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course — use a Dept/Tech or Free Elective slot",
+{code:"BUS/MIE Elective #1",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course â€” use a Dept/Tech or Free Elective slot",
 options:["BUS 320","BUS 340","BUS 360","BUS 370","M 380","MIE 305","MIE 310","MIE 330"]},
-{code:"BUS/MIE Elective #2",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course — use a Dept/Tech or Free Elective slot",
+{code:"BUS/MIE Elective #2",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course â€” use a Dept/Tech or Free Elective slot",
 options:["BUS 320","BUS 340","BUS 360","BUS 370","M 380","MIE 305","MIE 310","MIE 330"]},
-{code:"BUS/MIE Elective #3",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course — use a Dept/Tech or Free Elective slot",
+{code:"BUS/MIE Elective #3",cr:3,note:"Choose from: BUS 320, 340, 360, 370, M 380, MIE 305, 310, 330",alts:[],status:"extra",majorNote:"Extra course â€” use a Dept/Tech or Free Elective slot",
 options:["BUS 320","BUS 340","BUS 360","BUS 370","M 380","MIE 305","MIE 310","MIE 330"]}
 ],
 extraCr:12,
 gpaReq:"3.0 cumulative GPA to declare; 2.0 GPA in minor coursework",
-notes:"Must have 30+ hours completed (15 at NC State) to declare. Designed as a summer program — strongly encouraged to take courses in summer. No more than 6 transfer credits. Note: BUS 320 requires ACC 210 (not ACC 280) as prereq."
+notes:"Must have 30+ hours completed (15 at NC State) to declare. Designed as a summer program â€” strongly encouraged to take courses in summer. No more than 6 transfer credits. Note: BUS 320 requires ACC 210 (not ACC 280) as prereq."
 },
 "Environmental Science":{
 totalCr:15,
 description:"Connect your major to contemporary environmental issues. Three ES core courses plus two electives from biological, physical, social science, or advanced course groups.",
 requirements:[
-{code:"ES Core #1",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course — could count as Tech Elective",
+{code:"ES Core #1",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course â€” could count as Tech Elective",
 options:["ES 100","ES 113","ES 200","ES 300"]},
-{code:"ES Core #2",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course — could count as Tech Elective",
+{code:"ES Core #2",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course â€” could count as Tech Elective",
 options:["ES 100","ES 113","ES 200","ES 300"]},
-{code:"ES Core #3",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course — could count as Tech Elective",
+{code:"ES Core #3",cr:3,note:"Choose 3 of: ES 100, ES 113, ES 200, ES 300",alts:[],status:"extra",majorNote:"Extra course â€” could count as Tech Elective",
 options:["ES 100","ES 113","ES 200","ES 300"]},
 {code:"ES Elective #1",cr:3,note:"Bio: MEA 220, FW 221, PB 360, FOR 252 | Phys: MEA 101, SSC 200, MEA 200 | Soc: IDS 201, PS 320, PS 336 | Adv: MEA 300, NR 460, NR 406",alts:[],status:"extra",majorNote:"May overlap with NatSci or Tech Elective slots",
 options:["MEA 220","FW 221","PB 360","FOR 252","MEA 101","SSC 200","MEA 200","IDS 201","NR 303","STS 322","PS 320","PS 336","LAR 221","MEA 300","NR 460","NR 406","HI 440","SOC 450"]},
@@ -4146,7 +5239,7 @@ document.getElementById('addsem-btn').addEventListener('click',function(){
 saveUndo();
 // Find the last regular semester
 var lastRegIdx=0;
-for(var ri=0;ri<plan.length;ri++){if(plan[ri].term.indexOf('Summer')!==0&&plan[ri].term.indexOf('Prior NC State')!==0&&plan[ri].term.indexOf('Transfer')!==0)lastRegIdx=ri;}
+for(var ri=0;ri<plan.length;ri++){if(isRegularTerm(plan[ri].term))lastRegIdx=ri;}
 var lastTerm=plan[lastRegIdx].term;
 // Figure out next semester name
 var yearMatch=lastTerm.match(/Year\s+(\d+)/);
@@ -4177,7 +5270,7 @@ Object.keys(MINORS).forEach(function(name){
 var minor=MINORS[name];
 
 html+='<div style="background:var(--surface-2);border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid var(--border)">';
-html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem"><div style="font-weight:700;color:var(--text);font-size:1rem">'+name+' Minor</div><div style="font-size:0.75rem;color:var(--text-2)">'+minor.totalCr+' cr total · '+minor.extraCr+' cr extra needed</div></div>';
+html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem"><div style="font-weight:700;color:var(--text);font-size:1rem">'+name+' Minor</div><div style="font-size:0.75rem;color:var(--text-2)">'+minor.totalCr+' cr total Â· '+minor.extraCr+' cr extra needed</div></div>';
 html+='<p style="font-size:0.8rem;color:var(--text-2);margin-bottom:0.75rem">'+minor.description+'</p>';
 
 // Check each requirement
@@ -4244,10 +5337,10 @@ html+='<div style="font-weight:600;color:var(--text);font-size:0.78rem">How to f
 html+='<a href="https://studentservices.ncsu.edu/academics/degrees/coda/coda-add-a-minor/" target="_blank" rel="noopener" style="display:inline-block;padding:0.35rem 0.7rem;background:#1D4ED8;color:#fff;text-decoration:none;border-radius:6px;font-size:0.72rem;font-weight:600;white-space:nowrap">How to declare a minor (CODA) &rarr;</a>';
 html+='</div>';
 html+='<div style="font-size:0.75rem;color:var(--text-2)">';
-html+='These courses count toward your <strong>Departmental/Technical Elective</strong> and <strong>Free Elective</strong> slots — you\'re not adding extra courses on top of your degree, you\'re filling existing slots with minor courses. ';
+html+='These courses count toward your <strong>Departmental/Technical Elective</strong> and <strong>Free Elective</strong> slots â€” you\'re not adding extra courses on top of your degree, you\'re filling existing slots with minor courses. ';
 html+='At '+minor.extraCr+' extra credits, that\'s '+Math.ceil(minor.extraCr/3)+' course'+(minor.extraCr>3?'s':'')+' from your elective slots. ';
 if(minor.extraCr<=9)html+='Very manageable within your 4-year plan.';
-else html+='May require careful planning — consider summer courses.';
+else html+='May require careful planning â€” consider summer courses.';
 html+='</div>';
 html+='</div>';
 }
@@ -4276,7 +5369,7 @@ var completedList=[];var inProgressList=[];var remainingList=[];var transferList
 var completedCr=0;var inProgressCr=0;var remainingCr=0;var transferCr=0;
 
 plan.forEach(function(s){
-if(s.term.indexOf('Summer')===0&&s.courses.length===0)return;
+if(isSummerTerm(s.term)&&s.courses.length===0)return;
 s.courses.forEach(function(c){
 if(c.name&&(c.name.indexOf('(Completed)')!==-1)){completedList.push({code:c.code,term:s.term,cr:c.units});completedCr+=c.units;}
 else if(c.name&&c.name.indexOf('(In Progress)')!==-1){inProgressList.push({code:c.code,term:s.term,cr:c.units});inProgressCr+=c.units;}
@@ -4302,7 +5395,7 @@ if(ps!==undefined&&ps>=my)issues.push(code+' requires '+p+' in earlier semester'
 });
 });
 plan.forEach(function(s){
-if(s.term.indexOf('Summer')===0)return;
+if(!isSchedulableSemester(s)||isSummerTerm(s.term))return;
 var cr=s.courses.reduce(function(a,c){return a+c.units;},0);
 if(cr>18)issues.push(s.term+': '+cr+' credits (over 18 max)');
 });
@@ -4321,7 +5414,7 @@ var gkMet=false;VERIFY_GLOBAL_KNOWLEDGE.forEach(function(c){if(allCodes.indexOf(
 var adMet=false;VERIFY_AMER_DEMOCRACY.forEach(function(c){if(allCodes.indexOf(c)!==-1)adMet=true;});
 
 // Build printable sheet as blob URL
-var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Advising Prep Sheet — Paw Plan</title>';
+var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Advising Prep Sheet â€” Paw Plan</title>';
 h+='<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600" rel="stylesheet">';
 h+='<style>';
 h+='*{margin:0;padding:0;box-sizing:border-box}';
@@ -4351,7 +5444,7 @@ h+='</style></head><body>';
 
 // Banner matching main page
 h+='<div class="banner"><h1><span style="color:#CC0000;font-weight:700">Paw Plan</span> <span style="color:rgba(255,255,255,0.25)">|</span> Advising Prep Sheet</h1>';
-h+='<div class="sub">Agribusiness Management, BS · College of Agriculture &amp; Life Sciences · NC State University</div>';
+h+='<div class="sub">Agribusiness Management, BS Â· College of Agriculture &amp; Life Sciences Â· NC State University</div>';
 h+='<div class="date">Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+'</div></div>';
 h+='<div class="content">';
 
@@ -4376,12 +5469,11 @@ var totalPlanCr=0;
 plan.forEach(function(s,si){
 var cr=s.courses.reduce(function(a,c){return a+c.units;},0);
 totalPlanCr+=cr;  // All credits count toward graduation, including transfers, prior NC State, summers
-if(s.term.indexOf('Summer')===0)return;  // No overload warning for summers
-if(s.term.indexOf('Prior NC State')===0||s.term.indexOf('Transfer')===0)return;  // No overload warning for special sections
-if(cr>18)heavySemWarnings.push(s.term+' has '+cr+' credits — exceeds 18 credit maximum. Student will need to move courses to summer or add additional semesters.');
-else if(cr>15)heavySemWarnings.push(s.term+' has '+cr+' credits — heavy load. Consider moving courses to summer.');
+if(!isSchedulableSemester(s)||isSummerTerm(s.term))return;  // No overload warning for top/review sections or summers
+if(cr>18)heavySemWarnings.push(s.term+' has '+cr+' credits â€” exceeds 18 credit maximum. Student will need to move courses to summer or add additional semesters.');
+else if(cr>15)heavySemWarnings.push(s.term+' has '+cr+' credits â€” heavy load. Consider moving courses to summer.');
 });
-// Add remaining credits warning — removed per advisor feedback
+// Add remaining credits warning â€” removed per advisor feedback
 heavySemWarnings.forEach(function(w){h+='<div class="issue">&#9888; '+w+'</div>';});
 h+='</div>';
 
@@ -4461,9 +5553,9 @@ h+='&#10003; = Completed &nbsp;&nbsp; &#9679; = In Progress &nbsp;&nbsp; <em sty
 h+='</div>';
 h+='<div class="sem-grid">';
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0&&s.courses.length===0)return;
+if(isSummerTerm(s.term)&&s.courses.length===0)return;
 var cr=s.courses.reduce(function(a,c){return a+c.units;},0);
-if(cr===0&&s.term.indexOf('Summer')===0)return;
+if(cr===0&&isSummerTerm(s.term))return;
 var crColor=cr>18?'color:#DC2626;font-weight:700':cr>15?'color:#D97706;font-weight:600':'';
 h+='<div class="sem-box'+(cr>18?' style="border-color:#DC2626;background:#FEF2F2"':cr>15?' style="border-color:#D97706;background:#FFFBEB"':'')+'"><div class="sem-name">'+s.term+' <span class="sem-cr" style="'+crColor+'">'+cr+' cr'+(cr>18?' &#9888;':'')+'</span></div>';
 s.courses.forEach(function(c){
@@ -4495,7 +5587,7 @@ h+='<br><em>Discuss reasons and plan for retaking required courses.</em>';
 h+='</div></div>';
 }
 
-h+='<div style="margin-top:1rem;padding-top:0.5rem;border-top:1px solid #E5E5E5;font-size:0.65rem;color:#737373;display:flex;justify-content:space-between"><span>Generated by Paw Plan · Not an official university document</span><span>Verify all information against your Degree Audit</span></div>';
+h+='<div style="margin-top:1rem;padding-top:0.5rem;border-top:1px solid #E5E5E5;font-size:0.65rem;color:#737373;display:flex;justify-content:space-between"><span>Generated by Paw Plan Â· Not an official university document</span><span>Verify all information against your Degree Audit</span></div>';
 h+='</div>'; // close content div
 h+='</body></html>';
 
@@ -4517,14 +5609,14 @@ document.getElementById('modal-overlay').classList.add('open');
 document.getElementById('whatif-btn').addEventListener('click',function(){
 document.getElementById('modal-overlay').classList.add('open');
 var body=document.getElementById('modal-body');
-document.getElementById('modal-title').textContent='What If? — Scenario Planner';
+document.getElementById('modal-title').textContent='What If? â€” Scenario Planner';
 document.getElementById('modal-search-input').style.display='none';
 
 // Calculate current state
 var completedCr=0;var inProgressCr=0;var remainingCr=0;
 var completedSems=[];var currentSemIdx=-1;
 plan.forEach(function(s,si){
-if(s.term.indexOf('Summer')===0)return;
+if(!isSchedulableSemester(s)||isSummerTerm(s.term))return;
 var hasDone=false;var hasIP=false;
 s.courses.forEach(function(c){
 if(c.name&&(c.name.indexOf('(Completed)')!==-1||c.name.indexOf('(Test Credit)')!==-1||c.name.indexOf('(Transfer Credit)')!==-1)){completedCr+=c.units;hasDone=true;}
@@ -4540,10 +5632,10 @@ var totalNeeded=Math.max(0,120-totalEarned);
 
 // Build dynamic semester labels and collect all regular semesters
 var regularSemIndices=[];
-plan.forEach(function(s,si){if(s.term.indexOf('Summer')!==0&&s.term.indexOf('Prior NC State')!==0&&s.term.indexOf('Transfer')!==0)regularSemIndices.push(si);});
+plan.forEach(function(s,si){if(isRegularTerm(s.term))regularSemIndices.push(si);});
 var semLabels=regularSemIndices.map(function(si){
 var term=plan[si].term;
-// Convert "Fall — Year 1" to "Fall Y1" etc
+// Convert "Fall â€” Year 1" to "Fall Y1" etc
 return term.replace(' \u2014 Year ','Y').replace('Fall','Fall ').replace('Spring','Spring ').trim();
 });
 var currentLabel=currentSemIdx>=0?plan[currentSemIdx].term:'Not started';
@@ -4631,7 +5723,7 @@ var timelineColor=early?'#166534':onTime?'#2563EB':'#DC2626';
 var timelineIcon=early?'&#9733;':onTime?'&#10003;':'&#9888;';
 var timelineMsg=early?'You could graduate <strong>early</strong>! (~'+gradSems+' semesters at '+cps+' cr/sem'+(sumCr>0?' + '+sumCr+' summer cr/yr':'')+')'
 :onTime?'On track for <strong>4-year graduation</strong> ('+gradSems+' semesters at '+cps+' cr/sem'+(sumCr>0?' + '+sumCr+' summer cr/yr':'')+')'
-:'At '+cps+' cr/sem, graduation extends to <strong>'+(gradSems)+' semesters</strong> — that\'s '+(Math.ceil(gradSems/2))+' years'+(sumCr>0?' even with summer courses':'');
+:'At '+cps+' cr/sem, graduation extends to <strong>'+(gradSems)+' semesters</strong> â€” that\'s '+(Math.ceil(gradSems/2))+' years'+(sumCr>0?' even with summer courses':'');
 
 rhtml+='<div style="padding:0.75rem;border-radius:8px;margin-bottom:0.75rem;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">';
 rhtml+='<span style="font-size:1.3rem;color:'+timelineColor+'">'+timelineIcon+'</span>';
@@ -4725,7 +5817,7 @@ closeModal();
 render();
 showToast(code+' added to a Dept/Tech or Free Elective slot');
 } else {
-showToast('No open elective slots — drag a course to make room first');
+showToast('No open elective slots â€” drag a course to make room first');
 }
 }
 window.addMinorCourse=addMinorCourse;
@@ -4742,7 +5834,7 @@ document.body.classList.remove('sample-mode');
 document.body.classList.add('uploaded-mode');
 var wc=document.getElementById('welcome-card');if(wc)wc.style.display='none';
 var sb=document.getElementById('sample-banner');if(sb)sb.style.display='none';
-// Key Chains stays hidden — accessible via More > Prerequisite Guide
+// Key Chains stays hidden â€” accessible via More > Prerequisite Guide
 }
 
 // Initial state: welcome card + sample plan
@@ -4796,3 +5888,4 @@ if(modalEl)modalObserver.observe(modalEl,{attributes:true,subtree:true,childList
 <div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 1rem;text-align:center;font-size:0.65rem;color:#737373;font-family:Inter,sans-serif">&copy; 2025 Julianne Treme. All rights reserved.</div>
 </body>
 </html>
+

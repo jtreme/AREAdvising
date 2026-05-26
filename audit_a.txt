@@ -1,0 +1,95 @@
+New Window
+Degree Audit
+Total Units
+NoneApplied for Graduation
+ID 200713298 Alston Poole
+Program CALS Agriculture & Life Sciences
+Plan 11AGBUSBSAgri Business Management-BS
+Sub-Plan  
+Req TermFall '25
+Last Updated05/26/2026 08:00 AM
+Advisor  
+need help?
+Completed
+ Enrolled
+ Incomplete/Late
+Planned
+ Unmet
+1 - Orientation
+Description Class Term Grade Units
+10  ALS 103 or ALS 303   1.000 Rqmnt DetailsWaive
+2 - Communications & Tech Fluency
+Description Class Term Grade Units
+10  Public Speaking COM 110 Fall '26 TA 3.000 Move
+20  COM 112,211,226 or ENG 332   3.000 Rqmnt DetailsWaive
+30  AEE 226 or CSC 200   3.000 Rqmnt DetailsWaive
+3 - Mathematical Sciences
+Description Class Term Grade Units
+10  Elements of Calc MA 121 Fall '26 TA 3.000 Rqmnt DetailsMove
+20  MA 114, 231 or 241   3.000 Rqmnt DetailsWaive
+30  Intro to Statistic ST 311 Fall '26 TIP 3.000 Rqmnt DetailsMove
+4 - Natural Sciences
+Description Class Term Grade Units
+10  Intro Bio Cell/Mol BIO 183 Fall '26 TA 4.000 Rqmnt DetailsMove
+Approved Exception
+20  Chem Molecular Sci CH 101 Fall '26 TB 3.000 Rqmnt DetailsMove
+20  Gen Chem Lab CH 102 Fall '26 TB 1.000 Rqmnt DetailsMove
+20  Chem-A Quanti Sci CH 201 Fall '26 TA 3.000 Rqmnt DetailsMove
+5 - Dept Course Requirements
+Description Class Term Grade Units
+10  Princ of Microecon EC 201 Fall '26 TA 3.000 Rqmnt DetailsMove
+20  Princ of Macroecon EC 202 Fall '26 TA 3.000 Move
+30  Concepts Fin Repor ACC 210 Fall '26 TA 3.000 Rqmnt DetailsMove
+40  ARE 303 or ARE 304   3.000 Rqmnt DetailsWaive
+50  ARE 306 or ARE 309   3.000 Rqmnt DetailsWaive
+60  ARE 311 or ARE 312   3.000 Rqmnt DetailsWaive
+70  ARE 321, ARE 323 or BUS 320   3.000 Rqmnt DetailsWaive
+80  ARE 301 or EC 301   3.000 Rqmnt DetailsWaive
+90  U S Agric Policy ARE 433   3.000 Waive
+100 Career Sem in ARE ARE 490   1.000 Waive
+110  Resource Envi Econ ARE 336   3.000 Waive
+120 ARE 400-level Electives   6.000 Rqmnt DetailsWaive
+130 ARE Elective   6.000 Rqmnt DetailsWaive
+6 - Restricted Electives
+Description Class Term Grade Units
+10  Technical Electives   8.000 Rqmnt DetailsWaive
+10  Quant Chem Lab CH 202 Fall '26 TA 1.000 Rqmnt DetailsMove
+20  Departmental or Technical Elec   8.000 Rqmnt DetailsWaive
+20  Accounting Elective ACC *** Fall '26 TA 1.000 Rqmnt DetailsMove
+8 - General Education Program (GEP) Courses
+Description Class Term Grade Units
+10  Acad Writing Rsch ENG 101 Fall '26 TA 4.000 Rqmnt DetailsMove
+20  English Literature II ENG 262 Fall '26 TA 3.000 Rqmnt DetailsMove
+20  Early U.S. History HI 253 Fall '26 TA 3.000 Rqmnt DetailsMove
+30  Social Sciences Elective   3.000 Rqmnt DetailsWaive
+40  HES Fitness & Wellness-100Lvl   1.000 Rqmnt DetailsWaive
+S Allowed
+50  HES Fit Elective 100 or 200Lvl   1.000 Rqmnt DetailsWaive
+S Allowed
+60  Interdisc Perspectives   2.000 Rqmnt DetailsWaive
+70  American Literature II ENG 266 Fall '26 TA 3.000 Rqmnt DetailsMove
+80  GEP Global Knowledge   Verify Rqmnt DetailsWaive
+90  Early U.S. History HI 253 Fall '26 MET Rqmnt Details
+100HI School Spanish WLSP 100 Fall '26 PF  Rqmnt DetailsMove
+20 - Free Electives
+
+Description Class Term Grade Units
+10  100 Level English ENG 1** Fall '26 TA 2.000 Rqmnt DetailsMove
+10  Modern U.S. History HI 254 Fall '26 TA 3.000 Rqmnt DetailsMove
+10  Precalculus I MA 107 Fall '26 TA 3.000 Rqmnt DetailsMove
+10  300 Level Statistics ST 3** Fall '26 TIP 1.000 Rqmnt DetailsMove
+30 - Degree Units Required
+ Min Units Req: 120
+99 - Non-degree Courses
+Description Class Term Grade Units
+ 100 Level Mathematics MA 1** Fall '26 TA 1.000 Move
+ 100 Level Mathematics MA 1** Fall '26 TA 1.000 Move
+ Elective TR *** Fall '26 TA 1.000 Move
+ Element Spanish I WLSP 101 Fall '26 TA 3.000 Move
+ Element Spanish II WLSP 102 Fall '26 TA 3.000 Move
+Completed
+ Enrolled
+ Incomplete/Late
+Planned
+ Unmet
+Return to Plans
