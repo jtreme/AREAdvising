@@ -2,14 +2,14 @@
 <!--
   Paw Plan (AGBUSBS)
   Build:    May 26 2026 audit-core version
-  Build id: reflow-final-v9
+  Build id: reflow-final-v10
   Source:   https://github.com/jtreme/AREAdvising
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="May 26 2026 audit-core version">
-<meta name="paw-plan-build-id" content="reflow-final-v9">
+<meta name="paw-plan-build-id" content="reflow-final-v10">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -193,9 +193,11 @@ return items;
 }
 
 function classifyAuditItems(parsedItems){
+var DEGREE_SECTIONS={'1':1,'2':1,'3':1,'4':1,'5':1,'6':1,'8':1,'20':1};
 return (parsedItems||[]).map(function(item){
 var out=Object.assign({},item);
 var g=out.grade||'';
+var inDegreeSec=DEGREE_SECTIONS[String(out.section||'')]===1;
 if(out.type==='note'){
 out.classification='advisor_review';
 out.statusNote=(out.flags||[]).join('; ');
@@ -203,6 +205,7 @@ return out;
 }
 if(out.section==='99'){
 out.classification='non_degree';
+out.advisorReviewFlag=true;
 out.reviewReason='Audit lists this item in Section 99 - Non-degree Courses.';
 return out;
 }
@@ -217,21 +220,46 @@ if(out.flags.indexOf('Course provides excess units')!==-1){
 out.excessUnitsFlag=true;
 out.reviewNote='Course provides excess units';
 }
-if(g==='MET'||g==='VERIFY'||out.wildcard){
+// MET / VERIFY rows are never credit-bearing -> advisor review.
+if(g==='MET'||g==='VERIFY'){
 out.classification='advisor_review';
-out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':
-out.wildcard?'Wildcard/generic transfer code needs advisor confirmation.':
-'Verify-only row; advisor should confirm.';
+out.advisorReviewFlag=true;
+out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':'Verify-only row; advisor should confirm.';
 return out;
 }
+// Wildcards inside a degree-requirement section: place by grade, FLAG for advisor.
+// Wildcards outside any recognized degree section: pure advisor review.
+if(out.wildcard){
+if(inDegreeSec){
+out.advisorReviewFlag=true;
+out.reviewNote=(out.reviewNote?out.reviewNote+'; ':'')+'Wildcard/generic transfer code - advisor must confirm exact course';
+// fall through to grade-based classification
+} else {
+out.classification='advisor_review';
+out.advisorReviewFlag=true;
+out.reviewReason='Wildcard/generic transfer code with no clear audit section.';
+return out;
+}
+}
+// TIP inside a degree-requirement section: treat as transfer credit with an advisor flag.
+// Outside: keep the prior transfer_in_progress -> advisor_review behavior.
 if(g==='TIP'){
+if(inDegreeSec){
+out.classification='transfer_posted';
+out.advisorReviewFlag=true;
+out.statusNote='TIP - Transfer in progress';
+out.reviewNote=(out.reviewNote?out.reviewNote+'; ':'')+'Transfer in progress - credit not yet posted';
+return out;
+}
 out.classification='transfer_in_progress';
+out.advisorReviewFlag=true;
 out.reviewReason='Transfer-in-progress credit is not posted.';
 return out;
 }
 if(['TA','TB','TB+','TB-','TC','TC+','TC-','TD','TD+','TD-','TR','CR','PF'].indexOf(g)!==-1){
 if(g==='PF'&&!out.units){
 out.classification='advisor_review';
+out.advisorReviewFlag=true;
 out.reviewReason='Proficiency/verify row with no credit units.';
 } else {
 out.classification='transfer_posted';
@@ -250,8 +278,10 @@ out.statusNote='Wait Listed';
 }
 return out;
 }
+// Could not confidently classify. If no recognized degree section, send to advisor review.
 out.classification='advisor_review';
-out.reviewReason='Could not confidently classify audit row.';
+out.advisorReviewFlag=true;
+out.reviewReason=inDegreeSec?'Could not confidently classify audit row.':'Course has no clear audit section.';
 return out;
 });
 }
@@ -2095,6 +2125,7 @@ item.classification==='transfer_posted'?'(Transfer Credit)':
 item.classification==='planned_current'?'(In Progress)':
 item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
 if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
+if(item.advisorReviewFlag&&item.classification!=='advisor_review'&&item.classification!=='non_degree')status=status.replace(/\)$/,' — Review)');
 // Section-aware category fallback: audit section context beats any generic 'free' fallback.
 var resolvedCat=slotInfo.cat||item.cat||categoryFromSection(item&&item.section);
 var catReason=slotInfo.cat?'slot-match':(item.cat?'item.cat':('section-'+(item&&item.section||'?')));
@@ -2118,6 +2149,7 @@ confidence:item.confidence||'high',
 reviewType:item.reviewType||'Review',
 reviewReason:item.reviewReason||item.statusNote||'',
 excessUnitsFlag:!!item.excessUnitsFlag,
+advisorReviewFlag:!!item.advisorReviewFlag,
 reviewNote:item.reviewNote||'',
 auditSection:String(item&&item.section||''),
 auditSubHeader:String(item&&item.subHeader||''),
@@ -2552,7 +2584,7 @@ if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].
 }
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v9';
+window.pawPlanBuildId='reflow-final-v10';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
@@ -2565,7 +2597,7 @@ if(isCompletedNcTerm(s.term))dest=summary.completed;
 else if(isTransferTerm(s.term))dest=summary.transfer;
 else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
 else if(isSchedulableSemester(s))dest=summary.future;
-if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',tag:c.tag||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,advisorReviewFlag:!!c.advisorReviewFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',tag:c.tag||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
 });
 advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||''});});
 return summary;
@@ -2578,7 +2610,7 @@ window.pawPlanDiagnoseAllImported=function(){
 var rows=[];
 plan.forEach(function(s,si){
 (s.courses||[]).forEach(function(c){
-rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',tag:c.tag||'',slotId:c.slotId||c.id||'',classification:c.classification||'',catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
+rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',tag:c.tag||'',slotId:c.slotId||c.id||'',classification:c.classification||'',advisorReviewFlag:!!c.advisorReviewFlag,catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
 });
 });
 if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
