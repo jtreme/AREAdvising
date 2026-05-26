@@ -1,51 +1,59 @@
 # Paw Plan Test Bundle
 
-**Commit:** 195de282f1f6c4cb31e6b5404f08d79710f15a32
-**Build id:** reflow-final-v3
-**Reflow fix:** yes (with foundation-course priority)
-**Generated:** 2026-05-26T16:02:29Z
+**Commit:** 493c058c879254eabf6c762bcb6be7748d82d4db
+**Build id:** reflow-final-v4
+**Features:** planned-current placement, foundation-course priority, forward-pull compaction with prereq check, trailing-empty trim
+**Generated:** 2026-05-26T16:17:45Z
 
-## How to use
+## Verify you have the latest file
 
-1. Open `paw-plan-test.html` in Chrome (double-click).
-2. You should see a yellow build stamp banner at the top reading:
-   ```
-   Build: 195de282f1f6c4cb31e6b5404f08d79710f15a32  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:02:29Z
-   ```
-   If that banner is missing or shows a different hash, you have a stale file.
-
-## DevTools sanity check (F12 console)
-
-```javascript
-console.log(window.pawPlanBuildId);          // expect: "reflow-final-v3"
-console.log(document.title);                 // expect: contains "[build reflow-final-v3]"
-console.log(document.getElementById('paw-plan-build-stamp')?.textContent?.trim());
+Yellow banner at top should read:
+```
+Build: 493c058c879254eabf6c762bcb6be7748d82d4db  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:17:45Z
 ```
 
-## After uploading an audit PDF
+DevTools console (F12):
+```javascript
+console.log(window.pawPlanBuildId);  // expect: "reflow-final-v4"
+console.log(document.title);          // expect: contains "[build reflow-final-v4]"
+```
+
+## After uploading any audit PDF
 
 ```javascript
 const s = window.summarizeImportedAuditPlan();
-const f26 = s.future.filter(c => c.term === 'Fall 2026');
-console.log('Fall 2026:', f26.reduce((t,c)=>t+(c.units||0),0), 'cr,', f26.length, 'courses');
-f26.forEach(c => console.log(' ', c.code, '(' + c.units + 'cr)', c.classification || '(default slot)'));
-const s27 = s.future.filter(c => c.term === 'Spring 2027');
-console.log('Spring 2027:', s27.reduce((t,c)=>t+(c.units||0),0), 'cr');
-s27.forEach(c => console.log(' ', c.code, '(' + c.units + 'cr)'));
+const byTerm = {};
+s.future.forEach(c => { byTerm[c.term] = byTerm[c.term] || []; byTerm[c.term].push(c); });
+Object.keys(byTerm).forEach(t => {
+  const cr = byTerm[t].reduce((x,c)=>x+(c.units||0), 0);
+  console.log(t + ': ' + cr + 'cr / ' + byTerm[t].length + ' courses');
+});
 ```
 
-### Expected for Micah's audit
+## Expected behavior per audit
 
-* **Fall 2026 = 15 cr / 5 courses**, all `planned_current`:
-  CH 221, CH 222, PY 211, EC 205, MA 242
-* **Spring 2027** contains foundation courses including **ARE 201** (not pushed to Year 3 anymore).
+### Preston (the rising-junior audit)
+Distribution should be roughly **14 / 16 / 15 / 9 / 1** across Fall 2026 -> Spring 2028 + Fall 2029 (ARE 490 final).
+Fall 2028, Spring 2029, Spring 2030 trimmed as trailing empties.
 
-If you see any course with no classification in Fall 2026 it means the reflow did not run.
-If ARE 201 is in Fall 2028 or later it means the foundation priority did not run.
-Either symptom means the file is stale.
+### Micah
+Fall 2026 = 15 cr (5 audit-planned only). Spring 2027 = 17 cr including **ARE 201**. ARE 490 in Fall 2029.
 
-## Direct downloads (commit-pinned, immutable)
+### Audit B
+Fall 2026 = 17 cr (7 audit-planned only). Spring 2027 onward distributes remaining requirements. ARE 490 in Fall 2029.
 
-* HTML: https://raw.githubusercontent.com/jtreme/AREAdvising/195de282f1f6c4cb31e6b5404f08d79710f15a32/paw-plan-test.html
-* README: https://raw.githubusercontent.com/jtreme/AREAdvising/195de282f1f6c4cb31e6b5404f08d79710f15a32/paw-plan-test-README.md
-* Zip: https://github.com/jtreme/AREAdvising/raw/195de282f1f6c4cb31e6b5404f08d79710f15a32/paw-plan-test-latest.zip
+### Audit A
+No audit-planned items; full plan distributed across Fall 2026 -> Fall 2029 with ARE 490 final.
+
+## Constraints enforced
+
+- No auto-generated semester > 18 cr
+- Audit-planned semesters not overfilled
+- ARE 490 stays in one of the last three active coursework terms
+- ARE 201 (and other foundation slots) placed as early as possible if unmet
+- Prerequisites respected: a course is only pulled forward if its prereqs are satisfied by an earlier semester or by completed / transfer / planned-current
+
+## Commit-pinned downloads (immutable)
+
+* HTML: https://raw.githubusercontent.com/jtreme/AREAdvising/<NEXT_COMMIT>/paw-plan-test.html
+* Zip:  https://github.com/jtreme/AREAdvising/raw/<NEXT_COMMIT>/paw-plan-test-latest.zip

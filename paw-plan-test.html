@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paw Plan [build reflow-final-v3] â€” Agribusiness Management BS | NC State CALS</title>
+<title>Paw Plan [build reflow-final-v4] â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>/* inlined pawplan-audit-core.js */
@@ -410,9 +410,9 @@ body.uploaded-mode #more-tools-menu #reupload-btn{display:block !important}
 </head>
 <body>
 <div id="paw-plan-build-stamp" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff3cd;color:#664d03;border-bottom:2px solid #ffc107;padding:6px 12px;font:13px/1.4 system-ui,sans-serif;text-align:center">
-<strong>Build:</strong> 195de282f1f6c4cb31e6b5404f08d79710f15a32
+<strong>Build:</strong> 493c058c879254eabf6c762bcb6be7748d82d4db
 &nbsp;Â·&nbsp; <strong>Reflow fix:</strong> yes
-&nbsp;Â·&nbsp; <strong>Generated:</strong> <span id="paw-plan-build-ts">2026-05-26T16:02:29Z</span>
+&nbsp;Â·&nbsp; <strong>Generated:</strong> <span id="paw-plan-build-ts">2026-05-26T16:17:45Z</span>
 &nbsp;Â·&nbsp; <a href="#" onclick="document.getElementById('paw-plan-build-stamp').style.display='none';return false">dismiss</a>
 </div>
 <div class="header" style="margin-top:34px"><div class="header-inner">
@@ -2290,9 +2290,100 @@ target=i;break;
 ensureSemesterExists(target);
 plan[target].courses.push(d.slot);
 });
+// COMPACTION PASS
+// Pull movable courses from later semesters into earlier ones that are below the target
+// load (15 cr), up to the soft max (17 cr). Preserves: audit-planned semesters (skipped
+// as targets and their planned courses never move), ARE 490 (never moved),
+// "no auto >18 cr", and prerequisite order (a course is only pulled into a semester
+// where all of its PREREQS are already satisfied by earlier semesters or top sections).
+function _isMovableForCompaction(c){
+if(!c)return false;
+if(c.classification==='planned_current'||c.auditStatus==='planned_current'||c.importedFromAudit===true)return false;
+if(c.id==='ARE490'||c.code==='ARE 490')return false;
+return true;
+}
+var _PREREQ_ALT={
+"ARE 201":["ARE 201","EC 201","ARE 201 or EC 201"],
+"EC/ARE 301":["EC/ARE 301","EC 301","ARE 301","ARE 301 or EC 301"],
+"MA 121/131/141":["MA 121/131/141","MA 121","MA 131","MA 141"],
+"ARE 303/304":["ARE 303/304","ARE 303","ARE 304"],
+"ARE 311/312":["ARE 311/312","ARE 311","ARE 312"],
+"ARE 321/323/BUS 320":["ARE 321/323/BUS 320","ARE 321","ARE 323","BUS 320"],
+"ARE 306/309":["ARE 306/309","ARE 306","ARE 309"]
+};
+function _coursesDoneBy(targetIdx){
+var done={};
+plan.forEach(function(s,si){
+var include=false;
+if(isTopAuditSection(s))include=true;
+else if(isSchedulableSemester(s)&&si<targetIdx)include=true;
+if(!include)return;
+(s.courses||[]).forEach(function(c){
+if(!c||!c.code)return;
+done[c.code]=true;
+Object.keys(_PREREQ_ALT).forEach(function(k){if(_PREREQ_ALT[k].indexOf(c.code)!==-1)done[k]=true;});
+});
+});
+return done;
+}
+function _prereqsOkAt(course,targetIdx){
+if(!course||!course.code)return true;
+var reqs=(typeof PREREQS!=='undefined'&&PREREQS[course.code])||[];
+if(!reqs.length)return true;
+var done=_coursesDoneBy(targetIdx);
+for(var pi=0;pi<reqs.length;pi++){
+var alts=_PREREQ_ALT[reqs[pi]]||[reqs[pi]];
+var ok=false;
+for(var ai=0;ai<alts.length;ai++){if(done[alts[ai]]){ok=true;break;}}
+if(!ok)return false;
+}
+return true;
+}
+var _compactRegIdx=[];
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))_compactRegIdx.push(si);});
+for(var _pass=0;_pass<5;_pass++){
+var _moved=false;
+// Refresh index list each pass in case prior trims changed things
+_compactRegIdx=[];
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))_compactRegIdx.push(si);});
+for(var _ci=0;_ci<_compactRegIdx.length-1;_ci++){
+var _ti=_compactRegIdx[_ci];
+if(plan[_ti].hasAuditPlannedCourses)continue;
+var _loadTi=plan[_ti].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadTi>=15)continue;
+for(var _cj=_ci+1;_cj<_compactRegIdx.length;_cj++){
+var _fi=_compactRegIdx[_cj];
+for(var _ck=plan[_fi].courses.length-1;_ck>=0;_ck--){
+var _cc=plan[_fi].courses[_ck];
+if(!_isMovableForCompaction(_cc))continue;
+var _cu=_cc.units||0;
+if(_loadTi+_cu>17)continue;
+if(!_prereqsOkAt(_cc,_ti))continue;
+plan[_ti].courses.push(_cc);
+plan[_fi].courses.splice(_ck,1);
+_loadTi+=_cu;
+_moved=true;
+if(_loadTi>=15)break;
+}
+if(_loadTi>=15)break;
+}
+}
+if(!_moved)break;
+}
+// Trim trailing empty regular semesters (after the last non-empty regular).
+// Summer sections and top sections are preserved; middle empties stay so the student can drag into them.
+var _lastNonEmpty=-1;
+for(var _ti=0;_ti<plan.length;_ti++){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&plan[_ti].courses&&plan[_ti].courses.length>0)_lastNonEmpty=_ti;
+}
+if(_lastNonEmpty>=0){
+for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
+}
+}
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v3';
+window.pawPlanBuildId='reflow-final-v4';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
