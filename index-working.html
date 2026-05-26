@@ -1,9 +1,17 @@
 ﻿<!DOCTYPE html>
+<!--
+  Paw Plan (AGBUSBS)
+  Build:    May 26 2026 audit-core version
+  Build id: reflow-final-v8
+  Source:   https://github.com/jtreme/AREAdvising
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="paw-plan-build" content="May 26 2026 audit-core version">
+<meta name="paw-plan-build-id" content="reflow-final-v8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paw Plan [build reflow-final-v6] â€” Agribusiness Management BS | NC State CALS</title>
+<title>Paw Plan [build reflow-final-v8] â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="./pawplan-audit-core.js?v=2"></script>
@@ -139,7 +147,7 @@ body.uploaded-mode #more-tools-menu #reupload-btn{display:block !important}
 </head>
 <body>
 <div id="paw-plan-build-stamp" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff3cd;color:#664d03;border-bottom:2px solid #ffc107;padding:6px 12px;font:13px/1.4 system-ui,sans-serif;text-align:center">
-<strong>Build:</strong> 7a1c63d23a10f95c00f66f5abea2607af01af477
+<strong>Build:</strong> 2adeb52b79a0473c725c350a1b5b518716c42d9e
 &nbsp;Â·&nbsp; <strong>Reflow fix:</strong> yes
 &nbsp;Â·&nbsp; <strong>Generated:</strong> <span id="paw-plan-build-ts">BUILD_TIMESTAMP_PLACEHOLDER</span>
 &nbsp;Â·&nbsp; <a href="#" onclick="document.getElementById('paw-plan-build-stamp').style.display='none';return false">dismiss</a>
@@ -297,6 +305,7 @@ Save your plan as a file. Load it later or email it to your advisor.
 </div>
 </div>
 <script>
+window.PAW_PLAN_BUILD = "May 26 2026 audit-core version";
 document.addEventListener('DOMContentLoaded', function(){
 
 // Set up pdf.js worker once at startup to avoid the "Setting up fake worker" fallback warning
@@ -314,6 +323,14 @@ restricted:{label:"Tech / Dept Elec",color:"#A16207"},
 gep:{label:"GEP",color:"#1D4ED8"},
 free:{label:"Free Elective",color:"#57534E"}
 };
+
+// Audit section -> default category mapping. Used as a section-aware fallback so the
+// audit's own section context beats any generic code-lookup or "free" fallback.
+var AUDIT_SECTION_TO_CAT={
+'1':'orientation','2':'comm','3':'math','4':'natsci',
+'5':'dept','6':'restricted','8':'gep','20':'free','99':'free'
+};
+function categoryFromSection(section){return AUDIT_SECTION_TO_CAT[String(section||'')]||'free';}
 
 var PREREQS={
 "ARE 336":["ARE 201","EC/ARE 301"],
@@ -1758,12 +1775,15 @@ item.classification==='transfer_posted'?'(Transfer Credit)':
 item.classification==='planned_current'?'(In Progress)':
 item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
 if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
+// Section-aware category fallback: audit section context beats any generic 'free' fallback.
+var resolvedCat=slotInfo.cat||item.cat||categoryFromSection(item&&item.section);
+var catReason=slotInfo.cat?'slot-match':(item.cat?'item.cat':('section-'+(item&&item.section||'?')));
 return {
 id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
 code:code,
 name:status,
 units:item.units||getCourseCredits(code),
-cat:slotInfo.cat||item.cat||'free',
+cat:resolvedCat,
 tag:slotInfo.tag||item.requirementKind||'',
 picker:slotInfo.picker||'',
 term:item.term||'',
@@ -1775,7 +1795,11 @@ confidence:item.confidence||'high',
 reviewType:item.reviewType||'Review',
 reviewReason:item.reviewReason||item.statusNote||'',
 excessUnitsFlag:!!item.excessUnitsFlag,
-reviewNote:item.reviewNote||''
+reviewNote:item.reviewNote||'',
+auditSection:String(item&&item.section||''),
+auditSubHeader:String(item&&item.subHeader||''),
+rawAuditLine:item&&item.raw||'',
+catReason:catReason
 };
 }
 function requirementGroupToPlanSlots(item){
@@ -1783,20 +1807,25 @@ var kind=item.requirementKind||'Requirement Group';
 var slots=[];
 function mk(id,code,name,units,cat,picker,tag){
 var base=findDefaultSlot(id)||{};
+var fallbackCat=cat||base.cat||categoryFromSection(item&&item.section);
 return {
 id:id+'_'+Math.random().toString(36).substr(2,3),
 slotId:id,
 code:code||base.code||kind,
 name:name||'Click to choose',
 units:units||base.units||3,
-cat:cat||base.cat||'free',
+cat:fallbackCat,
 picker:picker||base.picker||'',
 tag:tag||base.tag||kind,
 requirementGroup:kind,
 classification:'unmet_requirement',
 placementStatus:'unplaced',
 placementReason:'Requirement group from degree audit.',
-confidence:'medium'
+confidence:'medium',
+auditSection:String(item&&item.section||''),
+auditSubHeader:String(item&&item.subHeader||''),
+rawAuditLine:item&&item.raw||'',
+catReason:cat?'kind-explicit':(base.cat?'default-slot':('section-'+(item&&item.section||'?')))
 };
 }
 if(kind==='Humanities Elective'){slots.push(mk('GEPHUMANITIES','GEP Humanities','Click to select course',3,'gep','hum','Humanities GEP'));slots.push(mk('HUMGEP','GEP Humanities 2','Click to select course',3,'gep','hum','Humanities GEP'));}
@@ -1813,8 +1842,6 @@ else if(kind==='AEE/CSC 200 Choice')slots.push(mk('AEE226','AEE 226 or CSC 200',
 else if(kind==='Math Choice')slots.push(mk('MATH2','MA 114, 231 or 241','Click to choose',3,'math','','Math'));
 else if(kind==='Statistics Choice')slots.push(mk('ST311','ST 311, BUS 350 or ST 350','Click to choose',3,'math','','Statistics'));
 else if(kind==='Interdisciplinary Perspectives')slots.push(mk('IDS201','Interdisc Perspectives','Click to choose',2,'gep','interdisc','GEP'));
-else if(kind==='GEP Global Knowledge')slots.push(mk('GEPGLOBAL','GEP Global Knowledge','Click to choose',3,'gep','global','GEP'));
-else if(kind==='American Democracy')slots.push(mk('GEPDEMOCRACY','American Democracy','Click to choose',3,'gep','democracy','GEP'));
 else if(kind==='Communications Choice')slots.push(mk('COM112','COM 112/211/226 or ENG 332','Click to choose',3,'comm','com112','Communications'));
 else if(kind==='Accounting Choice')slots.push(mk('ACC210','ACC 200 or ACC 210','Click to choose',3,'dept','','Accounting'));
 else if(kind==='ARE 303/304')slots.push(mk('ARE303','ARE 303/304','Click to choose',3,'dept','are303','ARE Core'));
@@ -1822,7 +1849,11 @@ else if(kind==='ARE 306/309')slots.push(mk('ARE306','ARE 306/309','Click to choo
 else if(kind==='ARE 311/312')slots.push(mk('ARE312','ARE 311/312','Click to choose',3,'dept','are312','ARE Core'));
 else if(kind==='ARE 321/323/BUS 320')slots.push(mk('ARE321','ARE 321/323/BUS 320','Click to choose',3,'dept','are321','ARE Core'));
 else if(kind==='ARE/EC 301')slots.push(mk('EC301','EC/ARE 301','Intermediate Microeconomics',3,'dept','','Intermed Micro'));
-else slots.push(mk('REQ','Requirement Group','Click to choose',item.units||3,'free','','Requirement'));
+else if(kind==='GEP Elective')slots.push(mk('GEPELEC','GEP Elective','Click to select course',3,'gep','gepelec','GEP Elective'));
+else if(kind==='ENG 101 Requirement')slots.push(mk('ENG101','ENG 101','Academic Writing & Research',4,'gep','','Writing GEP'));
+// Verification-only sub-headers (Section 8 / 80, 90, 100): no future credit slot.
+else if(kind==='GEP Global Knowledge'||kind==='American Democracy'||kind==='World Language Proficiency'){/* no slot */}
+else slots.push(mk('REQ','Requirement Group','Click to choose',item.units||3,categoryFromSection(item&&item.section),'','Requirement'));
 return slots;
 }
 function getSlotInfoForImportedItem(item,requirementCatalog){
@@ -1830,7 +1861,9 @@ var req=item.matchedRequirement||requirementCatalog[item.code]||{};
 var slotId=(typeof req==='string')?req:(req.id||'');
 var found=slotId?findDefaultSlot(slotId):null;
 if(found)return {slotId:slotId,cat:found.cat,tag:found.tag||CATEGORIES[found.cat].label,picker:found.picker||''};
-return {slotId:slotId,cat:'free',tag:item.requirementKind||'',picker:''};
+// Fallback: use the audit's own section context instead of defaulting to 'free'.
+var sectCat=categoryFromSection(item&&item.section);
+return {slotId:slotId,cat:sectCat,tag:item.requirementKind||(CATEGORIES[sectCat]?CATEGORIES[sectCat].label:''),picker:''};
 }
 function removeSatisfiedFutureSlots(sections,requirementCatalog){
 var satisfied={};
@@ -2195,7 +2228,7 @@ if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].
 }
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v6';
+window.pawPlanBuildId='reflow-final-v8';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
@@ -2208,12 +2241,38 @@ if(isCompletedNcTerm(s.term))dest=summary.completed;
 else if(isTransferTerm(s.term))dest=summary.transfer;
 else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
 else if(isSchedulableSemester(s))dest=summary.future;
-if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||''});});
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
 });
-advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||''});});
+advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||''});});
 return summary;
 }
 window.summarizeImportedAuditPlan=summarizeImportedAuditPlan;
+// Diagnostic helper: lists every course currently in plan with raw section,
+// sub-header, mapped category, slotId, and the reason cat was assigned. Run
+// from DevTools console after upload.
+window.pawPlanDiagnoseAllImported=function(){
+var rows=[];
+plan.forEach(function(s,si){
+(s.courses||[]).forEach(function(c){
+rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',slotId:c.slotId||c.id||'',classification:c.classification||'',catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
+});
+});
+if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
+return rows;
+};
+// Diagnostic helper: lists every course currently in plan with cat==='free',
+// showing the audit section and reason. Run from DevTools console after upload.
+window.pawPlanDiagnoseFreeElectives=function(){
+var rows=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+(s.courses||[]).forEach(function(c){
+if(c.cat==='free')rows.push({term:s.term,code:c.code,auditSection:c.auditSection||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80),classification:c.classification||'',cat:c.cat,slotId:c.slotId||c.id||'',reason:c.catReason||''});
+});
+});
+if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
+return rows;
+};
 function pawPlanImportAuditTextShared(text,requirementCatalog,planningSettings){
 var parsed=window.PawPlanAuditCore.parseAuditText(text);
 var classified=window.PawPlanAuditCore.classifyAuditItems(parsed);
@@ -5610,7 +5669,7 @@ if(modalEl)modalObserver.observe(modalEl,{attributes:true,subtree:true,childList
 }); // end DOMContentLoaded
 </script>
 <script data-goatcounter="https://jtreme.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 1rem;text-align:center;font-size:0.65rem;color:#737373;font-family:Inter,sans-serif">&copy; 2025 Julianne Treme. All rights reserved.</div>
+<div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 1rem;text-align:center;font-size:0.65rem;color:#737373;font-family:Inter,sans-serif">&copy; 2025 Julianne Treme. All rights reserved.<br><span id="paw-plan-build-footer" style="color:#a3a3a3;font-size:0.6rem">Paw Plan build: May 26, 2026 &mdash; audit-core version</span></div>
 </body>
 </html>
 

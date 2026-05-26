@@ -1,17 +1,15 @@
 ﻿<!DOCTYPE html>
 <!--
-  Paw Plan (AGBUSBS) - production bundle
-  Build:     reflow-final-v6
-  Commit:    7a1c63d23a10f95c00f66f5abea2607af01af477
-  Generated: 2026-05-26T16:37:49Z
-  Source:    https://github.com/jtreme/AREAdvising/blob/7a1c63d23a10f95c00f66f5abea2607af01af477/index-working.html
+  Paw Plan (AGBUSBS)
+  Build:    May 26 2026 audit-core version
+  Build id: reflow-final-v8
+  Source:   https://github.com/jtreme/AREAdvising
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="paw-plan-build" content="reflow-final-v6">
-<meta name="paw-plan-build-commit" content="7a1c63d23a10f95c00f66f5abea2607af01af477">
-<meta name="paw-plan-build-generated" content="2026-05-26T16:37:49Z">
+<meta name="paw-plan-build" content="May 26 2026 audit-core version">
+<meta name="paw-plan-build-id" content="reflow-final-v8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -78,7 +76,7 @@ if(/Electives?|Humanities|Social Sciences|Statistics|Fitness|Interdisc|Free Elec
 return codes.length>1&&!parseTerm(text);
 }
 
-function getRequirementKind(line,section){
+function getRequirementKind(line,section,subHeader){
 var text=String(line||'');
 if(/ARE 400-level/i.test(text))return 'ARE 400-level Electives';
 if(/ARE Elective/i.test(text))return 'ARE Elective';
@@ -96,6 +94,7 @@ if(/Statistics/i.test(text))return 'Statistics Choice';
 if(/Interdisc Perspectives/i.test(text))return 'Interdisciplinary Perspectives';
 if(/GEP Global Knowledge/i.test(text))return 'GEP Global Knowledge';
 if(/Found\. of American Democracy/i.test(text))return 'American Democracy';
+if(/GEP Elective/i.test(text))return 'GEP Elective';
 if(/COM 112|ENG 332/i.test(text))return 'Communications Choice';
 if(/ACC 200|ACC 210/i.test(text))return 'Accounting Choice';
 if(/ARE 303|ARE 304/i.test(text))return 'ARE 303/304';
@@ -103,9 +102,33 @@ if(/ARE 306|ARE 309/i.test(text))return 'ARE 306/309';
 if(/ARE 311|ARE 312/i.test(text))return 'ARE 311/312';
 if(/ARE 321|ARE 323|BUS 320/i.test(text))return 'ARE 321/323/BUS 320';
 if(/ARE 301|EC 301/i.test(text))return 'ARE/EC 301';
+// Section + subHeader fallbacks (audit context beats generic 'Requirement Group')
+var s=String(section||''), sh=String(subHeader||'');
+if(s==='8'){
+if(sh==='10')return 'ENG 101 Requirement';
+if(sh==='20')return 'Humanities Elective';
+if(sh==='30')return 'Social Science Elective';
+if(sh==='40')return 'HES Fitness';
+if(sh==='50')return 'HES Activity';
+if(sh==='60')return 'Interdisciplinary Perspectives';
+if(sh==='70')return 'GEP Elective';
+if(sh==='80')return 'GEP Global Knowledge';
+if(sh==='90')return 'American Democracy';
+if(sh==='100')return 'World Language Proficiency';
+}
+if(s==='6'){
+if(sh==='10')return 'Technical Electives';
+if(sh==='20')return 'Departmental or Technical Electives';
+}
 return 'Requirement Group';
 }
 
+function parseSubHeader(line){
+// Audit rows in sections like 8 lead with a sub-header number: "20  Humanities Elective ...".
+// MyPack-printed PDFs sometimes butt the number against the description ("100HI School Spanish").
+var m=String(line||'').match(/^\s*(\d{1,3})(?=\s|[A-Z])/);
+return m?m[1]:'';
+}
 function parseAuditText(rawText){
 var lines=normalizeLines(rawText);
 var items=[];
@@ -121,6 +144,7 @@ var termText=termMatch?termMatch[0]:'';
 var term=parseTerm(line);
 var grade=parseGrade(line,termText);
 var units=parseUnits(line);
+var subHeader=parseSubHeader(line);
 var nextLine=lines[i+1]||'';
 var flags=[];
 if(nextLine.indexOf('Wait Listed')!==-1||line.indexOf('Wait Listed')!==-1)flags.push('Wait Listed');
@@ -130,13 +154,14 @@ if(looksLikeRequirementGroup(line,codes)){
 items.push({
 type:'requirement_group',
 section:section,
+subHeader:subHeader,
 raw:line,
 codes:codes,
 code:codes[0]||'',
 term:term,
 grade:grade,
 units:units,
-requirementKind:getRequirementKind(line,section),
+requirementKind:getRequirementKind(line,section,subHeader),
 classification:'unmet_requirement',
 flags:flags
 });
@@ -144,7 +169,7 @@ continue;
 }
 if(!codes.length){
 if(/Approved Exception|Approved Waiver/.test(line)){
-items.push({type:'note',section:section,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
+items.push({type:'note',section:section,subHeader:subHeader,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
 }
 continue;
 }
@@ -152,6 +177,7 @@ codes.forEach(function(code){
 items.push({
 type:'course',
 section:section,
+subHeader:subHeader,
 raw:line,
 code:code,
 codes:[code],
@@ -572,6 +598,7 @@ Save your plan as a file. Load it later or email it to your advisor.
 </div>
 </div>
 <script>
+window.PAW_PLAN_BUILD = "May 26 2026 audit-core version";
 document.addEventListener('DOMContentLoaded', function(){
 
 // Set up pdf.js worker once at startup to avoid the "Setting up fake worker" fallback warning
@@ -589,6 +616,14 @@ restricted:{label:"Tech / Dept Elec",color:"#A16207"},
 gep:{label:"GEP",color:"#1D4ED8"},
 free:{label:"Free Elective",color:"#57534E"}
 };
+
+// Audit section -> default category mapping. Used as a section-aware fallback so the
+// audit's own section context beats any generic code-lookup or "free" fallback.
+var AUDIT_SECTION_TO_CAT={
+'1':'orientation','2':'comm','3':'math','4':'natsci',
+'5':'dept','6':'restricted','8':'gep','20':'free','99':'free'
+};
+function categoryFromSection(section){return AUDIT_SECTION_TO_CAT[String(section||'')]||'free';}
 
 var PREREQS={
 "ARE 336":["ARE 201","EC/ARE 301"],
@@ -2033,12 +2068,15 @@ item.classification==='transfer_posted'?'(Transfer Credit)':
 item.classification==='planned_current'?'(In Progress)':
 item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
 if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
+// Section-aware category fallback: audit section context beats any generic 'free' fallback.
+var resolvedCat=slotInfo.cat||item.cat||categoryFromSection(item&&item.section);
+var catReason=slotInfo.cat?'slot-match':(item.cat?'item.cat':('section-'+(item&&item.section||'?')));
 return {
 id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
 code:code,
 name:status,
 units:item.units||getCourseCredits(code),
-cat:slotInfo.cat||item.cat||'free',
+cat:resolvedCat,
 tag:slotInfo.tag||item.requirementKind||'',
 picker:slotInfo.picker||'',
 term:item.term||'',
@@ -2050,7 +2088,11 @@ confidence:item.confidence||'high',
 reviewType:item.reviewType||'Review',
 reviewReason:item.reviewReason||item.statusNote||'',
 excessUnitsFlag:!!item.excessUnitsFlag,
-reviewNote:item.reviewNote||''
+reviewNote:item.reviewNote||'',
+auditSection:String(item&&item.section||''),
+auditSubHeader:String(item&&item.subHeader||''),
+rawAuditLine:item&&item.raw||'',
+catReason:catReason
 };
 }
 function requirementGroupToPlanSlots(item){
@@ -2058,20 +2100,25 @@ var kind=item.requirementKind||'Requirement Group';
 var slots=[];
 function mk(id,code,name,units,cat,picker,tag){
 var base=findDefaultSlot(id)||{};
+var fallbackCat=cat||base.cat||categoryFromSection(item&&item.section);
 return {
 id:id+'_'+Math.random().toString(36).substr(2,3),
 slotId:id,
 code:code||base.code||kind,
 name:name||'Click to choose',
 units:units||base.units||3,
-cat:cat||base.cat||'free',
+cat:fallbackCat,
 picker:picker||base.picker||'',
 tag:tag||base.tag||kind,
 requirementGroup:kind,
 classification:'unmet_requirement',
 placementStatus:'unplaced',
 placementReason:'Requirement group from degree audit.',
-confidence:'medium'
+confidence:'medium',
+auditSection:String(item&&item.section||''),
+auditSubHeader:String(item&&item.subHeader||''),
+rawAuditLine:item&&item.raw||'',
+catReason:cat?'kind-explicit':(base.cat?'default-slot':('section-'+(item&&item.section||'?')))
 };
 }
 if(kind==='Humanities Elective'){slots.push(mk('GEPHUMANITIES','GEP Humanities','Click to select course',3,'gep','hum','Humanities GEP'));slots.push(mk('HUMGEP','GEP Humanities 2','Click to select course',3,'gep','hum','Humanities GEP'));}
@@ -2088,8 +2135,6 @@ else if(kind==='AEE/CSC 200 Choice')slots.push(mk('AEE226','AEE 226 or CSC 200',
 else if(kind==='Math Choice')slots.push(mk('MATH2','MA 114, 231 or 241','Click to choose',3,'math','','Math'));
 else if(kind==='Statistics Choice')slots.push(mk('ST311','ST 311, BUS 350 or ST 350','Click to choose',3,'math','','Statistics'));
 else if(kind==='Interdisciplinary Perspectives')slots.push(mk('IDS201','Interdisc Perspectives','Click to choose',2,'gep','interdisc','GEP'));
-else if(kind==='GEP Global Knowledge')slots.push(mk('GEPGLOBAL','GEP Global Knowledge','Click to choose',3,'gep','global','GEP'));
-else if(kind==='American Democracy')slots.push(mk('GEPDEMOCRACY','American Democracy','Click to choose',3,'gep','democracy','GEP'));
 else if(kind==='Communications Choice')slots.push(mk('COM112','COM 112/211/226 or ENG 332','Click to choose',3,'comm','com112','Communications'));
 else if(kind==='Accounting Choice')slots.push(mk('ACC210','ACC 200 or ACC 210','Click to choose',3,'dept','','Accounting'));
 else if(kind==='ARE 303/304')slots.push(mk('ARE303','ARE 303/304','Click to choose',3,'dept','are303','ARE Core'));
@@ -2097,7 +2142,11 @@ else if(kind==='ARE 306/309')slots.push(mk('ARE306','ARE 306/309','Click to choo
 else if(kind==='ARE 311/312')slots.push(mk('ARE312','ARE 311/312','Click to choose',3,'dept','are312','ARE Core'));
 else if(kind==='ARE 321/323/BUS 320')slots.push(mk('ARE321','ARE 321/323/BUS 320','Click to choose',3,'dept','are321','ARE Core'));
 else if(kind==='ARE/EC 301')slots.push(mk('EC301','EC/ARE 301','Intermediate Microeconomics',3,'dept','','Intermed Micro'));
-else slots.push(mk('REQ','Requirement Group','Click to choose',item.units||3,'free','','Requirement'));
+else if(kind==='GEP Elective')slots.push(mk('GEPELEC','GEP Elective','Click to select course',3,'gep','gepelec','GEP Elective'));
+else if(kind==='ENG 101 Requirement')slots.push(mk('ENG101','ENG 101','Academic Writing & Research',4,'gep','','Writing GEP'));
+// Verification-only sub-headers (Section 8 / 80, 90, 100): no future credit slot.
+else if(kind==='GEP Global Knowledge'||kind==='American Democracy'||kind==='World Language Proficiency'){/* no slot */}
+else slots.push(mk('REQ','Requirement Group','Click to choose',item.units||3,categoryFromSection(item&&item.section),'','Requirement'));
 return slots;
 }
 function getSlotInfoForImportedItem(item,requirementCatalog){
@@ -2105,7 +2154,9 @@ var req=item.matchedRequirement||requirementCatalog[item.code]||{};
 var slotId=(typeof req==='string')?req:(req.id||'');
 var found=slotId?findDefaultSlot(slotId):null;
 if(found)return {slotId:slotId,cat:found.cat,tag:found.tag||CATEGORIES[found.cat].label,picker:found.picker||''};
-return {slotId:slotId,cat:'free',tag:item.requirementKind||'',picker:''};
+// Fallback: use the audit's own section context instead of defaulting to 'free'.
+var sectCat=categoryFromSection(item&&item.section);
+return {slotId:slotId,cat:sectCat,tag:item.requirementKind||(CATEGORIES[sectCat]?CATEGORIES[sectCat].label:''),picker:''};
 }
 function removeSatisfiedFutureSlots(sections,requirementCatalog){
 var satisfied={};
@@ -2470,7 +2521,7 @@ if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].
 }
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v6';
+window.pawPlanBuildId='reflow-final-v8';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
@@ -2483,12 +2534,38 @@ if(isCompletedNcTerm(s.term))dest=summary.completed;
 else if(isTransferTerm(s.term))dest=summary.transfer;
 else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
 else if(isSchedulableSemester(s))dest=summary.future;
-if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||''});});
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||'',slotId:c.slotId||c.id||'',catReason:c.catReason||''});});
 });
-advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||''});});
+advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||'',cat:c.cat||'',auditSection:c.auditSection||'',auditSubHeader:c.auditSubHeader||''});});
 return summary;
 }
 window.summarizeImportedAuditPlan=summarizeImportedAuditPlan;
+// Diagnostic helper: lists every course currently in plan with raw section,
+// sub-header, mapped category, slotId, and the reason cat was assigned. Run
+// from DevTools console after upload.
+window.pawPlanDiagnoseAllImported=function(){
+var rows=[];
+plan.forEach(function(s,si){
+(s.courses||[]).forEach(function(c){
+rows.push({term:s.term,code:c.code,section:c.auditSection||'',subHeader:c.auditSubHeader||'',cat:c.cat||'',slotId:c.slotId||c.id||'',classification:c.classification||'',catReason:c.catReason||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80)});
+});
+});
+if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
+return rows;
+};
+// Diagnostic helper: lists every course currently in plan with cat==='free',
+// showing the audit section and reason. Run from DevTools console after upload.
+window.pawPlanDiagnoseFreeElectives=function(){
+var rows=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+(s.courses||[]).forEach(function(c){
+if(c.cat==='free')rows.push({term:s.term,code:c.code,auditSection:c.auditSection||'',rawAuditLine:(c.rawAuditLine||'').slice(0,80),classification:c.classification||'',cat:c.cat,slotId:c.slotId||c.id||'',reason:c.catReason||''});
+});
+});
+if(typeof console!=='undefined'&&console.table)console.table(rows);else if(typeof console!=='undefined')console.log(JSON.stringify(rows,null,2));
+return rows;
+};
 function pawPlanImportAuditTextShared(text,requirementCatalog,planningSettings){
 var parsed=window.PawPlanAuditCore.parseAuditText(text);
 var classified=window.PawPlanAuditCore.classifyAuditItems(parsed);
@@ -5885,7 +5962,7 @@ if(modalEl)modalObserver.observe(modalEl,{attributes:true,subtree:true,childList
 }); // end DOMContentLoaded
 </script>
 <script data-goatcounter="https://jtreme.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 1rem;text-align:center;font-size:0.65rem;color:#737373;font-family:Inter,sans-serif">&copy; 2025 Julianne Treme. All rights reserved.</div>
+<div style="max-width:1400px;margin:0 auto;padding:0.5rem 2rem 1rem;text-align:center;font-size:0.65rem;color:#737373;font-family:Inter,sans-serif">&copy; 2025 Julianne Treme. All rights reserved.<br><span id="paw-plan-build-footer" style="color:#a3a3a3;font-size:0.6rem">Paw Plan build: May 26, 2026 &mdash; audit-core version</span></div>
 </body>
 </html>
 
