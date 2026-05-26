@@ -167,11 +167,16 @@ out.placementStatus='unplaced';
 out.confidence='high';
 return out;
 }
-if(g==='MET'||g==='VERIFY'||out.flags.indexOf('Course provides excess units')!==-1||out.wildcard){
+// Excess-units is a flag, NOT a classification override. Mark and continue.
+if(out.flags.indexOf('Course provides excess units')!==-1){
+out.excessUnitsFlag=true;
+out.reviewNote='Course provides excess units';
+}
+if(g==='MET'||g==='VERIFY'||out.wildcard){
 out.classification='advisor_review';
 out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':
 out.wildcard?'Wildcard/generic transfer code needs advisor confirmation.':
-'Course provides excess units and should not be double-counted.';
+'Verify-only row; advisor should confirm.';
 return out;
 }
 if(g==='TIP'){

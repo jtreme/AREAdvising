@@ -176,11 +176,16 @@ out.placementStatus='unplaced';
 out.confidence='high';
 return out;
 }
-if(g==='MET'||g==='VERIFY'||out.flags.indexOf('Course provides excess units')!==-1||out.wildcard){
+// Excess-units is a flag, NOT a classification override. Mark and continue.
+if(out.flags.indexOf('Course provides excess units')!==-1){
+out.excessUnitsFlag=true;
+out.reviewNote='Course provides excess units';
+}
+if(g==='MET'||g==='VERIFY'||out.wildcard){
 out.classification='advisor_review';
 out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':
 out.wildcard?'Wildcard/generic transfer code needs advisor confirmation.':
-'Course provides excess units and should not be double-counted.';
+'Verify-only row; advisor should confirm.';
 return out;
 }
 if(g==='TIP'){
@@ -2017,6 +2022,7 @@ var status=item.classification==='completed_nc_state'?'(Completed)':
 item.classification==='transfer_posted'?'(Transfer Credit)':
 item.classification==='planned_current'?'(In Progress)':
 item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
+if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
 return {
 id:'AUD_'+code.replace(/\s/g,'').replace(/\*/g,'S')+'_'+Math.random().toString(36).substr(2,4),
 code:code,
@@ -2032,7 +2038,9 @@ placementStatus:item.classification==='planned_current'?'unplaced':'placed',
 placementReason:item.statusNote||item.reviewReason||'Imported from degree audit.',
 confidence:item.confidence||'high',
 reviewType:item.reviewType||'Review',
-reviewReason:item.reviewReason||item.statusNote||''
+reviewReason:item.reviewReason||item.statusNote||'',
+excessUnitsFlag:!!item.excessUnitsFlag,
+reviewNote:item.reviewNote||''
 };
 }
 function requirementGroupToPlanSlots(item){
@@ -2148,7 +2156,7 @@ var transferIdx=findSpecialSectionIndex(isTransferTerm,'Transfer / Test / Prior 
 var plannedIdx=findSpecialSectionIndex(isPlannedAuditTerm,'In Progress / Planned from Audit');
 sections.completedNcState.forEach(function(item){plan[completedIdx].courses.push(auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog)));});
 sections.transferPrior.forEach(function(item){plan[transferIdx].courses.push(auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog)));});
-sections.plannedCurrent.forEach(function(item){plan[plannedIdx].courses.push(auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog)));});
+// Planned/current placement is deferred until after filtering so the actual courses land in their term semesters.
 sections.advisorReview.forEach(function(item){
 var c=auditItemToCourse(item,getSlotInfoForImportedItem(item,requirementCatalog));
 c.classification=item.classification==='non_degree'?'non_degree':'advisor_review';
@@ -2158,6 +2166,23 @@ if(c.classification==='non_degree')nonDegreeCourses.push(c);else advisorReviewCo
 });
 filterFuturePlanToAuditRequirements(sections,requirementCatalog);
 removeSatisfiedFutureSlots(sections,requirementCatalog);
+// Place planned/current items into their actual audit term inside the future grid (rule: planned/current is a status, not a display section).
+sections.plannedCurrent.forEach(function(item){
+var slotInfo=getSlotInfoForImportedItem(item,requirementCatalog);
+var c=auditItemToCourse(item,slotInfo);
+c.classification='planned_current';
+c.placementStatus='placed';
+var waitListed=(item.flags||[]).indexOf('Wait Listed')!==-1||item.statusNote==='Wait Listed';
+if(waitListed){c.waitListed=true;c.name='(In Progress — Wait Listed)';c.statusNote='Wait Listed';}
+if(item.excessUnitsFlag){c.excessUnitsFlag=true;c.reviewNote=item.reviewNote||'Course provides excess units';}
+var targetIdx=-1;
+plan.forEach(function(s,si){if(isSchedulableSemester(s)&&s.term===item.term)targetIdx=si;});
+if(targetIdx>=0){
+plan[targetIdx].courses.push(c);
+} else {
+plan[plannedIdx].courses.push(c);
+}
+});
 var futureGroups=sections.futureRequirements||[];
 var seenGroups={};
 futureGroups.forEach(function(item){seenGroups[item.requirementKind]=true;});
@@ -2188,7 +2213,7 @@ if(isCompletedNcTerm(s.term))dest=summary.completed;
 else if(isTransferTerm(s.term))dest=summary.transfer;
 else if(isPlannedAuditTerm(s.term))dest=summary.plannedCurrent;
 else if(isSchedulableSemester(s))dest=summary.future;
-if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||''});});
+if(dest)s.courses.forEach(function(c){dest.push({code:c.code,name:c.name,units:c.units,term:s.term,classification:c.classification||'',requirementGroup:c.requirementGroup||'',excessUnitsFlag:!!c.excessUnitsFlag,waitListed:!!c.waitListed,reviewNote:c.reviewNote||''});});
 });
 advisorReviewCourses.concat(nonDegreeCourses).forEach(function(c){summary.advisorReview.push({code:c.code,name:c.name,units:c.units,term:c.term,classification:c.classification||'',reviewReason:c.reviewReason||''});});
 return summary;
