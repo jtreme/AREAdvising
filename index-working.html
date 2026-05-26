@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paw Plan [build reflow-final-v4] â€” Agribusiness Management BS | NC State CALS</title>
+<title>Paw Plan [build reflow-final-v5] â€” Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="./pawplan-audit-core.js?v=2"></script>
@@ -2110,9 +2110,53 @@ for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
 if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
 }
 }
+// ARE 490 tail cleanup: if ARE 490 is alone in its semester AND there are empty semesters
+// between it and the last semester with non-ARE 490 work, pull it forward so it lands in the
+// final active coursework term (or one earlier if soft max would be exceeded).
+var _are490Loc=null;
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+(s.courses||[]).forEach(function(c,ci){if(c.id==='ARE490'||c.code==='ARE 490')_are490Loc={si:si,ci:ci,course:c};});
+});
+if(_are490Loc&&plan[_are490Loc.si].courses.length===1){
+var _lastRealIdx=-1;
+for(var _ti=_are490Loc.si-1;_ti>=0;_ti--){
+if(!isSchedulableSemester(plan[_ti]))continue;
+if(isSummerTerm(plan[_ti].term))continue;
+if((plan[_ti].courses||[]).length>0){_lastRealIdx=_ti;break;}
+}
+if(_lastRealIdx>=0&&_lastRealIdx<_are490Loc.si-1){
+var _are490Units=_are490Loc.course.units||1;
+var _moveTarget=_lastRealIdx;
+var _loadTarget=plan[_moveTarget].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadTarget+_are490Units>17){
+for(var _pi=_lastRealIdx-1;_pi>=0;_pi--){
+if(!isSchedulableSemester(plan[_pi]))continue;
+if(isSummerTerm(plan[_pi].term))continue;
+if((plan[_pi].courses||[]).length===0)continue;
+var _loadPi=plan[_pi].courses.reduce(function(t,c){return t+(c.units||0);},0);
+if(_loadPi+_are490Units<=17){_moveTarget=_pi;break;}
+}
+}
+if(_moveTarget!==_are490Loc.si){
+plan[_are490Loc.si].courses.splice(_are490Loc.ci,1);
+plan[_moveTarget].courses.push(_are490Loc.course);
+}
+}
+}
+// Re-trim trailing empty regular semesters after ARE 490 move
+_lastNonEmpty=-1;
+for(var _ti=0;_ti<plan.length;_ti++){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&plan[_ti].courses&&plan[_ti].courses.length>0)_lastNonEmpty=_ti;
+}
+if(_lastNonEmpty>=0){
+for(var _ti=plan.length-1;_ti>_lastNonEmpty;_ti--){
+if(isSchedulableSemester(plan[_ti])&&!isSummerTerm(plan[_ti].term)&&(!plan[_ti].courses||plan[_ti].courses.length===0))plan.splice(_ti,1);
+}
+}
 window.pawPlanLastAuditSections=sections;
 window.pawPlanPlanningAnchor={startTerm:planningAnchor,source:planningSettings.source||'confirmed'};
-window.pawPlanBuildId='reflow-final-v4';
+window.pawPlanBuildId='reflow-final-v5';
 updateUndoBtn();
 render();
 return summarizeImportedAuditPlan();
