@@ -1,59 +1,62 @@
 # Paw Plan Test Bundle
 
-**Commit:** 493c058c879254eabf6c762bcb6be7748d82d4db
-**Build id:** reflow-final-v4
-**Features:** planned-current placement, foundation-course priority, forward-pull compaction with prereq check, trailing-empty trim
-**Generated:** 2026-05-26T16:17:45Z
+**Commit:** 1ef9b3d9feaa316c8fa169e9d54949ef9d67b01b
+**Build id:** reflow-final-v5
+**Features:** planned-current placement, foundation-course priority, prereq-aware forward-pull compaction, ARE 490 tail cleanup, trailing-empty trim
+**Generated:** 2026-05-26T16:30:08Z
 
 ## Verify you have the latest file
 
-Yellow banner at top should read:
+Yellow banner reads:
 ```
-Build: 493c058c879254eabf6c762bcb6be7748d82d4db  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:17:45Z
+Build: 1ef9b3d9feaa316c8fa169e9d54949ef9d67b01b  Â·  Reflow fix: yes  Â·  Generated: 2026-05-26T16:30:08Z
 ```
 
-DevTools console (F12):
+DevTools console:
 ```javascript
-console.log(window.pawPlanBuildId);  // expect: "reflow-final-v4"
-console.log(document.title);          // expect: contains "[build reflow-final-v4]"
+console.log(window.pawPlanBuildId);  // expect: "reflow-final-v5" (after upload)
+console.log(document.title);          // expect: contains "[build reflow-final-v5]"
 ```
 
-## After uploading any audit PDF
+## Expected per audit
 
-```javascript
-const s = window.summarizeImportedAuditPlan();
-const byTerm = {};
-s.future.forEach(c => { byTerm[c.term] = byTerm[c.term] || []; byTerm[c.term].push(c); });
-Object.keys(byTerm).forEach(t => {
-  const cr = byTerm[t].reduce((x,c)=>x+(c.units||0), 0);
-  console.log(t + ': ' + cr + 'cr / ' + byTerm[t].length + ' courses');
-});
+### Preston
 ```
-
-## Expected behavior per audit
-
-### Preston (the rising-junior audit)
-Distribution should be roughly **14 / 16 / 15 / 9 / 1** across Fall 2026 -> Spring 2028 + Fall 2029 (ARE 490 final).
-Fall 2028, Spring 2029, Spring 2030 trimmed as trailing empties.
-
-### Micah
-Fall 2026 = 15 cr (5 audit-planned only). Spring 2027 = 17 cr including **ARE 201**. ARE 490 in Fall 2029.
-
-### Audit B
-Fall 2026 = 17 cr (7 audit-planned only). Spring 2027 onward distributes remaining requirements. ARE 490 in Fall 2029.
+Fall 2026: 14 cr (5 planned)
+Spring 2027: 16 cr
+Fall 2027: 15 cr
+Spring 2028: 10 cr  including ARE 490   <- moved here from Fall 2029
+```
 
 ### Audit A
-No audit-planned items; full plan distributed across Fall 2026 -> Fall 2029 with ARE 490 final.
+```
+Fall 2026: 17 cr
+Spring 2027: 15 cr
+Fall 2027: 15 cr
+Spring 2028: 17 cr
+Fall 2028: 8 cr  including ARE 490   <- moved here from Fall 2029
+```
 
-## Constraints enforced
+### Audit B
+```
+Fall 2026: 17 cr (7 planned)
+Spring 2027: 16 cr
+Fall 2027: 15 cr
+Spring 2028: 15 cr
+Fall 2028: 15 cr
+Spring 2029: 15 cr
+Fall 2029: 2 cr  ARE 490 + HES 100/200  (already final active term, no move)
+```
 
-- No auto-generated semester > 18 cr
-- Audit-planned semesters not overfilled
-- ARE 490 stays in one of the last three active coursework terms
-- ARE 201 (and other foundation slots) placed as early as possible if unmet
-- Prerequisites respected: a course is only pulled forward if its prereqs are satisfied by an earlier semester or by completed / transfer / planned-current
+### Micah
+```
+Fall 2026: 15 cr (5 planned)
+Spring 2027: 17 cr  including ARE 201
+Fall 2027: 16 cr
+Spring 2028: 15 cr
+Fall 2028: 15 cr
+Spring 2029: 15 cr
+Fall 2029: 8 cr  ARE 490 + 3 others
+```
 
-## Commit-pinned downloads (immutable)
-
-* HTML: https://raw.githubusercontent.com/jtreme/AREAdvising/<NEXT_COMMIT>/paw-plan-test.html
-* Zip:  https://github.com/jtreme/AREAdvising/raw/<NEXT_COMMIT>/paw-plan-test-latest.zip
+## Commit-pinned downloads (immutable, see next commit for actual file URLs)
