@@ -176,9 +176,11 @@ return items;
 }
 
 function classifyAuditItems(parsedItems){
+var DEGREE_SECTIONS={'1':1,'2':1,'3':1,'4':1,'5':1,'6':1,'8':1,'20':1};
 return (parsedItems||[]).map(function(item){
 var out=Object.assign({},item);
 var g=out.grade||'';
+var inDegreeSec=DEGREE_SECTIONS[String(out.section||'')]===1;
 if(out.type==='note'){
 out.classification='advisor_review';
 out.statusNote=(out.flags||[]).join('; ');
@@ -186,6 +188,7 @@ return out;
 }
 if(out.section==='99'){
 out.classification='non_degree';
+out.advisorReviewFlag=true;
 out.reviewReason='Audit lists this item in Section 99 - Non-degree Courses.';
 return out;
 }
@@ -200,21 +203,46 @@ if(out.flags.indexOf('Course provides excess units')!==-1){
 out.excessUnitsFlag=true;
 out.reviewNote='Course provides excess units';
 }
-if(g==='MET'||g==='VERIFY'||out.wildcard){
+// MET / VERIFY rows are never credit-bearing -> advisor review.
+if(g==='MET'||g==='VERIFY'){
 out.classification='advisor_review';
-out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':
-out.wildcard?'Wildcard/generic transfer code needs advisor confirmation.':
-'Verify-only row; advisor should confirm.';
+out.advisorReviewFlag=true;
+out.reviewReason=g==='MET'?'Verification or duplicate row; do not double-count.':'Verify-only row; advisor should confirm.';
 return out;
 }
+// Wildcards inside a degree-requirement section: place by grade, FLAG for advisor.
+// Wildcards outside any recognized degree section: pure advisor review.
+if(out.wildcard){
+if(inDegreeSec){
+out.advisorReviewFlag=true;
+out.reviewNote=(out.reviewNote?out.reviewNote+'; ':'')+'Wildcard/generic transfer code - advisor must confirm exact course';
+// fall through to grade-based classification
+} else {
+out.classification='advisor_review';
+out.advisorReviewFlag=true;
+out.reviewReason='Wildcard/generic transfer code with no clear audit section.';
+return out;
+}
+}
+// TIP inside a degree-requirement section: treat as transfer credit with an advisor flag.
+// Outside: keep the prior transfer_in_progress -> advisor_review behavior.
 if(g==='TIP'){
+if(inDegreeSec){
+out.classification='transfer_posted';
+out.advisorReviewFlag=true;
+out.statusNote='TIP - Transfer in progress';
+out.reviewNote=(out.reviewNote?out.reviewNote+'; ':'')+'Transfer in progress - credit not yet posted';
+return out;
+}
 out.classification='transfer_in_progress';
+out.advisorReviewFlag=true;
 out.reviewReason='Transfer-in-progress credit is not posted.';
 return out;
 }
 if(['TA','TB','TB+','TB-','TC','TC+','TC-','TD','TD+','TD-','TR','CR','PF'].indexOf(g)!==-1){
 if(g==='PF'&&!out.units){
 out.classification='advisor_review';
+out.advisorReviewFlag=true;
 out.reviewReason='Proficiency/verify row with no credit units.';
 } else {
 out.classification='transfer_posted';
@@ -233,8 +261,10 @@ out.statusNote='Wait Listed';
 }
 return out;
 }
+// Could not confidently classify. If no recognized degree section, send to advisor review.
 out.classification='advisor_review';
-out.reviewReason='Could not confidently classify audit row.';
+out.advisorReviewFlag=true;
+out.reviewReason=inDegreeSec?'Could not confidently classify audit row.':'Course has no clear audit section.';
 return out;
 });
 }
