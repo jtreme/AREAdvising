@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="upper-division-waiver-electives-v2">
+<meta name="paw-plan-build-id" content="mypack-new-audit-format-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -36,11 +36,11 @@ function parseGrade(line,termMatchText){
 var grade='';
 if(termMatchText&&line.indexOf(termMatchText)!==-1){
 var after=line.substring(line.indexOf(termMatchText)+termMatchText.length);
-var gm=after.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
+var gm=after.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA\+|TA-|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
 if(gm)grade=gm[1];
 }
 if(!grade){
-var gm2=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d{1,2}\.\d{3}/);
+var gm2=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA\+|TA-|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d{1,2}\.\d{3}/);
 if(gm2)grade=gm2[1];
 }
 if(!grade){
@@ -270,7 +270,7 @@ out.advisorReviewFlag=true;
 out.reviewReason='Transfer-in-progress credit is not posted.';
 return out;
 }
-if(['TA','TB','TB+','TB-','TC','TC+','TC-','TD','TD+','TD-','TR','CR','PF'].indexOf(g)!==-1){
+if(['TA','TA+','TA-','TB','TB+','TB-','TC','TC+','TC-','TD','TD+','TD-','TR','CR','PF'].indexOf(g)!==-1){
 if(g==='PF'&&!out.units){
 out.classification='advisor_review';
 out.advisorReviewFlag=true;
@@ -360,7 +360,112 @@ return total+(units>0?units:0);
 return {required:required,covered:covered,gap:Math.max(0,required-covered)};
 }
 
+// ===== NEW MYPACK AUDIT FORMAT (Oct 2026) =====
+// NC State moved the degree audit to a new MyPack page (SSR_MD_SP_FL). Its printout has
+// named section headers with no numbers, icon-font status glyphs, no sub-header numbers,
+// and rows that wrap across lines when a note like "[ C- or better required ]" is present.
+// This translates that printout into the classic line format the parser below already
+// handles, so every existing placement rule keeps working unchanged. Classic-format text
+// passes through untouched.
+var FLUID_SECTION_MAP=[
+[/^Orientation\b/i,'1'],
+[/^Communications?\b/i,'2'],
+[/^Mathematical\b/i,'3'],
+[/^Natural Sciences?\b/i,'4'],
+[/^Dept\.? Course Requirements|^Department(al)? Course Requirements/i,'5'],
+[/^Restricted Electives?\b/i,'6'],
+[/^General Education|^GEP\b/i,'8'],
+[/^Free Electives?\b/i,'20'],
+[/^Non-?degree/i,'99']
+];
+function isFluidAuditText(rawText){
+return /STATUS\s+CLASS\s+TITLE\s+UNITS\s+TERM\s+GRADE/.test(String(rawText||''));
+}
+function normalizeFluidAuditText(rawText){
+var text=String(rawText||'');
+if(!isFluidAuditText(text))return text;
+var GLYPH=/[-]/;
+var STATUS_GLYPH=/^[]/;
+var SECTION_GLYPH=/^[]/;
+var stripGlyphs=function(s){return s.replace(/[-•]/g,' ').replace(/\s+/g,' ').trim();};
+var codeStart=/^[A-Z]{1,4}\s*(\d{3}[A-Z]?|\d[A-Z]{2,5}|\d\*+|\*+)(\s|$)/;
+var rowEnd=/(Details|Add To Planner)\s*$/;
+var out=['Degree Audit (MyPack)'];
+var unknownSection=90;
+var row=null;
+var inSection=false;
+function flushRow(){
+if(!row)return;
+var body=stripGlyphs(row.text);
+row.closed=rowEnd.test(body);
+var r=row;row=null;
+if(!r.closed||!body)return;
+body=body.replace(/\s*(Details|Add To Planner)\s*$/,'');
+// Drop requirement notes that would confuse grade parsing; keep notes the parser flags on.
+body=body.replace(/\[\s*([^\]]*?)\s*\]/g,function(m,inner){
+if(/excess units|Wait Listed|Approved Exception|Approved Waiver/i.test(inner))return ' '+inner+' ';
+return ' ';
+}).replace(/\s+/g,' ').trim();
+// Course provides excess units goes on its own line (parser reads it from the next line).
+var excess=/Course provides excess units/.test(body);
+if(excess)body=body.replace(/\s*Course provides excess units\s*/,' ').trim();
+var hasTerm=/(Fall|Spring|Sum1|Sum2|Summer)\s+'?\d{2,4}/.test(body);
+// Unmet rows with no term are open requirements. The classic audit led these rows
+// with a sub-header number, which is how the parser recognizes them; "0" is a
+// neutral sub-header that maps to no specific GEP slot.
+if(r.unmet&&!hasTerm)body='0 '+body;
+out.push(body);
+if(excess)out.push('Course provides excess units');
+}
+var lines=text.split(/\r?\n/);
+for(var i=0;i<lines.length;i++){
+var raw=lines[i].trim();
+if(!raw)continue;
+if(/https?:\/\//.test(raw))continue;
+if(/^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}\s*[AP]M\s+Degree Audit/.test(raw))continue;
+if(/^STATUS\s+CLASS\s+TITLE/.test(raw))continue;
+if(SECTION_GLYPH.test(raw)){
+var title=stripGlyphs(raw);
+var key='';
+for(var k=0;k<FLUID_SECTION_MAP.length;k++){if(FLUID_SECTION_MAP[k][0].test(title)){key=FLUID_SECTION_MAP[k][1];break;}}
+if(!key){
+// An unrecognized chevron line is a section only if a STATUS column header follows it
+// (this skips the program title in the student header block).
+var nxt='';
+for(var j=i+1;j<lines.length&&!nxt;j++){var lj=lines[j].trim();if(lj&&!/https?:\/\//.test(lj)&&!/Degree Audit\s*$/.test(lj))nxt=lj;}
+if(!/^STATUS\s+CLASS\s+TITLE/.test(nxt)){if(!inSection){var ph=stripGlyphs(raw);if(ph)out.push(ph);}continue;}
+key=String(unknownSection);unknownSection++;
+}
+flushRow();
+out.push(key+' - '+title);
+inSection=true;
+continue;
+}
+if(!inSection){
+// Student header block: keep readable lines, normalize "Req Term:" to the classic label.
+var hdr=stripGlyphs(raw).replace(/^Req Term:\s*/,'Req Term ');
+if(hdr)out.push(hdr);
+continue;
+}
+var cleaned=stripGlyphs(raw);
+var startsRow=STATUS_GLYPH.test(raw)||codeStart.test(cleaned);
+if(startsRow&&row&&!rowEnd.test(stripGlyphs(row.text)))flushRow();
+if(startsRow&&!row){
+row={text:raw,unmet:/^/.test(raw)};
+}else if(row){
+row.text+=' '+raw;
+}else if(cleaned&&!GLYPH.test(cleaned)){
+row={text:raw,unmet:false};
+}
+if(row&&rowEnd.test(stripGlyphs(row.text)))flushRow();
+}
+flushRow();
+return out.join('\n');
+}
+
 var api={
+normalizeFluidAuditText:normalizeFluidAuditText,
+isFluidAuditText:isFluidAuditText,
 parseAuditText:parseAuditText,
 classifyAuditItems:classifyAuditItems,
 matchItemsToRequirements:matchItemsToRequirements,
@@ -2277,6 +2382,8 @@ allText+='\n';
 });
 });
 chain.then(function(){
+// New MyPack audit printout (Oct 2026) -> classic format before detection.
+if(window.PawPlanAuditCore&&window.PawPlanAuditCore.normalizeFluidAuditText)allText=window.PawPlanAuditCore.normalizeFluidAuditText(allText);
 // Auto-detect: degree audit has section headers like "1 - Orientation"
 if(allText.indexOf('1 - Orientation')!==-1||allText.indexOf('Degree Audit')!==-1){
 processDegreeAudit(allText);
@@ -3000,6 +3107,7 @@ return applySharedAuditSectionsToPlan(sections,matched,requirementCatalog,planni
 window.pawPlanImportAuditTextForTest=function(text,planningSettings){return processDegreeAudit(text,true,planningSettings||{});};
 
 function processDegreeAudit(text,returnSummaryOnly,planningSettings){
+if(window.PawPlanAuditCore&&window.PawPlanAuditCore.normalizeFluidAuditText)text=window.PawPlanAuditCore.normalizeFluidAuditText(text);
 showToast('Parsing degree audit: '+text.length+' chars');
 // Detect image-only PDFs (text extraction returns very little or nothing)
 // If we extracted fewer than 100 chars or there are no course codes anywhere, the PDF is likely an image.
@@ -3339,12 +3447,12 @@ var grade='';
 // Try to find grade after the term pattern
 if(termMatch){
 var afterTerm=line.substring(line.indexOf(termMatch[0])+termMatch[0].length);
-gradeMatch=afterTerm.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
+gradeMatch=afterTerm.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA\+|TA-|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)(?:\s|$)/);
 if(gradeMatch)grade=gradeMatch[1];
 } 
 // If no term found, try grade near end of line (before units number)
 if(!grade){
-gradeMatch=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d+\.\d{3}/);
+gradeMatch=line.match(/\s(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|W|U|S|CR|TA\+|TA-|TA|TB\+|TB-|TB|TC\+|TC-|TC|TD\+|TD-|TD|TR|TIP|MET|PF|WA)\s+\d+\.\d{3}/);
 if(gradeMatch)grade=gradeMatch[1];
 }
 // If still no grade, try looking for MET at end of line (special case — MET rows have no units)
