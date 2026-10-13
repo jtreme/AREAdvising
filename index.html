@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="mypack-new-audit-format-v5">
+<meta name="paw-plan-build-id" content="schedule-builder-beta-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -3135,6 +3135,7 @@ window.pawPlanImportAuditTextForTest=function(text,planningSettings){return proc
 
 function processDegreeAudit(text,returnSummaryOnly,planningSettings){
 if(window.PawPlanAuditCore&&window.PawPlanAuditCore.normalizeFluidAuditText)text=window.PawPlanAuditCore.normalizeFluidAuditText(text);
+try{var gpaM=String(text).match(/Cum GPA:?\s+(\d\.\d{2,3})/);window.pawPlanAuditGpa=gpaM?parseFloat(gpaM[1]):null;}catch(err){}
 showToast('Parsing degree audit: '+text.length+' chars');
 // Detect image-only PDFs (text extraction returns very little or nothing)
 // If we extracted fewer than 100 chars or there are no course codes anywhere, the PDF is likely an image.
@@ -6430,6 +6431,37 @@ window.hlPrereqs = hlPrereqs;
 window.handleTransferClick = handleTransferClick;
 window.restoreFromTransfer = restoreFromTransfer;
 window.openVerifyList = openVerifyList;
+
+// ===== BRIDGE FOR THE SEMESTER SCHEDULER (scheduler/scheduler.js) =====
+// The scheduler lives in its own files and reads Paw Plan only through this object,
+// so a scheduler bug cannot break audit parsing or planning.
+window.PawPlanBridge={
+getPlan:function(){return plan;},
+getTransferred:function(){return transferredCourses;},
+lists:{HUM_COURSES:HUM_COURSES,SOCSCI_COURSES:SOCSCI_COURSES,GEP_ELEC_COURSES:GEP_ELEC_COURSES,IDS_COURSES:IDS_COURSES,TECH_ELECTIVE_LIST:TECH_ELECTIVE_LIST,SLASH_COURSES:SLASH_COURSES,DEPT_VALID_CODES:DEPT_VALID_CODES,TECH_PREFIXES:TECH_PREFIXES,VERIFY_GLOBAL_KNOWLEDGE:VERIFY_GLOBAL_KNOWLEDGE,VERIFY_AMER_DEMOCRACY:VERIFY_AMER_DEMOCRACY,PREREQS:PREREQS},
+getCourseCredits:getCourseCredits,
+getAuditGpa:function(){return typeof window.pawPlanAuditGpa==='number'?window.pawPlanAuditGpa:null;},
+isUploaded:function(){return document.body.classList.contains('uploaded-mode');},
+// Write a chosen course into a plan slot (same effect as picking it in the slot's picker).
+setSlotCourse:function(si,ci,code,name){
+if(!plan[si]||!plan[si].courses[ci])return false;
+saveUndo();
+plan[si].courses[ci].code=code;
+if(name)plan[si].courses[ci].name=name;
+render();
+return true;
+}
+};
+(function(){
+// Hidden until approved: load the scheduler only when the URL has ?scheduler=1.
+try{
+if(!/[?&]scheduler=1\b/.test(location.search))return;
+var s=document.createElement('script');
+s.src='scheduler/scheduler.js?v='+encodeURIComponent(document.querySelector('meta[name="paw-plan-build-id"]').content);
+s.onerror=function(){showToast('Schedule builder could not load.');};
+document.body.appendChild(s);
+}catch(err){}
+})();
 
 function addMinorCourse(code){
 saveUndo();
