@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="mypack-new-audit-format-v3">
+<meta name="paw-plan-build-id" content="mypack-new-audit-format-v4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -175,6 +175,15 @@ if(!codes.length){
 // Approved Waiver is already attached to, and resolved by, the preceding WA
 // requirement row. Do not create a second advisor-review item for the note.
 if(/Approved Exception/.test(line)){
+// A note line right under a course row (e.g. "Topic: Management of Food Industry,
+// Approved Exception" under ARE 395) belongs to that course, which already carries the
+// Approved Exception flag. Fold the note into it instead of making a blank review card.
+var prevItem=items[items.length-1];
+if(prevItem&&prevItem.type==='course'&&prevItem.section===section&&prevItem.raw===lines[i-1]){
+var noteText=line.replace(/,?\s*Approved Exception\s*$/,'').trim();
+items.forEach(function(it){if(it.raw===prevItem.raw&&it.type==='course'){it.exceptionNote=noteText;if(it.flags.indexOf('Approved Exception')===-1)it.flags.push('Approved Exception');}});
+continue;
+}
 items.push({type:'note',section:section,subHeader:subHeader,raw:line,flags:['Approved Exception'],classification:'advisor_review'});
 }
 continue;
@@ -2558,6 +2567,7 @@ item.classification==='transfer_posted'?'(Transfer Credit)':
 item.classification==='planned_current'?'(In Progress)':
 item.classification==='transfer_in_progress'?'(Transfer In Progress)':'(Review)';
 if(item.excessUnitsFlag)status=status.replace(/\)$/,' — Excess units)');
+if(item.type==='course'&&(item.flags||[]).indexOf('Approved Exception')!==-1)status=status.replace(/\)$/,', Approved Exception)');
 if(item.advisorReviewFlag&&item.classification!=='advisor_review'&&item.classification!=='non_degree')status=status.replace(/\)$/,' — Review)');
 // Section-aware category fallback: audit section context beats any generic 'free' fallback.
 var resolvedCat=slotInfo.cat||item.cat||categoryFromSection(item&&item.section);
@@ -2585,7 +2595,7 @@ reviewType:item.reviewType||'Review',
 reviewReason:item.reviewReason||item.statusNote||'',
 excessUnitsFlag:!!item.excessUnitsFlag,
 advisorReviewFlag:!!item.advisorReviewFlag,
-reviewNote:item.reviewNote||'',
+reviewNote:[item.reviewNote,item.exceptionNote?('Approved Exception'+(item.exceptionNote?': '+item.exceptionNote:'')):''].filter(Boolean).join('; '),
 auditSection:String(item&&item.section||''),
 auditSubHeader:String(item&&item.subHeader||''),
 rawAuditLine:item&&item.raw||'',
