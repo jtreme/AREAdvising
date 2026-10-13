@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="mypack-new-audit-format-v1">
+<meta name="paw-plan-build-id" content="mypack-new-audit-format-v2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -2384,8 +2384,10 @@ allText+='\n';
 chain.then(function(){
 // New MyPack audit printout (Oct 2026) -> classic format before detection.
 if(window.PawPlanAuditCore&&window.PawPlanAuditCore.normalizeFluidAuditText)allText=window.PawPlanAuditCore.normalizeFluidAuditText(allText);
-// Auto-detect: degree audit has section headers like "1 - Orientation"
-if(allText.indexOf('1 - Orientation')!==-1||allText.indexOf('Degree Audit')!==-1){
+// Auto-detect: degree audit has section headers like "1 - Orientation".
+// A PDF with almost no text (e.g. saved with "Microsoft Print to PDF", which draws letters
+// as shapes) goes to processDegreeAudit so the student sees the "Could not read" help.
+if(allText.replace(/\s/g,'').length<100||allText.indexOf('1 - Orientation')!==-1||allText.indexOf('Degree Audit')!==-1){
 processDegreeAudit(allText);
 } else {
 processTranscript(allText);
@@ -3119,18 +3121,17 @@ var bodyErr=document.getElementById('modal-body');
 document.getElementById('modal-title').textContent='Could not read this PDF';
 document.getElementById('modal-search-input').style.display='none';
 bodyErr.innerHTML='<div style="padding:1.5rem;font-size:0.9rem;line-height:1.6;color:var(--text-1)">'+
-'<p style="margin:0 0 1rem 0">Paw Plan couldn\'t find any course information in this PDF. This usually means the file is <strong>an image rather than a text-searchable PDF</strong> (which can happen if the audit was saved as a screenshot or printed in an image-only mode).</p>'+
+'<p style="margin:0 0 1rem 0">Paw Plan couldn\'t find any course information in this PDF. This usually means the file is <strong>an image rather than a text-searchable PDF</strong> (which can happen if the audit was saved as a screenshot or printed with \"Microsoft Print to PDF,\" which saves pages as pictures).</p>'+
 '<p style="margin:0 0 0.5rem 0"><strong>To fix this, re-save your audit as a text PDF:</strong></p>'+
 '<ol style="margin:0 0 1rem 1.2rem;padding:0">'+
 '<li style="margin-bottom:0.4rem">Open your degree audit in MyPack</li>'+
-'<li style="margin-bottom:0.4rem">Click the <strong>"New Window"</strong> link at the top right of the audit</li>'+
-'<li style="margin-bottom:0.4rem">In the new window, press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>'+
-'<li style="margin-bottom:0.4rem">Choose <strong>"Save as PDF"</strong> as the destination</li>'+
+'<li style="margin-bottom:0.4rem">Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>'+
+'<li style="margin-bottom:0.4rem">Set the destination to <strong>"Save as PDF"</strong>. Do <strong>not</strong> choose "Microsoft Print to PDF"; it saves the audit as a picture Paw Plan can\'t read.</li>'+
 '<li>Upload that PDF to Paw Plan</li>'+
 '</ol>'+
 '<p style="margin:0;color:var(--text-2);font-size:0.82rem">If you continue to have trouble, your advisor can help.</p>'+
 '</div>';
-document.getElementById('modal').classList.add('open');
+document.getElementById('modal-overlay').classList.add('open');
 return;
 }
 try{
