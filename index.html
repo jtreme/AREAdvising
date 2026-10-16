@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="schedule-builder-beta-v1">
+<meta name="paw-plan-build-id" content="natsci-elective-slots-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -95,6 +95,7 @@ if(/AEE 226|CSC 200/i.test(text))return 'AEE/CSC 200 Choice';
 if(/MA 114|MA 231|MA 241/i.test(text))return 'Math Choice';
 if(/Statistics/i.test(text))return 'Statistics Choice';
 if(/Interdisc Perspectives/i.test(text))return 'Interdisciplinary Perspectives';
+if(/Natural Science Elective/i.test(text))return 'Natural Science Elective';
 if(/GEP Global Knowledge/i.test(text))return 'GEP Global Knowledge';
 if(/Found\. of American Democracy/i.test(text))return 'American Democracy';
 if(/GEP Elective/i.test(text))return 'GEP Elective';
@@ -375,7 +376,10 @@ function calculateNaturalScienceCreditGap(items){
 var required=11;
 var covered=(items||[]).reduce(function(total,item){
 if(!item)return total;
-var isNaturalScience=item.cat==='natsci'||String(item.section||item.auditSection||'')==='4';
+// When the audit says where a course counts, trust it: BIO 183 under Restricted Electives
+// is a technical elective, not natural science. Use the category only for courses with no audit section.
+var auditSec=String(item.section||item.auditSection||'');
+var isNaturalScience=auditSec?auditSec==='4':item.cat==='natsci';
 if(!isNaturalScience)return total;
 if(item.classification==='non_degree'||item.classification==='advisor_review')return total;
 var units=Number(item.units)||0;
@@ -2668,6 +2672,12 @@ else if(kind==='ARE 311/312')slots.push(mk('ARE312','ARE 311/312','Click to choo
 else if(kind==='ARE 321/323/BUS 320')slots.push(mk('ARE321','ARE 321/323/BUS 320','Click to choose',3,'dept','are321','ARE Core'));
 else if(kind==='ARE/EC 301')slots.push(mk('EC301','EC/ARE 301','Intermediate Microeconomics',3,'dept','','Intermed Micro'));
 else if(kind==='GEP Elective')slots.push(mk('GEPELEC','GEP Elective','Click to select course',3,'gep','gepelec','GEP Elective'));
+// The audit reports the natural science credits still needed (e.g. 3, 4, or 7). Build choosable
+// slots for exactly that amount: 3 -> one 3-cr course, 4 -> one 4-cr course or course + lab, 7 -> both.
+else if(kind==='Natural Science Elective'){
+var nsLeft=Math.round(item.units||0),nsParts=nsLeft===7?[3,4]:nsLeft===8?[4,4]:nsLeft>0?[nsLeft]:[];
+nsParts.forEach(function(cr,ni){slots.push(mk('NATSCI_REQ'+(ni+1),'Natural Science Elective ('+cr+' cr)','Click to choose',cr,'natsci',cr>=4?'natsci4':'natsci3','Natural Sciences'));});
+}
 else if(kind==='ENG 101 Requirement')slots.push(mk('ENG101','ENG 101','Academic Writing & Research',4,'gep','','Writing GEP'));
 // Verification-only sub-headers (Section 8 / 80, 90, 100): no future credit slot.
 else if(kind==='GEP Global Knowledge'||kind==='American Democracy'||kind==='World Language Proficiency'){/* no slot */}
@@ -2840,11 +2850,20 @@ earlyDisplaced.sort(function(a,b){return foundationPriority(a.slot)-foundationPr
 earlyDisplaced.forEach(function(d){
 var target=suggestedRequirementGroupTargetIndex(d.slot.units||3);
 if(target===d.sourceIdx||(plan[target]&&plan[target].hasAuditPlannedCourses)){
+// Pick the earliest open regular semester that stays within the usual load caps
+// (17 preferred, 18 max) so a displaced slot never overloads a term.
+var _units=d.slot.units||3,_open=[];
 for(var i=0;i<plan.length;i++){
-if(!isSchedulableSemester(plan[i]))continue;
+if(!isSchedulableSemester(plan[i])||isSummerTerm(plan[i].term))continue;
 if(plan[i].hasAuditPlannedCourses)continue;
-target=i;break;
+_open.push(i);
 }
+var _ld=function(k){return (plan[k].courses||[]).reduce(function(t,c){return t+(c.units||0);},0);};
+var _pick=null;
+for(var a=0;a<_open.length&&_pick===null;a++)if(_ld(_open[a])+_units<=17)_pick=_open[a];
+for(var b=0;b<_open.length&&_pick===null;b++)if(_ld(_open[b])+_units<=18)_pick=_open[b];
+if(_pick===null&&_open.length)_pick=_open.reduce(function(m,k){return _ld(k)<_ld(m)?k:m;},_open[0]);
+if(_pick!==null)target=_pick;
 }
 ensureSemesterExists(target);
 plan[target].courses.push(d.slot);
@@ -2893,11 +2912,20 @@ displacedAll.forEach(function(d){
 var target=suggestedRequirementGroupTargetIndex(d.slot.units||3);
 // Belt-and-braces: never put a displaced slot back into the same audit-planned term.
 if(target===d.sourceIdx||(plan[target]&&plan[target].hasAuditPlannedCourses)){
+// Pick the earliest open regular semester that stays within the usual load caps
+// (17 preferred, 18 max) so a displaced slot never overloads a term.
+var _units=d.slot.units||3,_open=[];
 for(var i=0;i<plan.length;i++){
-if(!isSchedulableSemester(plan[i]))continue;
+if(!isSchedulableSemester(plan[i])||isSummerTerm(plan[i].term))continue;
 if(plan[i].hasAuditPlannedCourses)continue;
-target=i;break;
+_open.push(i);
 }
+var _ld=function(k){return (plan[k].courses||[]).reduce(function(t,c){return t+(c.units||0);},0);};
+var _pick=null;
+for(var a=0;a<_open.length&&_pick===null;a++)if(_ld(_open[a])+_units<=17)_pick=_open[a];
+for(var b=0;b<_open.length&&_pick===null;b++)if(_ld(_open[b])+_units<=18)_pick=_open[b];
+if(_pick===null&&_open.length)_pick=_open.reduce(function(m,k){return _ld(k)<_ld(m)?k:m;},_open[0]);
+if(_pick!==null)target=_pick;
 }
 ensureSemesterExists(target);
 plan[target].courses.push(d.slot);
