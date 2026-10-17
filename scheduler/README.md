@@ -40,8 +40,13 @@ listed term matches a semester in the student's plan.
 Elective lists in the audit view have filter chips: ARE courses, Online, Mon/Wed/Fri, Tue/Thu, and
 1–2 credits. A free elective opens on ARE courses (300–400 level first) so there is something to
 browse; typing a search covers every subject. "+ Add another class" adds a class beyond the
-requirements (a Free Elective slot marked `schedExtra`; Remove deletes it). Courses whose catalog
-text says AGI students only are shown as restricted.
+requirements (a Free Elective slot marked `schedExtra`; Remove deletes it). Courses on Paw Plan's
+`FREE_EXCLUDED` list never appear as free electives.
+
+Agricultural Institute (AGI) courses never count toward the BS, so they are never shown: the AGI
+subject, any course or section whose requirement text names AGI or the Agricultural Institute, and
+the courses listed under `agiCourses` in `data/overrides.json` (ARE 104, 113, 115, 132, which the
+catalog text does not mark).
 
 Courses with no meeting time (online, study abroad, TBA) appear in a "No set time" row at the top
 of the weekly calendar.

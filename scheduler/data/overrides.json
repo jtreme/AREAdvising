@@ -1,5 +1,5 @@
 {
- "_how": "Courses listed under a term's notOffered are treated as not offered that term, even if the Schedule of Classes lists a section. \"substitutions\" lists department substitutions that apply every term: the course on the left can be filled by the courses on the right, which are offered first. Use course codes like \"ARE 312\".",
+ "_how": "Courses listed under a term's notOffered are treated as not offered that term, even if the Schedule of Classes lists a section. \"substitutions\" lists department substitutions that apply every term: the course on the left can be filled by the courses on the right, which are offered first. Use course codes like \"ARE 312\". \"agiCourses\" lists Agricultural Institute courses to hide everywhere (courses whose catalog text says AGI or Agricultural Institute are hidden automatically).",
  "Spring 2027": {
   "notOffered": [
    "ARE 312"
@@ -9,5 +9,11 @@
   "AEE 226": [
    "ARE 255"
   ]
- }
+ },
+ "agiCourses": [
+  "ARE 104",
+  "ARE 113",
+  "ARE 115",
+  "ARE 132"
+ ]
 }

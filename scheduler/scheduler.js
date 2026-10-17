@@ -937,9 +937,12 @@
     var anyChip = Object.keys(chips).some(function (k) { return k.charAt(0) !== '_' && chips[k]; });
     if (ch.free || ch.slot.kind === 'open' || ch.fits.length > 8) h += chipsHtml(key, chips);
     if (ch.free) {
-      var isAre = function (code) { return /^ARE /.test(code); };
-      if (q.length >= 2) list = T.search(q, occ, used, 60, chips.are ? isAre : null);
-      else if (anyChip) list = T.search('', occ, used, chips.are ? 80 : 400, chips.are ? isAre : function () { return true; });
+      // Courses on Paw Plan's excluded list (FREE_EXCLUDED) cannot be free electives.
+      var excl = {};
+      (B.lists.FREE_EXCLUDED || []).forEach(function (x) { excl[x] = 1; });
+      var okFree = function (code) { return !excl[code] && (!chips.are || /^ARE /.test(code)); };
+      if (q.length >= 2) list = T.search(q, occ, used, 60, okFree);
+      else if (anyChip) list = T.search('', occ, used, chips.are ? 80 : 400, okFree);
       else list = [];
     } else {
       list = ch.fits;

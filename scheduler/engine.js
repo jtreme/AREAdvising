@@ -90,9 +90,16 @@
     var ov = (overrides && overrides[data.term]) || {}, skip = {};
     var subs = (overrides && overrides.substitutions) || {};
     (ov.notOffered || []).forEach(function (c) { skip[String(c).trim().toUpperCase()] = 1; });
+    // Agricultural Institute (AGI) courses never count toward the BS and are never shown: the AGI
+    // subject, any course or section whose requirement text names AGI / the Agricultural Institute,
+    // and the AGI courses listed in overrides.json (catalog text does not mark them all).
+    var AGI_RE = /\bAGI\b|agricultural institute|ag institute/i;
+    ((overrides && overrides.agiCourses) || []).forEach(function (c) { skip[String(c).trim().toUpperCase()] = 1; });
+    Object.keys(data.courses || {}).forEach(function (c) { if (/^AGI /.test(c) || AGI_RE.test((data.courses[c] || {}).req || '')) skip[c] = 1; });
     var byCourse = {};
     data.sections.forEach(function (r) {
       if (skip[r[idx.code]]) return;
+      if (AGI_RE.test(r[idx.restrict] || '')) return;
       var s = {};
       F.forEach(function (f) { s[f] = r[idx[f]]; });
       s.dayList = parseDays(s.days);
@@ -405,11 +412,8 @@
     var c = index.courses[code];
     if (!c) return { offered: false, groups: [], excluded: [] };
     var groups = {}, rgroups = {}, excluded = {}, excludedUnits = [];
-    // A course-level restriction (catalog text such as "AGI Students Only") applies to every section.
-    var courseOnly = /\bAGI\b[^;]*only|only[^;]*\bAGI\b/i.test((c.info && c.info.req) || '') ? 'Restricted: Agricultural Institute (AGI) students only' : '';
     c.units.forEach(function (u) {
       var el = unitEligibility(u, ctx.student, opts);
-      if (el.ok && courseOnly) el = { ok: false, soft: true, note: courseOnly };
       if (!el.ok && el.soft) {
         if (unitConflicts(u, busy)) return;
         var rk = u.timeKey + '|' + el.note, rg = rgroups[rk];
