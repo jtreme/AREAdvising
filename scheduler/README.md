@@ -19,19 +19,30 @@ and "Not this term" moves a suggested course to the next term with room. The ful
 - `scheduler.js`: the screen. Reads the plan through `window.PawPlanBridge` in `index.html`.
 - `data/terms.json`: list of available terms. `data/<term>.json`: that term's sections.
 
-## Each new semester
+## Each new semester, and refreshing during registration
 
-1. Download the Schedule of Classes CSV for the term.
-2. Run:
+Easiest: upload the Schedule of Classes CSV to the `class-schedule-upload/` folder on github.com
+(Add file > Upload files). A GitHub Action (`.github/workflows/refresh-class-data.yml`) converts it,
+removes the CSV, and publishes. The file name must include the term, such as
+`Spring_2027_Schedule_of_Classes.csv`. See `class-schedule-upload/README.md`.
 
-   ```
-   python3 tools/build_schedule_data.py "Fall 2027" path/to/Fall_2027_Schedule_of_Classes.csv
-   ```
+By hand:
 
-3. Commit the new `scheduler/data/` files. The builder uses whichever listed term matches a
-   semester in the student's plan.
+```
+python3 tools/build_schedule_data.py "Fall 2027" path/to/Fall_2027_Schedule_of_Classes.csv --as-of 2027-03-20
+```
 
-Re-running with a fresh CSV for the same term refreshes seat counts and section changes.
+`--as-of` is the download date. Commit the new `scheduler/data/` files. The builder uses whichever
+listed term matches a semester in the student's plan.
+
+## Seats go stale
+
+The class data is a snapshot. Students do not see seat counts (advisors see them with the date).
+The audit view says "Sections as of <date>" and tells students to put picks and backups in the
+MyPack shopping cart, which shows live seats. Each picked section has a "Full in MyPack?" button:
+it marks that section full (saved on the plan as `schedFull`), swaps in the best backup that still
+fits, and opens the choices if none does. Marked sections are never suggested again until the
+student clicks Undo.
 
 ## Department corrections
 

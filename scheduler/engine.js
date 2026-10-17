@@ -71,6 +71,7 @@
     if (/Honors/.test(note)) return 'Honors or Scholars students only.';
     if (/consent/i.test(note)) return note + ': ask for permission before you register.';
     if (note === 'Closed') return 'Closed (no seats open).';
+    if (note === 'Marked full') return 'You marked this section full in MyPack.';
     return note;
   }
   function standingFromCredits(cr) { return cr >= 90 ? 'SR' : cr >= 60 ? 'JR' : cr >= 30 ? 'SO' : 'FR'; }
@@ -184,6 +185,8 @@
   }
 
   function unitEligibility(u, student, opts) {
+    // A section the student found full in MyPack (the class data is a snapshot, so seats go stale).
+    if (opts.full && opts.full[u.sections.map(function (x) { return x.nbr; }).join('+')]) return { ok: false, note: 'Marked full' };
     if (u.status === 1 || u.status === 3) return { ok: false, note: 'Closed' };
     if (u.tentative) return { ok: false, note: 'Tentative section (not offered)' };
     // Seat restrictions (honors, consent, other programs, standing, GPA) are "soft": the section is
@@ -478,7 +481,7 @@
   // Main entry. Returns {ok, plans, slots, notes, ctx}
   function buildSchedules(index, plan, lists, prefs, input) {
     prefs = prefs || {};
-    var opts = { includeConsent: !!prefs.includeConsent };
+    var opts = { includeConsent: !!prefs.includeConsent, full: prefs.full || {} };
     var ctx = buildContext(index, plan, lists, input);
     if (ctx.si === -1) return { ok: false, reason: 'no-semester', term: index.term };
     var busy = (prefs.busy || []).map(function (b) { return { days: b.days, start: b.start, end: b.end, d0: 0, d1: 0, busy: true }; });
@@ -814,7 +817,7 @@
   var PREREQ_ALT_TK = { 'ARE 201': ['ARE 201', 'EC 201', 'EC 205'], 'EC/ARE 301': ['EC 301', 'ARE 301'], 'MA 121/131/141': ['MA 121', 'MA 131', 'MA 141'] };
   function toolkit(index, plan, lists, prefs, input) {
     prefs = prefs || {};
-    var opts = { includeConsent: !!prefs.includeConsent };
+    var opts = { includeConsent: !!prefs.includeConsent, full: prefs.full || {} };
     var ctx = buildContext(index, plan, lists, input);
     var busy = (prefs.busy || []).map(function (b) { return { days: b.days, start: b.start, end: b.end, d0: 0, d1: 0, busy: true }; });
     var cache = {};

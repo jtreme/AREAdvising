@@ -3,7 +3,9 @@
 the Paw Plan schedule builder reads.
 
 Usage:
-    python3 tools/build_schedule_data.py "Spring 2027" path/to/Spring_2027_Schedule_of_Classes.csv
+    python3 tools/build_schedule_data.py "Spring 2027" path/to/Spring_2027_Schedule_of_Classes.csv [--as-of 2026-10-13]
+
+--as-of is the date the CSV was downloaded (students see "Sections as of <date>"). Default: today.
 
 Writes scheduler/data/<term-slug>.json and adds the term to scheduler/data/terms.json.
 Only undergraduate (100-499), non-cancelled, schedulable sections are kept.
@@ -52,9 +54,16 @@ def as_int(v):
 
 
 def main():
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+    as_of = datetime.date.today().isoformat()
+    if "--as-of" in args:
+        i = args.index("--as-of")
+        as_of = args[i + 1]
+        datetime.date.fromisoformat(as_of)
+        del args[i:i + 2]
+    if len(args) != 2:
         sys.exit(__doc__)
-    term, src = sys.argv[1], sys.argv[2]
+    term, src = args
     with open(src, encoding="utf-8-sig", errors="replace", newline="") as f:
         rows = list(csv.reader(f))
     # The export has a title row ("Class Schedule", count) before the real header.
@@ -117,6 +126,7 @@ def main():
         "termCode": recs[0].get("Term", "") if recs else "",
         "source": os.path.basename(src),
         "built": datetime.date.today().isoformat(),
+        "asOf": as_of,
         "fields": ["code", "sec", "nbr", "comp", "assoc", "days", "start", "end", "mode", "session",
                    "units", "status", "cap", "avail", "restrict", "consent", "instructor",
                    "startDay", "endDay", "room", "campus", "topic"],
@@ -134,7 +144,7 @@ def main():
     except (OSError, ValueError):
         manifest = {"terms": []}
     manifest["terms"] = [t for t in manifest["terms"] if t["term"] != term]
-    manifest["terms"].append({"term": term, "file": "data/" + slug + ".json", "built": payload["built"], "source": payload["source"]})
+    manifest["terms"].append({"term": term, "file": "data/" + slug + ".json", "built": payload["built"], "asOf": as_of, "source": payload["source"]})
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
     print(f"{term}: {len(sections)} sections, {len(courses)} courses -> {os.path.relpath(out)} ({os.path.getsize(out)//1024} KB)")

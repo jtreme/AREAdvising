@@ -1,0 +1,74 @@
+# Refresh the schedule builder's class data from a Schedule of Classes CSV.
+# To use: on github.com, open the class-schedule-upload folder, choose Add file > Upload files,
+# drop in the CSV (name it like "Spring_2027_Schedule_of_Classes.csv"), and commit.
+# This job converts it, removes the CSV, and publishes the new data. Students see
+# "Sections as of <upload date>".
+name: Refresh class data
+
+on:
+  push:
+    paths:
+      - 'class-schedule-upload/**.csv'
+      - 'class-schedule-upload/**.CSV'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: refresh-class-data
+  cancel-in-progress: false
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Convert each uploaded CSV
+        id: convert
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob nocaseglob
+          files=(class-schedule-upload/*.csv)
+          if [ ${#files[@]} -eq 0 ]; then echo "No CSV to convert."; echo "done=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          as_of=$(TZ=America/New_York date +%F)
+          summary=""
+          for f in "${files[@]}"; do
+            name=$(basename "$f")
+            term=$(echo "$name" | grep -oiE '(spring|summer|fall)[ _-]*[0-9]{4}' | head -1 | sed -E 's/[ _-]+/ /; s/^(.)(.*)$/\U\1\L\2/' || true)
+            if [ -z "$term" ]; then
+              echo "::error file=$f::Could not tell the term from the file name. Name it like Spring_2027_Schedule_of_Classes.csv."
+              exit 1
+            fi
+            out=$(python3 tools/build_schedule_data.py "$term" "$f" --as-of "$as_of")
+            echo "$out"
+            summary="$summary $out;"
+            git rm -q "$f"
+          done
+          stamp="data-$(TZ=America/New_York date +%Y%m%d-%H%M)"
+          sed -i -E 's/(<meta name="paw-plan-build-id" content=")[^"]*(")/\1'"$stamp"'\2/' index.html
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+          echo "done=1" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.convert.outputs.done == '1'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A scheduler/data index.html class-schedule-upload
+          git commit -m "Refresh class data:${{ steps.convert.outputs.summary }}"
+          git push
+
+      - name: Publish the site
+        if: steps.convert.outputs.done == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Pages build request not needed or not available; the push publishes the site."

@@ -135,7 +135,7 @@
     });
     state.result = E.buildSchedules(state.index, plan, B.lists, {
       earliest: +p.earliest || 0, latest: +p.latest || 0, noFriday: !!p.noFriday, online: p.online,
-      busy: p.busy, includeConsent: !!p.includeConsent
+      busy: p.busy, includeConsent: !!p.includeConsent, full: fullSet()
     }, { transferred: B.getTransferred(), standing: p.standing || undefined, gpa: B.getAuditGpa() });
     (state.result.plans || []).forEach(function (pl) {
       var touched = false;
@@ -267,8 +267,8 @@
         '. If you are graduating or on leave that term, there is nothing to schedule. Otherwise, check the planning start term you confirmed when you uploaded your audit.</p></div>';
       return;
     }
-    var h = '<p class="pps-source">Times and seats from the ' + esc(state.index.term) + ' Schedule of Classes (data from ' + esc(fmtDate(state.term.built)) +
-      '). Seats change daily, so confirm every section in MyPack before you register. Built from the current Paw Plan: after moving courses between semesters, reopen this window to rebuild.</p>';
+    var h = '<p class="pps-source">Times from the ' + esc(state.index.term) + ' Schedule of Classes. ' + esc(staleNote().replace(/ If a section is full.*$/, '')) +
+      ' Built from the current Paw Plan: after moving courses between semesters, reopen this window to rebuild.</p>';
     var severe = r.notes.filter(function (n) { return n.severe; }), mild = r.notes.filter(function (n) { return !n.severe; });
     if (ADVISOR && r.plans.length) h += advisorPanel(r, r.plans[state.pi] || r.plans[0]);
     else if (severe.length) h += '<div class="pps-alert">' + severe.map(function (n) { return '<p>' + esc(n.text) + '</p>'; }).join('') + '</div>';
@@ -378,7 +378,7 @@
         '<span class="pps-nbr" title="Class number for MyPack">' + s.nbr + '</span>' +
         (t ? '<span>' + esc(t) + '</span>' : '') + '<span>' + esc(MODE_TEXT[s.mode] || s.mode) + '</span>' +
         (s.instructor ? '<span>' + esc(s.instructor) + '</span>' : '') +
-        '<span>' + Math.max(0, s.avail) + ' of ' + s.cap + ' seats open</span></div>';
+        (ADVISOR ? '<span>' + Math.max(0, s.avail) + ' of ' + s.cap + ' open on ' + esc(shortDate(asOf())) + '</span>' : '') + '</div>';
     }).join('');
   }
   function violText(v) { return (v || []).map(function (x) { return E.VIOLATION_TEXT[x]; }).join(', '); }
@@ -643,7 +643,42 @@
     });
   }
 
-  function engPrefs() { var p = state.prefs; return { earliest: +p.earliest || 0, latest: +p.latest || 0, noFriday: !!p.noFriday, online: p.online, busy: p.busy, includeConsent: !!p.includeConsent }; }
+  function engPrefs() { var p = state.prefs; return { earliest: +p.earliest || 0, latest: +p.latest || 0, noFriday: !!p.noFriday, online: p.online, busy: p.busy, includeConsent: !!p.includeConsent, full: fullSet() }; }
+  // Sections a student found full in MyPack. Saved on the plan course (c.schedFull) so they travel
+  // with the plan and its autosave; the class data is a snapshot, so seat counts go stale.
+  function fullSet() {
+    var o = {};
+    (B.getPlan() || []).forEach(function (sem) { (sem.courses || []).forEach(function (c) { (c.schedFull || []).forEach(function (k) { o[k] = 1; }); }); });
+    return o;
+  }
+  function fullList() {
+    var out = [];
+    (B.getPlan() || []).forEach(function (sem) { (sem.courses || []).forEach(function (c) { (c.schedFull || []).forEach(function (k) { out.push({ c: c, key: k }); }); }); });
+    return out;
+  }
+  // "Section full": mark it, then swap in the best backup that still fits (same time first).
+  // With no backup, the pick is cleared and the choices for that requirement open.
+  function markFull(r, i) {
+    var c = r.c, u = r.units[i], code = c.sched.codes[i] || c.code, key = av.T.unitKey(u);
+    var rows = av.rows || [], occ = meetingsOf(rows, r).concat(r.units.filter(function (x, j) { return x && j !== i; }).reduce(function (m, x) { return m.concat(x.meetings); }, []));
+    var full = fullSet(); full[key] = 1;
+    var T2 = E.toolkit(state.index, B.getPlan(), B.lists, Object.assign(engPrefs(), { full: full }), engInput());
+    var bk = T2.backups(code, u, occ).filter(function (b) { return !T2.caveat(b.unit); });
+    var next = bk[0];
+    B.commit(function () {
+      c.schedFull = (c.schedFull || []).concat(c.schedFull && c.schedFull.indexOf(key) !== -1 ? [] : [key]);
+      if (next) { c.sched.nbrs[i] = T2.unitKey(next.unit); return; }
+      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; }
+      delete c.schedOrigCode; delete c.schedOrigName; delete c.sched;
+    });
+    av.rowMsg = { k: rowKey(c) };
+    if (next) av.msg = code + ': swapped #' + key + ' for #' + T2.unitKey(next.unit) + (next.same ? ' (same time).' : ' (' + meetText(next.unit) + ').') + ' Update your shopping cart.';
+    else { av.msg = 'No other section of ' + code + ' fits. Pick another time or course below.'; av.expanded = rowKey(c); }
+    av.rowMsg.t = av.msg;
+  }
+  function unmarkFull(k) {
+    B.commit(function (plan) { plan.forEach(function (sem) { (sem.courses || []).forEach(function (c) { if (c.schedFull) { c.schedFull = c.schedFull.filter(function (x) { return x !== k; }); if (!c.schedFull.length) delete c.schedFull; } }); }); });
+  }
   function engInput() { return { transferred: B.getTransferred(), standing: state.prefs.standing || undefined, gpa: B.getAuditGpa() }; }
   function secOf(c) {
     var a = String(c.auditSection || '');
@@ -717,7 +752,7 @@
     var rows = av.rows = collectRows(plan, T);
     var n = { done: 0, inprog: 0, planned: 0, need: 0, transfer: 0 };
     rows.forEach(function (r) { n[r.status]++; });
-    var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p>' +
+    var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
       '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
     SECTION_NAMES.forEach(function (sec) {
       var list = rows.filter(function (r) { return r.sec === sec[0]; });
@@ -734,7 +769,7 @@
     main.innerHTML = h;
     main.scrollTop = scroll;
     side.innerHTML = sideHtml(rows, T);
-    av.msg = null; // shown once
+    av.msg = null; av.rowMsg = null; // shown once
     wireAudit(o, rows, T);
   }
 
@@ -773,7 +808,11 @@
     var h = '<div class="pps-avrow st-row-' + r.status + (av.expanded === key ? ' on' : '') + '" role="row"><span class="pps-ic st-' + r.status + '">' + icon + '</span>' +
       '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr' +
       (r.status === 'planned' && c.schedOrigCode && c.schedOrigCode !== c.code ? ' \u00b7 fills ' + esc(c.schedOrigCode) : '') + '</span>';
-    if (r.metBy) h += '<div class="pps-muted">' + esc(r.metBy) + ' counts for this requirement (department substitution). Confirm it shows on the audit; ask your advisor if it does not.</div>';
+    if (av.rowMsg && av.rowMsg.k === key) h += '<div class="pps-flag good" role="status">' + esc(av.rowMsg.t) + '</div>';
+    if (r.metBy) {
+      var isSub = Object.keys(T.subs || {}).some(function (k) { return (T.subs[k] || []).indexOf(r.metBy) !== -1; });
+      h += '<div class="pps-muted">' + esc(r.metBy) + ' counts for this requirement' + (isSub ? ' (department substitution)' : '') + '. Confirm it shows on the audit; ask your advisor if it does not.</div>';
+    }
     if (r.status === 'transfer') {
       var tp = c.transferPlan;
       var chk = ccCheck(c, tp);
@@ -784,7 +823,8 @@
     }
     if (r.status === 'planned') {
       if (r.units.some(function (u) { return !u; })) h += '<div class="pps-flag warn">That section is no longer offered. Choose again.</div>';
-      else h += r.units.map(function (u) { var cv = u && T.caveat(u); return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u) + (cv ? '<div class="pps-flag warn">' + esc(cv) + '</div>' : ''); }).join('') + plannedExtras(r, rows, T);
+      else h += r.units.map(function (u, i) { var cv = u && T.caveat(u); return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u) + (cv ? '<div class="pps-flag warn">' + esc(cv) + '</div>' : '') +
+        '<button type="button" class="pps-link pps-fullbtn" data-full="' + key + ':' + i + '">Full in MyPack? Swap in a backup</button>'; }).join('') + plannedExtras(r, rows, T);
     }
     h += '</div><div class="pps-avact">' + right + '</div></div>';
     if (av.expanded === key && (r.status === 'need' || r.status === 'planned')) h += choosePanel(r, rows, T);
@@ -912,9 +952,13 @@
             '<div class="pps-muted">Backups: ' + (l.bk.length ? esc(l.bk.slice(0, 3).map(function (b) { return b.unit.sections.map(function (x) { return x.nbr; }).join('+'); }).join(', ')) : 'none fit') + '</div></li>';
         }).join('') + '</ol><div class="pps-actions"><button type="button" class="pps-btn" data-av="copy">Copy class numbers</button><span class="pps-actmsg" aria-live="polite"></span></div></div>';
     }
+    var fl = fullList();
+    if (fl.length) h += '<div class="pps-fulllist"><div class="pps-flabel">Marked full</div><ul>' + fl.map(function (f) {
+      return '<li><span class="pps-nbr">' + esc(f.key) + '</span> ' + esc(f.c.code) + ' <button type="button" class="pps-link" data-unfull="' + esc(f.key) + '">Undo</button></li>';
+    }).join('') + '</ul><p class="pps-muted pps-small">Paw Plan will not suggest these again. Undo if a seat opens.</p></div>';
     h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="builder">' + (ADVISOR ? 'Plans A, B, C and advising check' : 'See Plans A, B, C and preferences') + '</button>';
     if (ADVISOR) h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="next">Next student</button>';
-    h += '<p class="pps-muted pps-small">Seats change daily. Confirm each section in MyPack before you register. Class data from ' + esc(fmtDate(state.term.built)) + '.</p>';
+    h += '<p class="pps-muted pps-small">Sections as of ' + esc(fmtDate(asOf())) + '. Put your picks and backups in your MyPack shopping cart before your enrollment time; it shows live seats.</p>';
     return h;
   }
 
@@ -1089,6 +1133,8 @@
         renderAudit();
       });
     });
+    o.querySelectorAll('[data-full]').forEach(function (b) { b.addEventListener('click', function () { var p = b.getAttribute('data-full').split(':'), r = rowBy(p[0]); if (r && r.c.sched && r.units[+p[1]]) { markFull(r, +p[1]); renderAudit(); } }); });
+    o.querySelectorAll('[data-unfull]').forEach(function (b) { b.addEventListener('click', function () { unmarkFull(b.getAttribute('data-unfull')); av.msg = ''; renderAudit(); }); });
     o.querySelectorAll('[data-remove]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-remove')); if (r) { removePick(r.c); renderAudit(); } }); });
     o.querySelectorAll('[data-elsewhere]').forEach(function (b) { b.addEventListener('click', function () { var k = b.getAttribute('data-elsewhere'); av.elsewhere = av.elsewhere === k ? null : k; av.expanded = null; renderAudit(); }); });
     o.querySelectorAll('[data-ewcancel]').forEach(function (b) { b.addEventListener('click', function () { av.elsewhere = null; renderAudit(); }); });
@@ -1254,12 +1300,18 @@
       checks.forEach(function (c) { t.push('- ' + c.text); });
     }
     t.push('');
-    t.push('Seats change daily. Confirm each section in MyPack before you enroll.');
+    t.push('Sections as of ' + fmtDate(asOf()) + '; some may have filled. Put these and the backups in the MyPack shopping cart before the enrollment time. It shows live seats.');
     return t.join('\n');
   }
 
   // ---------- helpers ----------
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  // Date the class data was pulled from the Schedule of Classes.
+  function asOf() { return (state.term && (state.term.asOf || state.term.built)) || ''; }
+  function shortDate(iso) { var m = String(iso || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m[1] - 1] + ' ' + (+m[2]) : iso; }
+  function staleNote() {
+    return 'Sections as of ' + fmtDate(asOf()) + '. Some may have filled since. Before ' + (ADVISOR ? 'the student\'s' : 'your') + ' enrollment time, put the picks and backups in the MyPack shopping cart, which shows live seats. If a section is full, click "Full in MyPack?" and Paw Plan swaps in a backup.';
+  }
   function fmtDate(iso) {
     var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return iso || '';
@@ -1356,6 +1408,7 @@
       '.pps-bk-top .pps-btn{margin-left:auto}',
       '.pps-badge{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E5E5E5;color:#222;padding:.12rem .4rem;vertical-align:middle}',
       '.pps-chip.restr{border-style:dashed;border-color:#B45309;max-width:340px;text-align:left}.pps-chip em{display:block;font-style:normal;font-size:11.5px;color:#92400E;white-space:normal;margin-top:2px}',
+      '.pps-stale{font-size:.8rem;background:#FEF3C7;border-left:3px solid #B45309;padding:.45rem .6rem;margin:0 0 .75rem}.pps-fullbtn{display:block;margin:.2rem 0 .1rem;font-size:.78rem}.pps-fulllist{margin:.8rem 0;font-size:.8rem}.pps-fulllist ul{margin:.2rem 0 0 1rem;padding:0}',
       '.pps-hidden{margin:4px 0 0;font-size:12.5px}.pps-hidden summary{cursor:pointer;color:#555}.pps-hidden ul{margin:4px 0 0 18px;padding:0}.pps-hidden li{margin:2px 0}',
       '.pps-badge.good{background:#DCFCE7;color:#14532D}.pps-badge.warn{background:#FEE2E2;color:#7F1D1D}',
       '.pps-muted{color:#666;font-size:.76rem;font-weight:400}',
