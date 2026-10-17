@@ -406,7 +406,8 @@
         rg.units.push(u);
         return;
       }
-      if (!el.ok) { excluded[el.note] = (excluded[el.note] || 0) + 1; excludedUnits.push({ unit: u, why: el.note }); return; }
+      // Closed sections are not listed to students (before registration they are held back, not full).
+      if (!el.ok) { excluded[el.note] = (excluded[el.note] || 0) + 1; if (el.note !== 'Closed') excludedUnits.push({ unit: u, why: el.note }); return; }
       if (unitConflicts(u, busy)) { excluded['Conflicts with your busy times'] = (excluded['Conflicts with your busy times'] || 0) + 1; return; }
       var g = groups[u.timeKey];
       if (!g) g = groups[u.timeKey] = { code: code, timeKey: u.timeKey, units: [], meetings: u.meetings, rep: u, viol: prefViolations(u, prefs), note: el.note };

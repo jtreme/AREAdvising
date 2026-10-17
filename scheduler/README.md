@@ -64,7 +64,8 @@ to the NC State transfer database. Update the file from the new guide each year.
 - Time conflicts, including 8-week sessions and the student's busy times.
 - Lecture + lab / recitation / problem session pairing (sections sharing an Assoc Class number).
 - Closed, cancelled, and tentative sections are left out (a tentative section is treated as not
-  offered). In the audit view, each course lists them under "sections not shown" with the reason.
+  offered). Students never see them. Before registration, a closed section is usually held back by
+  its department rather than full, so it is not listed either. Revisit once registration opens.
 - Sections with seat restrictions (reserved for another program, honors, consent required, class
   standing or GPA the student may not meet) are shown in the audit view as dashed time choices with
   a plain-language caveat, after the open sections. A student can pick one; the caveat follows the
