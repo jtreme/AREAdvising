@@ -11,7 +11,29 @@
   var VER = ((me && me.src) || '').match(/[?&]v=([^&]+)/);
   VER = VER ? VER[1] : String(Date.now());
   var CAT_COLORS = { orientation: '#7C2D12', comm: '#0369A1', math: '#6D28D9', natsci: '#4D7C0F', dept: '#CC0000', restricted: '#0F766E', gep: '#1D4ED8', free: '#57534E' };
-  var MODE_TEXT = { P: 'In person', OA: 'Online, no set meeting time', OS: 'Online, scheduled meetings', PH: 'Hybrid', PR: 'In person', IH: 'In person' };
+  var MODE_TEXT = { P: 'In person', OA: 'Online, no set meeting time', OS: 'Online, scheduled meetings', PH: 'Hybrid', PR: 'In person', IH: 'In person', SA: 'Study abroad' };
+  function termYear() { var m = String((state.index && state.index.term) || '').match(/(\d{4})/); return m ? +m[1] : 0; }
+  function abroadText(u) { var d = E.fmtDays(u.d0, u.d1, termYear()); return 'Study abroad' + (d ? ', ' + d : ''); }
+  // Plain-language reason a section is left out for this student.
+  function hiddenWhy(why) {
+    var m = String(why || '').match(/^Restricted:\s*(?:R:\s*)?(.*)$/);
+    if (m) {
+      var prog = m[1].match(/\b(\d{2}[A-Z]{4,})\b/);
+      return prog ? 'Reserved for students in program ' + prog[1] + '. If that is not your program, MyPack will not let you enroll without department permission.'
+        : 'Restricted: ' + m[1] + '. Paw Plan cannot confirm you qualify; check with the department.';
+    }
+    if (why === 'Closed') return 'Closed (no seats open)';
+    if (/consent/.test(why)) return why + '; ask for permission to enroll';
+    return why;
+  }
+  function hiddenHtml(list) {
+    if (!list || !list.length) return '';
+    return '<details class="pps-hidden"><summary>' + list.length + ' section' + (list.length === 1 ? '' : 's') + ' not shown</summary><ul>' + list.map(function (x) {
+      var u = x.unit, s = u.sections[0];
+      return '<li>' + u.sections.map(function (y) { return esc(y.comp + ' ' + y.sec) + ' <span class="pps-nbr">' + y.nbr + '</span>'; }).join(' + ') + ' ' + esc(meetText(u)) + (u.meetings.length && MODE_TEXT[s.mode] ? ', ' + esc(MODE_TEXT[s.mode]).toLowerCase() : '') +
+        '<div class="pps-muted">' + esc(hiddenWhy(x.why)) + '</div></li>';
+    }).join('') + '</ul></details>';
+  }
   var STANDING_TEXT = { FR: 'Freshman', SO: 'Sophomore', JR: 'Junior', SR: 'Senior' };
   var PREF_KEY = 'pawplan-sched-prefs-v1';
   // Advisor view (?advisor=1): preferences reset for each student, an advising check sits on top,
@@ -345,7 +367,7 @@
     });
     h += '</div></div>';
     var floating = [];
-    plan.items.forEach(function (it) { if (!it.unit.meetings.length) floating.push({ code: it.code, cat: it.slot.cat, txt: it.unit.online ? 'Online, no set meeting time' : 'Time to be announced' }); });
+    plan.items.forEach(function (it) { if (!it.unit.meetings.length) floating.push({ code: it.code, cat: it.slot.cat, txt: it.unit.studyAbroad ? abroadText(it.unit) : it.unit.online ? 'Online, no set meeting time' : 'Time to be announced' }); });
     plan.open.forEach(function (o) { if (o.pick && o.pick.groupsFit.every(function (g) { return !g.meetings.length; })) floating.push({ code: o.pick.code, cat: o.slot.cat, txt: 'Online, no set meeting time' }); });
     if (floating.length) h += '<div class="pps-float">' + floating.map(function (f) { return '<span style="--c:' + (CAT_COLORS[f.cat] || '#444') + '"><strong>' + esc(f.code) + '</strong> ' + esc(f.txt) + '</span>'; }).join('') + '</div>';
     return h;
@@ -353,6 +375,7 @@
 
   // ---------- course cards ----------
   function meetText(u) {
+    if (u.studyAbroad) return abroadText(u);
     if (!u.meetings.length) return u.online ? 'Online, no set meeting time' : 'Time TBA';
     return u.meetings.map(function (m) {
       var half = m.sec.session === '8W1' ? ' (1st 8 weeks)' : m.sec.session === '8W2' ? ' (2nd 8 weeks)' : '';
@@ -361,7 +384,7 @@
   }
   function secLines(u) {
     return u.sections.map(function (s) {
-      var t = s.dayList.length && s.start >= 0 ? s.dayList.map(function (d) { return E.DAY_NAMES[d]; }).join('/') + ' ' + E.fmtTime(s.start) + '–' + E.fmtTime(s.end) : (s.mode === 'OA' ? '' : 'Time TBA');
+      var t = s.mode === 'SA' ? E.fmtDays(s.startDay, s.endDay, termYear()) : s.dayList.length && s.start >= 0 ? s.dayList.map(function (d) { return E.DAY_NAMES[d]; }).join('/') + ' ' + E.fmtTime(s.start) + '–' + E.fmtTime(s.end) : (s.mode === 'OA' ? '' : 'Time TBA');
       return '<div class="pps-sec"><span class="pps-comp">' + esc(s.comp) + ' ' + esc(s.sec) + '</span>' +
         '<span class="pps-nbr" title="Class number for MyPack">' + s.nbr + '</span>' +
         (t ? '<span>' + esc(t) + '</span>' : '') + '<span>' + esc(MODE_TEXT[s.mode] || s.mode) + '</span>' +
@@ -825,8 +848,9 @@
     entry.alsoCounts.forEach(function (a) { b += ' <span class="pps-badge good">Also counts: ' + esc(a) + '</span>'; });
     if (entry.warn) b += ' <span class="pps-badge warn" title="' + esc(entry.warn) + '">Check prerequisite</span>';
     if (entry.offList) b += ' <span class="pps-badge warn">Not on the approved list; ask your advisor</span>';
+    if (entry.studyAbroad) b += ' <span class="pps-badge">Study abroad: for students accepted into the program</span>';
     Object.keys(av.T.subs || {}).forEach(function (orig) { if ((av.T.subs[orig] || []).indexOf(entry.code) !== -1) b += ' <span class="pps-badge good">Counts for ' + esc(orig) + ' (department substitution)</span>'; });
-    return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + entry.sectionsFit + ' section' + (entry.sectionsFit === 1 ? '' : 's') + ' fit</span></div>' + timeChips(entry, ei, key) + '</li>';
+    return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + entry.sectionsFit + ' section' + (entry.sectionsFit === 1 ? '' : 's') + ' fit</span></div>' + timeChips(entry, ei, key) + hiddenHtml(entry.hidden) + '</li>';
   }
 
   function choosePanel(r, rows, T) {
@@ -854,7 +878,7 @@
     if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
     var unavailable = ch.locked.concat(ch.noFit);
     if (ch.slot.kind !== 'open') unavailable = unavailable.concat(ch.notOffered);
-    if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(term) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + '</li>'; }).join('') + '</ul>' +
+    if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(term) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + hiddenHtml(e.hidden) + '</li>'; }).join('') + '</ul>' +
       (unavailable.length > 12 ? '<p class="pps-muted">' + (unavailable.length - 12) + ' more not available.</p>' : '') + '</div>';
     return h + '</div>';
   }
@@ -1332,6 +1356,7 @@
       '.pps-bk-top{display:flex;flex-wrap:wrap;gap:.4rem .7rem;align-items:center;font-size:.8rem}',
       '.pps-bk-top .pps-btn{margin-left:auto}',
       '.pps-badge{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E5E5E5;color:#222;padding:.12rem .4rem;vertical-align:middle}',
+      '.pps-hidden{margin:4px 0 0;font-size:12.5px}.pps-hidden summary{cursor:pointer;color:#555}.pps-hidden ul{margin:4px 0 0 18px;padding:0}.pps-hidden li{margin:2px 0}',
       '.pps-badge.good{background:#DCFCE7;color:#14532D}.pps-badge.warn{background:#FEE2E2;color:#7F1D1D}',
       '.pps-muted{color:#666;font-size:.76rem;font-weight:400}',
       '.pps-same{margin-top:.2rem}',

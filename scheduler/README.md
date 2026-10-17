@@ -64,7 +64,13 @@ to the NC State transfer database. Update the file from the new guide each year.
 - Time conflicts, including 8-week sessions and the student's busy times.
 - Lecture + lab / recitation / problem session pairing (sections sharing an Assoc Class number).
 - Closed, honors, cancelled, tentative, and consent-required sections are left out. A tentative
-  section is treated as not offered.
+  section is treated as not offered. In the audit view, each course lists the sections it left out
+  and why (for example, an online section reserved for another program), so a section a student
+  sees in the Enrollment Wizard is never silently missing.
+- Study abroad sections (instruction mode SA, such as ARE 494) are kept. They show the travel dates
+  instead of a meeting time, are marked "for students accepted into the program," appear last in
+  each list, and are never picked automatically, used as a backup, or suggested to pull ahead. A
+  student picks one in the audit view.
 - Section restrictions it can read (class standing, ABM-only, GPA from the audit). Sections with
   restrictions it cannot verify, such as other majors only, are left out.
 - Prerequisites are flagged from catalog text, never enforced.

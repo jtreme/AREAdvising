@@ -19,7 +19,7 @@ import sys
 # not something a student schedules around, so they are left out.
 SKIP_COMPONENTS = {"IND", "RSC", "THE", "INT", "CLN", "ADM", "TEA", "PRA"}
 SKIP_LOCATIONS = {"VETMED"}
-SKIP_MODES = {"SA"}  # study abroad
+SKIP_MODES = set()  # study abroad (SA) sections are kept; the builder shows them only as explicit choices
 # Department rule: a tentative section is not offered. Cancelled and tentative sections are dropped.
 STATUS_CODE = {"Active": 0, "Stop Further Enrollment": 3}  # 1 = closed (set below)
 
