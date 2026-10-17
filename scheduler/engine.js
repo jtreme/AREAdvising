@@ -74,6 +74,11 @@
     if (note === 'Marked full') return 'You marked this section full in MyPack.';
     return note;
   }
+  function isSubOption(opt, subs) {
+    var all = {};
+    Object.keys(subs || {}).forEach(function (k) { (subs[k] || []).forEach(function (x) { all[x] = 1; }); });
+    return opt.every(function (x) { return all[x]; });
+  }
   function standingFromCredits(cr) { return cr >= 90 ? 'SR' : cr >= 60 ? 'JR' : cr >= 30 ? 'SO' : 'FR'; }
 
   // ---------- Data preparation ----------
@@ -495,7 +500,9 @@
       if (s.kind === 'transfer') { var tp = s.transferPlan; notes.push({ slot: s, transfer: true, text: s.label + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. Confirm it transfers before enrolling.' }); return; }
       // Already met by a course on record (including a department substitution such as ARE 255 for AEE 226).
       var metBy = null;
-      (s.options || []).forEach(function (o) { if (!metBy && o.every(function (x) { return ctx.taken[x]; })) metBy = o.join(' + '); });
+      // Only a department substitution can mark an audit requirement met here (the audit already
+      // places every other course on its own line, and a course counts for one requirement only).
+      (s.options || []).forEach(function (o) { if (!metBy && isSubOption(o, index.subs) && o.every(function (x) { return ctx.taken[x]; })) metBy = o.join(' + '); });
       if (metBy) { notes.push({ slot: s, text: s.label + ': ' + metBy + ' is already on your record and fills this. Confirm it shows on the audit.' }); return; }
       if (s.kind === 'open') { open.push(s); return; }
       // fixed or choice: keep options whose every course has eligible sections and is not already taken
@@ -769,7 +776,7 @@
             opts = lists.SLASH_COURSES[c.picker].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean);
           if (!opts) return;
           opts = withSubs(opts, index.subs);
-          if (opts.some(function (o) { return o.every(function (x) { return ctx.taken[x]; }); })) return; // already met
+          if (opts.some(function (o) { return isSubOption(o, index.subs) && o.every(function (x) { return ctx.taken[x]; }); })) return; // met by a substitution
           opts = preferARE(opts, function (x) { return !!index.courses[x] && groupsFor(x).groups.length > 0; });
           var prereqOk = paw_prereqs_ok(label);
           opts.forEach(function (opt) {
@@ -941,7 +948,7 @@
     function satisfiedBy(c) {
       var sl = slotOf(c);
       if (sl.kind !== 'fixed' && sl.kind !== 'choice') return '';
-      for (var i = 0; i < sl.options.length; i++) if (sl.options[i].every(function (x) { return ctx.taken[x]; })) return sl.options[i].join(' + ');
+      for (var i = 0; i < sl.options.length; i++) if (isSubOption(sl.options[i], index.subs) && sl.options[i].every(function (x) { return ctx.taken[x]; })) return sl.options[i].join(' + ');
       return '';
     }
     function backups(code, unit, occupied) {
