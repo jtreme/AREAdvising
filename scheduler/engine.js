@@ -405,8 +405,11 @@
     var c = index.courses[code];
     if (!c) return { offered: false, groups: [], excluded: [] };
     var groups = {}, rgroups = {}, excluded = {}, excludedUnits = [];
+    // A course-level restriction (catalog text such as "AGI Students Only") applies to every section.
+    var courseOnly = /\bAGI\b[^;]*only|only[^;]*\bAGI\b/i.test((c.info && c.info.req) || '') ? 'Restricted: Agricultural Institute (AGI) students only' : '';
     c.units.forEach(function (u) {
       var el = unitEligibility(u, ctx.student, opts);
+      if (el.ok && courseOnly) el = { ok: false, soft: true, note: courseOnly };
       if (!el.ok && el.soft) {
         if (unitConflicts(u, busy)) return;
         var rk = u.timeKey + '|' + el.note, rg = rgroups[rk];
@@ -960,14 +963,16 @@
       });
       return out.sort(function (a, b) { return (b.same ? 1 : 0) - (a.same ? 1 : 0) || a.viol.length - b.viol.length || b.unit.avail - a.unit.avail; });
     }
-    function search(query, occupied, used, limit) {
+    // query: text to match (2+ characters), or '' with keep(code) to browse, e.g. every ARE course.
+    function search(query, occupied, used, limit, keep) {
       var q = String(query || '').trim().toUpperCase(), out = [];
-      if (q.length < 2) return out;
+      if (q.length < 2 && !keep) return out;
       var occ = busy.concat(occupied || []);
       Object.keys(index.courses).sort().forEach(function (code) {
         if (out.length >= (limit || 30)) return;
         var info = index.courses[code].info || {};
-        if ((code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) return;
+        if (q.length >= 2 && (code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) return;
+        if (keep && !keep(code)) return;
         if (ctx.taken[code] || (used && used[code])) return;
         var times = allGroups(code).filter(function (g) { return !unitConflicts(g.rep, occ); }).map(timeOf);
         if (!times.length) return;

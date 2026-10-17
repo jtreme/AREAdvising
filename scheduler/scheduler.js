@@ -328,6 +328,13 @@
     var PPM = 0.9, H = (hi - lo) * PPM;
     var h = '<div class="pps-cal-wrap"><div class="pps-cal" style="--cols:' + days.length + '">';
     h += '<div class="pps-cal-head"></div>' + days.map(function (d) { return '<div class="pps-cal-head">' + E.DAY_NAMES[d] + '</div>'; }).join('');
+    // Courses with no meeting time (online, study abroad, TBA) sit in a row above the grid.
+    var floating = [];
+    plan.items.forEach(function (it) { if (!it.unit.meetings.length) floating.push({ code: it.code, cat: it.slot.cat, txt: it.unit.studyAbroad ? abroadText(it.unit) : it.unit.online ? 'Online, no set time' : 'Time TBA' }); });
+    plan.open.forEach(function (o) { if (o.pick && o.pick.groupsFit.every(function (g) { return !g.meetings.length; })) floating.push({ code: o.pick.code, cat: o.slot.cat, txt: 'Online, no set time' }); });
+    if (floating.length) h += '<div class="pps-cal-alld">No set time</div><div class="pps-cal-float">' + floating.map(function (f) {
+      return '<span class="pps-ev-float" style="--c:' + (CAT_COLORS[f.cat] || '#444') + '"><strong>' + esc(f.code) + '</strong> ' + esc(f.txt) + '</span>';
+    }).join('') + '</div>';
     h += '<div class="pps-cal-times" style="height:' + H + 'px">';
     for (var t = lo; t < hi; t += 60) h += '<div class="pps-cal-t" style="top:' + ((t - lo) * PPM) + 'px">' + E.fmtTime(t).replace(':00', '') + '</div>';
     h += '</div>';
@@ -355,10 +362,6 @@
       h += '</div>';
     });
     h += '</div></div>';
-    var floating = [];
-    plan.items.forEach(function (it) { if (!it.unit.meetings.length) floating.push({ code: it.code, cat: it.slot.cat, txt: it.unit.studyAbroad ? abroadText(it.unit) : it.unit.online ? 'Online, no set meeting time' : 'Time to be announced' }); });
-    plan.open.forEach(function (o) { if (o.pick && o.pick.groupsFit.every(function (g) { return !g.meetings.length; })) floating.push({ code: o.pick.code, cat: o.slot.cat, txt: 'Online, no set meeting time' }); });
-    if (floating.length) h += '<div class="pps-float">' + floating.map(function (f) { return '<span style="--c:' + (CAT_COLORS[f.cat] || '#444') + '"><strong>' + esc(f.code) + '</strong> ' + esc(f.txt) + '</span>'; }).join('') + '</div>';
     return h;
   }
 
@@ -608,7 +611,7 @@
   var SECTION_NAMES = [['1', 'Orientation'], ['2', 'Communications & Tech Fluency'], ['3', 'Mathematical Sciences'], ['4', 'Natural Sciences'],
     ['5', 'Dept Course Requirements'], ['6', 'Restricted Electives'], ['8', 'General Education Program (GEP) Courses'], ['20', 'Free Electives']];
   var CAT_TO_SEC = { orientation: '1', comm: '2', math: '3', natsci: '4', dept: '5', restricted: '6', gep: '8', free: '20' };
-  var av = { expanded: null, queries: {}, all: {}, lists: {}, rows: [], T: null };
+  var av = { expanded: null, queries: {}, all: {}, lists: {}, rows: [], T: null, chips: {} };
 
   function openAudit() {
     injectStyle();
@@ -751,7 +754,7 @@
     var T = av.T = E.toolkit(state.index, plan, B.lists, engPrefs(), engInput());
     var rows = av.rows = collectRows(plan, T);
     var n = { done: 0, inprog: 0, planned: 0, need: 0, transfer: 0 };
-    rows.forEach(function (r) { n[r.status]++; });
+    rows.forEach(function (r) { if (!(r.c.schedExtra && r.status === 'need')) n[r.status]++; });
     var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
       '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
     SECTION_NAMES.forEach(function (sec) {
@@ -789,13 +792,16 @@
   function rowHtml(r, rows, T) {
     var c = r.c, key = rowKey(c), term = state.index.term;
     var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;', transfer: '&#8644;' }[r.status];
-    var label = r.status === 'planned' ? c.code : (c.schedOrigCode || c.code);
-    var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : (c.tag || ''));
+    var label = r.status === 'planned' ? c.code : c.schedExtra ? 'Extra class' : (c.schedOrigCode || c.code);
+    var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : c.schedExtra ? 'Any course, beyond your requirements' : (c.tag || ''));
     var right = '';
     if (r.metBy) right = '<span class="pps-avterm">Met by ' + esc(r.metBy) + '</span>';
     else if (r.status === 'done') right = '<span class="pps-avterm">' + esc(/Transfer/.test(r.term) ? 'Transfer / test credit' : 'Complete') + '</span>';
     else if (r.status === 'transfer') right = '<span class="pps-badge">At another school</span><button type="button" class="pps-link" data-untransfer="' + key + '">Undo</button>';
     else if (r.status === 'inprog') right = '<span class="pps-avterm">In progress · ' + esc(r.term) + '</span>';
+    else if (r.status === 'need' && c.schedExtra) {
+      right = '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose a class') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
+    }
     else if (r.status === 'need') {
       var lock = are490Lock(r);
       right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>') +
@@ -807,7 +813,7 @@
     }
     var h = '<div class="pps-avrow st-row-' + r.status + (av.expanded === key ? ' on' : '') + '" role="row"><span class="pps-ic st-' + r.status + '">' + icon + '</span>' +
       '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr' +
-      (r.status === 'planned' && c.schedOrigCode && c.schedOrigCode !== c.code ? ' \u00b7 fills ' + esc(c.schedOrigCode) : '') + '</span>';
+      (r.status === 'planned' && c.schedExtra ? ' \u00b7 extra class' : r.status === 'planned' && c.schedOrigCode && c.schedOrigCode !== c.code ? ' \u00b7 fills ' + esc(c.schedOrigCode) : '') + '</span>';
     if (av.rowMsg && av.rowMsg.k === key) h += '<div class="pps-flag good" role="status">' + esc(av.rowMsg.t) + '</div>';
     if (r.metBy) {
       var isSub = Object.keys(T.subs || {}).some(function (k) { return (T.subs[k] || []).indexOf(r.metBy) !== -1; });
@@ -890,16 +896,51 @@
     return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + fitText(entry) + '</span></div>' + timeChips(entry, ei, key) + hiddenHtml(entry.hidden) + '</li>';
   }
 
+  var CHIPS = [['are', 'ARE courses'], ['online', 'Online'], ['mwf', 'Mon/Wed/Fri'], ['tth', 'Tue/Thu'], ['short', '1\u20132 credits']];
+  function chipsHtml(key, chips) {
+    return '<div class="pps-fchips" role="group" aria-label="Filter courses">' + CHIPS.map(function (c) {
+      return '<button type="button" class="pps-fchip' + (chips[c[0]] ? ' on' : '') + '" aria-pressed="' + !!chips[c[0]] + '" data-fchip="' + key + ':' + c[0] + '">' + c[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  // Keep only the times (and courses) that match the chips.
+  function applyChips(list, chips) {
+    var dayOk = function (u, set) { return u.meetings.length > 0 && u.meetings.every(function (m) { return m.days.every(function (d) { return set.indexOf(d) !== -1; }); }); };
+    var tOk = function (t) {
+      return t.units.every(function (u) {
+        if (chips.online && !u.online) return false;
+        if (chips.mwf && !dayOk(u, [0, 2, 4])) return false;
+        if (chips.tth && !dayOk(u, [1, 3])) return false;
+        return true;
+      });
+    };
+    return list.filter(function (e) {
+      if (chips.are && !e.option.every(function (x) { return /^ARE /.test(x); })) return false;
+      if (chips.short && !(parseFloat(String(((e.times[0] || {}).units || [{}])[0].units || '3')) <= 2)) return false;
+      return true;
+    }).map(function (e) {
+      if (!chips.online && !chips.mwf && !chips.tth) return e;
+      var ft = e.times.filter(tOk);
+      if (!ft.length) return null;
+      var n = ft.reduce(function (t, x) { return t + (x.restricted ? 0 : x.count); }, 0);
+      return Object.assign({}, e, { times: ft, sectionsFit: n, restrictedFit: ft.reduce(function (t, x) { return t + (x.restricted ? x.count : 0); }, 0), restrictedOnly: !n });
+    }).filter(Boolean);
+  }
   function choosePanel(r, rows, T) {
     var key = rowKey(r.c), occ = meetingsOf(rows, r), used = usedFor(rows, r, T);
     var ch = T.choices(r.c, occ, used), term = state.index.term;
     var h = '<div class="pps-choose" role="region" aria-label="Courses for ' + esc(r.c.schedOrigCode || r.c.code) + '">';
     if (ch.note) return h + '<p>This is not a specific course, so it cannot be scheduled here. Talk with your advisor about what fills it.</p></div>';
     var q = av.queries[key] || '', list;
-    if (ch.free || ch.fits.length > 8) h += '<div class="pps-search"><input type="search" data-q="' + key + '" value="' + esc(q) + '" placeholder="' + (ch.free ? 'Search any course that fits (subject like SPA, or a word in the title)' : 'Filter by code or title') + '" aria-label="Search courses"></div>';
+    if (ch.free || ch.fits.length > 8) h += '<div class="pps-search"><input type="search" data-q="' + key + '" value="' + esc(q) + '" placeholder="' + (ch.free ? 'Search a subject (like PSY) or a word in a course title' : 'Filter by code or title') + '" aria-label="Search courses"></div>';
+    // Filter chips: free electives open on ARE courses so there is something to browse right away.
+    var chips = av.chips[key] || (av.chips[key] = ch.free ? { are: 1, _free: 1 } : {});
+    var anyChip = Object.keys(chips).some(function (k) { return k.charAt(0) !== '_' && chips[k]; });
+    if (ch.free || ch.slot.kind === 'open' || ch.fits.length > 8) h += chipsHtml(key, chips);
     if (ch.free) {
-      list = q.length >= 2 ? T.search(q, occ, used, 25) : [];
-      if (!list.length) h += '<p class="pps-muted">' + (q.length >= 2 ? 'Nothing matching that fits your other picks.' : 'Almost any course counts as a free elective. Search for one that fits.') + '</p>';
+      var isAre = function (code) { return /^ARE /.test(code); };
+      if (q.length >= 2) list = T.search(q, occ, used, 60, chips.are ? isAre : null);
+      else if (anyChip) list = T.search('', occ, used, chips.are ? 80 : 400, chips.are ? isAre : function () { return true; });
+      else list = [];
     } else {
       list = ch.fits;
       if (q.length >= 2) {
@@ -907,7 +948,19 @@
         list = list.filter(function (e) { return (e.code + ' ' + e.title).toLowerCase().indexOf(ql) !== -1; });
         if (!list.length && ch.slot.kind === 'open') list = T.search(q, occ, used, 15).map(function (e) { e.offList = true; return e; });
       }
-      if (!list.length) h += '<p class="pps-muted">' + (q ? 'Nothing matching that fits.' : 'No course for this requirement fits ' + term + ' right now.') + '</p>';
+    }
+    list = applyChips(list, chips);
+    // Free electives: subject-code matches first, then 300-400 level, then no prerequisite flag.
+    var qU = q.trim().toUpperCase();
+    var lvl = function (e) { var m = e.code.match(/ (\d)/); return m && +m[1] >= 3 ? 0 : 1; };
+    if (ch.free) list.sort(function (a, b) {
+      return ((a.studyAbroad ? 2 : a.restrictedOnly ? 1 : 0) - (b.studyAbroad ? 2 : b.restrictedOnly ? 1 : 0)) ||
+        (qU.length >= 2 ? (b.code.indexOf(qU) === 0 ? 1 : 0) - (a.code.indexOf(qU) === 0 ? 1 : 0) : 0) ||
+        lvl(a) - lvl(b) || ((a.warn ? 1 : 0) - (b.warn ? 1 : 0)) || (a.code < b.code ? -1 : 1);
+    });
+    if (!list.length) {
+      if (ch.free) h += '<p class="pps-muted">' + (q.length >= 2 || anyChip ? 'Nothing that fits your other picks with those filters. Try another filter or search.' : 'Almost any course counts as a free elective. Search for one, or turn on a filter to browse.') + '</p>';
+      else h += '<p class="pps-muted">' + (q || anyChip ? 'Nothing that fits with those filters.' : 'No course for this requirement fits ' + term + ' right now.') + '</p>';
     }
     av.lists[key] = list;
     var shown = av.all[key] ? list : list.slice(0, 10);
@@ -932,6 +985,7 @@
       (cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
       (av.msg ? '<div class="pps-flag warn" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
     if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Pick the best sections for my suggested courses</button>';
+    h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="addx">+ Add another class</button>';
     h += calendar({ items: items, open: [] });
     if (planned.length) {
       var lines = [];
@@ -1053,9 +1107,19 @@
         c.code = entry.code; c.name = entry.title;
       }
       c.sched = { term: term, codes: entry.option.slice(), nbrs: time.units.map(function (u) { return T.unitKey(u); }) };
+      if (c.schedExtra) c.units = time.units.reduce(function (t, u) { return t + (parseFloat(u.units) || 0); }, 0) || 3;
     });
   }
+  // A class beyond the degree requirements (to try options or reach full time). It is a Free Elective
+  // slot in the plan, marked schedExtra, and Remove deletes it.
+  function addExtra() {
+    var term = state.index.term, c = { id: 'EXTRA' + Date.now().toString(36), code: 'Free Elective', name: 'Click to choose', units: 3, cat: 'free', picker: 'free', schedExtra: true };
+    B.commit(function (plan) { plan.forEach(function (s) { if (s.term === term) s.courses.push(c); }); });
+    av.expanded = rowKey(c);
+    av.chips[av.expanded] = { are: 1, _free: 1 };
+  }
   function removePick(c) {
+    if (c.schedExtra) { B.commit(function (plan) { var at = findCourse(plan, c); if (at) plan[at.si].courses.splice(at.ci, 1); }); return; }
     B.commit(function (plan) {
       if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; }
       delete c.schedOrigCode; delete c.schedOrigName; delete c.sched;
@@ -1133,6 +1197,18 @@
         renderAudit();
       });
     });
+    o.querySelectorAll('[data-fchip]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = b.getAttribute('data-fchip').split(':'), c = av.chips[p[0]] || (av.chips[p[0]] = {});
+        c[p[1]] = !c[p[1]];
+        if (p[1] === 'mwf' && c.mwf) c.tth = false;
+        if (p[1] === 'tth' && c.tth) c.mwf = false;
+        if (p[1] === 'online' && c.online) { c.mwf = false; c.tth = false; }
+        if ((p[1] === 'mwf' || p[1] === 'tth') && c[p[1]]) c.online = false;
+        av.all[p[0]] = false;
+        renderAudit();
+      });
+    });
     o.querySelectorAll('[data-full]').forEach(function (b) { b.addEventListener('click', function () { var p = b.getAttribute('data-full').split(':'), r = rowBy(p[0]); if (r && r.c.sched && r.units[+p[1]]) { markFull(r, +p[1]); renderAudit(); } }); });
     o.querySelectorAll('[data-unfull]').forEach(function (b) { b.addEventListener('click', function () { unmarkFull(b.getAttribute('data-unfull')); av.msg = ''; renderAudit(); }); });
     o.querySelectorAll('[data-remove]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-remove')); if (r) { removePick(r.c); renderAudit(); } }); });
@@ -1165,7 +1241,9 @@
       inp.addEventListener('input', function () {
         clearTimeout(t);
         t = setTimeout(function () {
-          var k = inp.getAttribute('data-q');
+          var k = inp.getAttribute('data-q'), was = av.queries[k] || '', ck = av.chips[k];
+          // Starting a search on a free elective covers every subject (ARE filter can be turned back on).
+          if (ck && ck._free && ck.are && was.trim().length < 2 && inp.value.trim().length >= 2) ck.are = false;
           av.queries[k] = inp.value; renderAudit();
           var again = o.querySelector('[data-q="' + k + '"]');
           if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
@@ -1179,6 +1257,7 @@
         if (act === 'builder') { openBuilder(); return; }
         if (act === 'next') { close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
         if (act === 'auto') { av.msg = autoPick(); renderAudit(); return; }
+        if (act === 'addx') { addExtra(); renderAudit(); var x = o.querySelector('.pps-avrow.on'); if (x && x.scrollIntoView) x.scrollIntoView({ block: 'center' }); return; }
         if (act === 'copy') {
           var txt = state.index.term + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
             return (i + 1) + '. ' + l.code + '  ' + l.u.sections.map(function (s) { return s.comp + ' ' + s.sec + ': ' + s.nbr; }).join(' + ') + (l.bk.length ? '   backups: ' + l.bk.slice(0, 3).map(function (x) { return x.unit.sections.map(function (y) { return y.nbr; }).join('+'); }).join(', ') : '');
@@ -1382,6 +1461,10 @@
       '.pps-ev strong{display:block;font-size:.72rem}.pps-ev span{display:block;color:#333}',
       '.pps-ev-pick{border:1px dashed var(--c);border-left:4px dashed var(--c)}',
       '.pps-ev-busy{background:repeating-linear-gradient(45deg,#eee 0 6px,#fafafa 6px 12px);border-left-color:#777;color:#444}',
+      '.pps-fchips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.1rem 0 .6rem}.pps-fchip{font:500 .74rem Inter,sans-serif;background:#fff;border:1px solid #999;border-radius:999px;padding:.25rem .7rem;cursor:pointer}.pps-fchip.on{background:#000;color:#fff;border-color:#000}',
+      '.pps-cal-alld{font:600 .6rem Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;color:#555;padding:.35rem .25rem;border-bottom:2px solid #000;border-right:1px solid #C7C7C7;display:flex;align-items:center;justify-content:flex-end;text-align:right;line-height:1.1}',
+      '.pps-cal-float{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:.3rem;padding:.3rem;border-bottom:2px solid #000;background:#FAFAFA}',
+      '.pps-ev-float{font-size:.72rem;background:color-mix(in srgb,var(--c) 14%,#fff);border-left:4px solid var(--c);padding:.2rem .45rem}.pps-avside .pps-ev-float{font-size:.62rem}',
       '.pps-float{display:flex;flex-wrap:wrap;gap:.4rem;margin:.25rem 0 1rem;font-size:.78rem}',
       '.pps-float span{background:#fff;border:1px solid #C7C7C7;border-left:4px solid var(--c);padding:.25rem .5rem}',
       '.pps-h{font:700 1.1rem "Roboto Slab",Georgia,serif;margin:1.4rem 0 .5rem}',

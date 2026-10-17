@@ -35,6 +35,17 @@ python3 tools/build_schedule_data.py "Fall 2027" path/to/Fall_2027_Schedule_of_C
 `--as-of` is the download date. Commit the new `scheduler/data/` files. The builder uses whichever
 listed term matches a semester in the student's plan.
 
+## Electives and extra classes
+
+Elective lists in the audit view have filter chips: ARE courses, Online, Mon/Wed/Fri, Tue/Thu, and
+1–2 credits. A free elective opens on ARE courses (300–400 level first) so there is something to
+browse; typing a search covers every subject. "+ Add another class" adds a class beyond the
+requirements (a Free Elective slot marked `schedExtra`; Remove deletes it). Courses whose catalog
+text says AGI students only are shown as restricted.
+
+Courses with no meeting time (online, study abroad, TBA) appear in a "No set time" row at the top
+of the weekly calendar.
+
 ## Seats go stale
 
 The class data is a snapshot. Students do not see seat counts (advisors see them with the date).
