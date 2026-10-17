@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="stale-seats-v1">
+<meta name="paw-plan-build-id" content="math-stat-split-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -988,8 +988,8 @@ var SLASH_COURSES={
 "com112":[{c:"COM 112",n:"Interpersonal Communication"},{c:"COM 211",n:"Argumentation and Advocacy"},{c:"COM 226",n:"Communication course"},{c:"ENG 332",n:"Communication for Engineering & Technology"}],
 "bio":[{c:"BIO 105 + BIO 106",n:"Biology in the Modern World + Lab (3+1 cr)"},{c:"BIO 181",n:"Intro Biology: Ecology & Evolution (4 cr)"},{c:"PB 200",n:"Plant Life (4 cr)"}],
 "math1":[{c:"MA 121",n:"Elements of Calculus"},{c:"MA 131",n:"Calculus for Life & Mgmt Sci A"},{c:"MA 141",n:"Calculus I"}],
-"math2":[{c:"MA 114",n:"Intro to Finite Mathematics"},{c:"MA 231",n:"Calculus for Life & Mgmt Sci B"},{c:"MA 241",n:"Calculus II"},{c:"ST 311",n:"Introduction to Statistics"},{c:"ST 350",n:"Statistics"},{c:"BUS 350",n:"Business Statistics"}],
-"st311":[{c:"ST 311",n:"Introduction to Statistics"},{c:"ST 350",n:"Statistics"},{c:"BUS 350",n:"Business Statistics"},{c:"MA 114",n:"Intro to Finite Mathematics"},{c:"MA 231",n:"Calculus for Life & Mgmt Sci B"},{c:"MA 241",n:"Calculus II"}],
+"math2":[{c:"MA 114",n:"Intro to Finite Mathematics"},{c:"MA 231",n:"Calculus for Life & Mgmt Sci B"},{c:"MA 241",n:"Calculus II"}],
+"st311":[{c:"ST 311",n:"Introduction to Statistics"},{c:"ST 350",n:"Statistics"},{c:"BUS 350",n:"Business Statistics"}],
 "natsci4":[{c:"CH 100",n:"Chemistry and Society (4 cr)"},{c:"CH 101 + CH 102",n:"Chemistry + Gen Chem Lab (3+1 = 4 cr)"},{c:"CH 201 + CH 202",n:"Quantitative Chemistry + Lab (3+1 = 4 cr)"},{c:"MEA 100",n:"Earth System Science (4 cr)"},{c:"MEA 101 + MEA 110",n:"Geology I + Lab (3+1 = 4 cr)"},{c:"MEA 130 + MEA 135",n:"Weather & Climate + Lab (3+1 = 4 cr)"},{c:"MEA 150",n:"Environmental Issues in Water Resources (4 cr)"},{c:"PY 131",n:"Conceptual Physics (4 cr)"},{c:"PY 205",n:"Physics for Engineers & Scientists I (4 cr)"},{c:"PY 208",n:"Physics for Engineers & Scientists II (4 cr)"},{c:"PY 211",n:"College Physics I (4 cr)"},{c:"PY 212",n:"College Physics II (4 cr)"}],
 "natsci3":[{c:"CH 101",n:"Chemistry - A Molecular Science (3 cr)"},{c:"CH 201",n:"Chemistry - A Quantitative Science (3 cr)"},{c:"CH 220",n:"Introductory Organic Chemistry (3 cr)"},{c:"CH 221",n:"Organic Chemistry I (3 cr)"},{c:"MEA 101",n:"Geology I: Physical (3 cr)"},{c:"MEA 130",n:"Intro to Weather & Climate (3 cr)"},{c:"MEA 200",n:"Intro to Oceanography (3 cr)"}],
 "hesf1":[{c:"HESF 100",n:"Cross Training (2 cr)"},{c:"HESF 101",n:"Fitness and Wellness (1 cr)"},{c:"HESF 102",n:"Fitness Walking (1 cr)"},{c:"HESF 103",n:"Water Aerobics (1 cr)"},{c:"HESF 104",n:"Swim Conditioning (1 cr)"},{c:"HESF 105",n:"Aerobics & Body Conditioning (1 cr)"},{c:"HESF 106",n:"Triathlon (1 cr)"},{c:"HESF 107",n:"Run Conditioning (1 cr)"},{c:"HESF 108",n:"Water Step Aerobics (1 cr)"},{c:"HESF 109",n:"Step Aerobics (1 cr)"},{c:"HESF 110",n:"Adapted Fitness & Wellness (1 cr)"},{c:"HESF 111",n:"Indoor Group Cycling (1 cr)"},{c:"HESF 112",n:"Fitness Kickboxing (1 cr)"},{c:"HESF 113",n:"High Intensity Conditioning (1 cr)"},{c:"HESF 114",n:"Functional Training (1 cr)"},{c:"HESF 115",n:"Wellness and Resilience (2 cr)"}],
@@ -6149,7 +6149,7 @@ h+='</div>';
 
 // Math alerts
 var mathCodes=['MA 121','MA 131','MA 141'];
-var math2Codes=['MA 114','MA 231','MA 241','ST 311','ST 350','BUS 350'];
+var math2Codes=['MA 114','MA 231','MA 241'];
 var mathPrepCodes=['MA 107','MA 111'];
 var hasMath1=false;var hasMath2=false;var hasMathPrep=false;
 var hasEC301=false;var hasARE336=false;var hasARE433=false;
@@ -6210,7 +6210,7 @@ h+='</div>';
 }
 if(!math2Picked){
 h+='<div style="padding:0.5rem;background:#FEF3C7;border-left:3px solid #D97706;border-radius:4px;margin-bottom:0.4rem;font-size:0.78rem;color:#92400E">';
-h+='<strong>MA 114/231/241 or ST 311 not yet completed.</strong> Student needs one MA and one ST/BUS course across the two math/stat slots.';
+h+='<strong>MA 114, 231 or 241 not yet planned.</strong> This is its own requirement on the degree audit; ST 311, BUS 350 or ST 350 is a separate requirement.';
 if(!math1Picked)h+=' <em>Note: MA 121 must be completed first before MA 114.</em>';
 h+='</div>';
 }
