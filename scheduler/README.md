@@ -39,6 +39,19 @@ Re-running with a fresh CSV for the same term refreshes seat counts and section 
 of Classes shows an active section. Add the course code under the term's
 `notOffered` list and commit; no rebuild is needed.
 
+## Department substitutions
+
+`data/overrides.json` also holds `substitutions`, which apply every term. `"AEE 226": ["ARE 255"]`
+means ARE 255 fills the AEE 226 requirement: it is offered first wherever AEE 226 is an option,
+and a student who already has ARE 255 sees AEE 226 as met (with a reminder to confirm it on the
+audit).
+
+## Courses at another school
+
+In the audit view, any remaining requirement can be marked "Taking it at another school" with the
+school, course, and term. It moves to that term in the plan, is not scheduled here, and shows a
+reminder to confirm transfer credit. Paw Plan does not check transfer equivalency.
+
 ## What it checks
 
 - Time conflicts, including 8-week sessions and the student's busy times.

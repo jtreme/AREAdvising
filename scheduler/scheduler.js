@@ -660,6 +660,9 @@
           var inprog = c.classification === 'planned_current' || /^In Progress/.test(s.term) || (!named && r < tr);
           rows.push({ sec: secOf(c), status: inprog ? 'inprog' : 'done', c: c, term: s.term });
         } else if (future) {
+          if (c.transferPlan) { rows.push({ sec: secOf(c), status: 'transfer', c: c, term: s.term }); return; }
+          var met = T.satisfiedBy(c);
+          if (met) { rows.push({ sec: secOf(c), status: 'done', c: c, term: s.term, metBy: met }); return; }
           var planned = s.term === term && c.sched && c.sched.term === term;
           rows.push({ sec: secOf(c), status: planned ? 'planned' : 'need', c: c, term: s.term, suggested: s.term === term && !planned, units: planned ? pickedUnits(T, c) : [] });
         }
@@ -699,17 +702,17 @@
     }
     var T = av.T = E.toolkit(state.index, plan, B.lists, engPrefs(), engInput());
     var rows = av.rows = collectRows(plan, T);
-    var n = { done: 0, inprog: 0, planned: 0, need: 0 };
+    var n = { done: 0, inprog: 0, planned: 0, need: 0, transfer: 0 };
     rows.forEach(function (r) { n[r.status]++; });
     var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p>' +
-      '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span><span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
+      '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
     SECTION_NAMES.forEach(function (sec) {
       var list = rows.filter(function (r) { return r.sec === sec[0]; });
       var gep = sec[0] === '8' ? gepVerifyRows(rows) : [];
       if (!list.length && !gep.length) return;
-      var open = list.some(function (r) { return r.status === 'need' || r.status === 'planned'; }) || gep.some(function (g) { return g.status !== 'done'; });
+      var open = list.some(function (r) { return r.status === 'need' || r.status === 'planned' || r.status === 'transfer'; }) || gep.some(function (g) { return g.status !== 'done'; });
       h += '<section class="pps-avsec"><h3><span class="pps-ic ' + (open ? 'st-need' : 'st-done') + '">' + (open ? '&#10007;' : '&#10003;') + '</span>' + esc(sec[1]) + '</h3><div class="pps-avrows" role="table">';
-      var order = { planned: 0, need: 1, inprog: 2, done: 3 };
+      var order = { planned: 0, need: 1, transfer: 2, inprog: 3, done: 4 };
       list.sort(function (a, b) { return order[a.status] - order[b.status] || (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0); });
       list.forEach(function (r) { h += rowHtml(r, rows, T); });
       gep.forEach(function (g) { h += '<div class="pps-avrow" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong><span class="pps-muted">' + esc(g.text) + '</span></div></div>'; });
@@ -736,28 +739,39 @@
 
   function rowHtml(r, rows, T) {
     var c = r.c, key = rowKey(c), term = state.index.term;
-    var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;' }[r.status];
+    var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;', transfer: '&#8644;' }[r.status];
     var label = r.status === 'planned' ? c.code : (c.schedOrigCode || c.code);
-    var title = r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : (c.tag || ''));
+    var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : (c.tag || ''));
     var right = '';
-    if (r.status === 'done') right = '<span class="pps-avterm">' + esc(/Transfer/.test(r.term) ? 'Transfer / test credit' : 'Complete') + '</span>';
+    if (r.metBy) right = '<span class="pps-avterm">Met by ' + esc(r.metBy) + '</span>';
+    else if (r.status === 'done') right = '<span class="pps-avterm">' + esc(/Transfer/.test(r.term) ? 'Transfer / test credit' : 'Complete') + '</span>';
+    else if (r.status === 'transfer') right = '<span class="pps-badge">At another school</span><button type="button" class="pps-link" data-untransfer="' + key + '">Undo</button>';
     else if (r.status === 'inprog') right = '<span class="pps-avterm">In progress · ' + esc(r.term) + '</span>';
     else if (r.status === 'need') {
       var lock = are490Lock(r);
       right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>') +
         (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
-        (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '');
+        (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '') +
+        '<button type="button" class="pps-link" data-elsewhere="' + key + '">Taking it at another school</button>';
     } else {
       right = '<span class="pps-badge">Planned ' + esc(term) + '</span><button type="button" class="pps-link" data-choose="' + key + '">' + (av.expanded === key ? 'Close' : 'Change') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
     }
     var h = '<div class="pps-avrow st-row-' + r.status + (av.expanded === key ? ' on' : '') + '" role="row"><span class="pps-ic st-' + r.status + '">' + icon + '</span>' +
-      '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr</span>';
+      '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr' +
+      (r.status === 'planned' && c.schedOrigCode && c.schedOrigCode !== c.code ? ' \u00b7 fills ' + esc(c.schedOrigCode) : '') + '</span>';
+    if (r.metBy) h += '<div class="pps-muted">' + esc(r.metBy) + ' counts for this requirement (department substitution). Confirm it shows on the audit; ask your advisor if it does not.</div>';
+    if (r.status === 'transfer') {
+      var tp = c.transferPlan;
+      h += '<div class="pps-when">' + esc([tp.school || 'Another school', tp.course, tp.term].filter(Boolean).join(' \u00b7 ')) + '</div>' +
+        '<div class="pps-muted">Paw Plan cannot check transfer credit. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that this course transfers to NC State as ' + esc(label) + ' before enrolling.</div>';
+    }
     if (r.status === 'planned') {
       if (r.units.some(function (u) { return !u; })) h += '<div class="pps-flag warn">That section is no longer offered. Choose again.</div>';
       else h += r.units.map(function (u) { return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u); }).join('') + plannedExtras(r, rows, T);
     }
     h += '</div><div class="pps-avact">' + right + '</div></div>';
     if (av.expanded === key && (r.status === 'need' || r.status === 'planned')) h += choosePanel(r, rows, T);
+    if (av.elsewhere === key && r.status === 'need') h += elsewhereForm(r);
     return h;
   }
   function courseTitle(code) { var c = state.index.courses[code]; return c ? (c.info.lt || c.info.t || '') : ''; }
@@ -798,6 +812,7 @@
     entry.alsoCounts.forEach(function (a) { b += ' <span class="pps-badge good">Also counts: ' + esc(a) + '</span>'; });
     if (entry.warn) b += ' <span class="pps-badge warn" title="' + esc(entry.warn) + '">Check prerequisite</span>';
     if (entry.offList) b += ' <span class="pps-badge warn">Not on the approved list; ask your advisor</span>';
+    Object.keys(av.T.subs || {}).forEach(function (orig) { if ((av.T.subs[orig] || []).indexOf(entry.code) !== -1) b += ' <span class="pps-badge good">Counts for ' + esc(orig) + ' (department substitution)</span>'; });
     return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + entry.sectionsFit + ' section' + (entry.sectionsFit === 1 ? '' : 's') + ' fit</span></div>' + timeChips(entry, ei, key) + '</li>';
   }
 
@@ -865,6 +880,37 @@
     if (ADVISOR) h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="next">Next student</button>';
     h += '<p class="pps-muted pps-small">Seats change daily. Confirm each section in MyPack before you register. Class data from ' + esc(fmtDate(state.term.built)) + '.</p>';
     return h;
+  }
+
+  function elsewhereForm(r) {
+    var key = rowKey(r.c), plan = B.getPlan(), tr = E.termRank(state.index.term), terms = [];
+    plan.forEach(function (s) { var x = E.termRank(s.term); if (x !== null && x >= tr) terms.push(s.term); });
+    terms.sort(function (a, b) { return E.termRank(a) - E.termRank(b); });
+    return '<div class="pps-choose pps-elsewhere" role="region" aria-label="Taking this course at another school">' +
+      '<p>For a course at a community college or another school. It comes off ' + esc(state.index.term) + ' scheduling and shows as planned elsewhere.</p>' +
+      '<div class="pps-elsef"><label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
+      '<label>Course<input type="text" data-ew="course" placeholder="e.g. ENG 111"></label>' +
+      '<label>Term<select data-ew="term">' + terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label></div>' +
+      '<p class="pps-muted">Paw Plan cannot check transfer credit. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
+      '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Save</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
+  }
+  function planElsewhere(c, info) {
+    B.commit(function (plan) {
+      var at = findCourse(plan, c), dest = -1;
+      if (!at) return;
+      plan.forEach(function (s, i) { if (s.term === info.term) dest = i; });
+      c.transferPlan = info;
+      c.transferFrom = plan[at.si].term;
+      if (dest !== -1 && dest !== at.si) { plan[at.si].courses.splice(at.ci, 1); plan[dest].courses.push(c); }
+    });
+  }
+  function undoElsewhere(c) {
+    B.commit(function (plan) {
+      var at = findCourse(plan, c), back = -1;
+      plan.forEach(function (s, i) { if (s.term === c.transferFrom) back = i; });
+      if (at && back !== -1 && back !== at.si) { plan[at.si].courses.splice(at.ci, 1); plan[back].courses.push(c); }
+      delete c.transferPlan; delete c.transferFrom;
+    });
   }
 
   // ---------- audit view: writing picks back to Paw Plan ----------
@@ -947,7 +993,7 @@
   function wireAudit(o, rows, T) {
     function rowBy(key) { for (var i = 0; i < rows.length; i++) if (rows[i].c._avk === key) return rows[i]; return null; }
     o.querySelectorAll('[data-choose]').forEach(function (b) {
-      b.addEventListener('click', function () { var k = b.getAttribute('data-choose'); av.expanded = av.expanded === k ? null : k; renderAudit(); });
+      b.addEventListener('click', function () { var k = b.getAttribute('data-choose'); av.expanded = av.expanded === k ? null : k; av.elsewhere = null; renderAudit(); });
     });
     o.querySelectorAll('[data-pick]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -959,6 +1005,18 @@
       });
     });
     o.querySelectorAll('[data-remove]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-remove')); if (r) { removePick(r.c); renderAudit(); } }); });
+    o.querySelectorAll('[data-elsewhere]').forEach(function (b) { b.addEventListener('click', function () { var k = b.getAttribute('data-elsewhere'); av.elsewhere = av.elsewhere === k ? null : k; av.expanded = null; renderAudit(); }); });
+    o.querySelectorAll('[data-ewcancel]').forEach(function (b) { b.addEventListener('click', function () { av.elsewhere = null; renderAudit(); }); });
+    o.querySelectorAll('[data-ewsave]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var r = rowBy(b.getAttribute('data-ewsave')), box = b.closest('.pps-elsewhere');
+        if (!r) return;
+        var v = function (k) { return (box.querySelector('[data-ew="' + k + '"]').value || '').trim(); };
+        planElsewhere(r.c, { school: v('school'), course: v('course').toUpperCase(), term: v('term') });
+        av.elsewhere = null; renderAudit();
+      });
+    });
+    o.querySelectorAll('[data-untransfer]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-untransfer')); if (r) { undoElsewhere(r.c); renderAudit(); } }); });
     o.querySelectorAll('[data-skip]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-skip')); if (r) { deferCourse(r.c); renderAudit(); } }); });
     o.querySelectorAll('[data-allfor]').forEach(function (b) { b.addEventListener('click', function () { av.all[b.getAttribute('data-allfor')] = true; renderAudit(); }); });
     o.querySelectorAll('[data-alltimes]').forEach(function (b) { b.addEventListener('click', function () { av.all[b.getAttribute('data-alltimes')] = true; renderAudit(); }); });
@@ -1040,6 +1098,15 @@
       add('warn', 'Still needs GEP ' + name + '. ' + (covered ? 'A spring choice below can cover it; look for "Also counts: ' + name + '".' : 'Nothing in this spring plan covers it, so plan it for a later term.'));
     });
     if (unpicked.length) add('info', 'Still to choose: ' + unpicked.join(', ') + '.');
+    // Courses planned at another school in later terms (spring ones already appear as notes).
+    B.getPlan().forEach(function (sem) {
+      if (sem.term === r.term) return;
+      sem.courses.forEach(function (c) {
+        if (!c.transferPlan) return;
+        var tp = c.transferPlan;
+        add('warn', (c.code) + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. Confirm it transfers before the student enrolls.');
+      });
+    });
     add('info', STANDING_TEXT[ctx.student.standing] + ' standing by credits (' + ctx.priorCredits + ' earned or in progress)' + (ctx.student.gpa != null ? ', cumulative GPA ' + ctx.student.gpa.toFixed(3) : '') + '.');
     return out;
   }
@@ -1218,7 +1285,10 @@
       '.pps-avside .pps-cal{grid-template-columns:2.4rem repeat(var(--cols),minmax(52px,1fr));min-width:0}.pps-avside .pps-cal-head{font-size:.62rem;padding:.35rem .1rem}.pps-avside .pps-ev{font-size:.58rem}.pps-avside .pps-ev strong{font-size:.62rem}',
       '.pps-avhead{margin-bottom:.75rem}',
       '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
-      '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}',
+      '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
+      '.st-row-transfer{background:#F5F3FF}',
+      '.pps-elsef{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}.pps-elsef label{display:flex;flex-direction:column;font-size:.76rem;font-weight:600;gap:.2rem}',
+      '.pps-elsef input,.pps-elsef select{font:inherit;font-weight:400;font-size:.85rem;padding:.35rem .45rem;border:1px solid #777;border-radius:0;min-width:9rem}',
       '.pps-avsec{background:#fff;border:1px solid #C7C7C7;margin-bottom:.75rem}',
       '.pps-avsec h3{margin:0;padding:.55rem .8rem;font:700 .98rem "Roboto Slab",Georgia,serif;border-bottom:2px solid #000;display:flex;gap:.5rem;align-items:center}',
       '.pps-avrow{display:grid;grid-template-columns:1.6rem 1fr auto;gap:.6rem;align-items:start;padding:.5rem .8rem;border-top:1px solid #EEE}',

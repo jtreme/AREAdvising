@@ -58,6 +58,7 @@
     var F = data.fields, idx = {};
     F.forEach(function (f, i) { idx[f] = i; });
     var ov = (overrides && overrides[data.term]) || {}, skip = {};
+    var subs = (overrides && overrides.substitutions) || {};
     (ov.notOffered || []).forEach(function (c) { skip[String(c).trim().toUpperCase()] = 1; });
     var byCourse = {};
     data.sections.forEach(function (r) {
@@ -73,7 +74,7 @@
     });
     var prefixes = {};
     Object.keys(courses).forEach(function (c) { prefixes[c.split(' ')[0]] = 1; });
-    return { term: data.term, built: data.built, source: data.source, courses: courses, prefixes: Object.keys(prefixes).sort() };
+    return { term: data.term, built: data.built, source: data.source, courses: courses, prefixes: Object.keys(prefixes).sort(), subs: subs };
   }
 
   // An enrollable unit = one section of each component type sharing an Assoc Class number
@@ -257,20 +258,43 @@
     return null;
   }
 
-  function classifySlots(semester, si, lists) {
+  // Department substitutions, e.g. { "AEE 226": ["ARE 255"] }: the substitute is offered first
+  // wherever the original course is an option.
+  function withSubs(options, subs) {
+    if (!subs) return options;
+    var out = [], seen = {};
+    options.forEach(function (o) {
+      if (o.length === 1 && subs[o[0]]) subs[o[0]].forEach(function (x) { if (!seen[x]) { seen[x] = 1; out.push([x]); } });
+    });
+    options.forEach(function (o) { var k = o.join('+'); if (!seen[k]) { seen[k] = 1; out.push(o); } });
+    return out;
+  }
+  function classifySlots(semester, si, lists, subs) {
     var slots = [];
     semester.courses.forEach(function (c, ci) {
       var code = String(c.code || '').trim();
       var base = { si: si, ci: ci, label: code, name: c.name || '', units: c.units || 3, cat: c.cat || 'free', picker: c.picker || '', tag: c.tag || '',
         pin: c.sched && c.sched.nbrs ? c.sched.nbrs : null };
+      // Planned at another school (community college, summer elsewhere): not scheduled here.
+      if (c.transferPlan) { base.kind = 'transfer'; base.transferPlan = c.transferPlan; slots.push(base); return; }
+      // A course the student picked in the audit view stays exactly as picked (no substitutions or alternatives).
+      if (c.sched && c.sched.codes && c.sched.codes.length) { base.kind = 'fixed'; base.options = [c.sched.codes.slice()]; slots.push(base); return; }
       var opt = optionFromLabel(code);
-      if (opt) { base.kind = 'fixed'; base.options = [opt]; slots.push(base); return; }
-      var slash = expandSlashCode(code);
-      if (slash && !c.picker) { base.kind = 'choice'; base.options = slash; slots.push(base); return; }
+      if (opt) {
+        base.options = withSubs([opt], subs);
+        base.kind = base.options.length > 1 ? 'choice' : 'fixed';
+        slots.push(base); return;
+      }
+      // "ACC 200 or ACC 210", "AEE 226 or CSC 200", "ALS 103/303 or ARE 290": every listed course is an option.
+      var orParts = / or /.test(code) && !c.picker ? [].concat.apply([], code.split(/,| or /).map(function (x) {
+        x = x.trim(); return expandSlashCode(x) || (CODE_RE.test(x) ? [[x]] : []);
+      })) : null;
+      var slash = expandSlashCode(code) || orParts;
+      if (slash && slash.length && !c.picker) { base.kind = 'choice'; base.options = withSubs(slash, subs); slots.push(base); return; }
       var pk = c.picker;
       if (pk && lists.SLASH_COURSES[pk] && !OPEN_PICKERS[pk] && lists.SLASH_COURSES[pk].length <= CHOICE_MAX) {
         base.kind = 'choice';
-        base.options = lists.SLASH_COURSES[pk].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean);
+        base.options = withSubs(lists.SLASH_COURSES[pk].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean), subs);
         slots.push(base); return;
       }
       if (pk) {
@@ -418,13 +442,18 @@
     var ctx = buildContext(index, plan, lists, input);
     if (ctx.si === -1) return { ok: false, reason: 'no-semester', term: index.term };
     var busy = (prefs.busy || []).map(function (b) { return { days: b.days, start: b.start, end: b.end, d0: 0, d1: 0, busy: true }; });
-    var slots = classifySlots(plan[ctx.si], ctx.si, lists);
+    var slots = classifySlots(plan[ctx.si], ctx.si, lists, index.subs);
     var notes = [], p1 = [], open = [];
     var cache = {};
     function groupsFor(code) { if (!cache[code]) cache[code] = courseGroups(index, code, ctx, prefs, busy, opts); return cache[code]; }
 
     slots.forEach(function (s) {
       if (s.kind === 'note') { notes.push({ slot: s, text: s.label + ': not a specific course, so it is not scheduled. Talk with your advisor about what fills it.' }); return; }
+      if (s.kind === 'transfer') { var tp = s.transferPlan; notes.push({ slot: s, transfer: true, text: s.label + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. Confirm it transfers before enrolling.' }); return; }
+      // Already met by a course on record (including a department substitution such as ARE 255 for AEE 226).
+      var metBy = null;
+      (s.options || []).forEach(function (o) { if (!metBy && o.every(function (x) { return ctx.taken[x]; })) metBy = o.join(' + '); });
+      if (metBy) { notes.push({ slot: s, text: s.label + ': ' + metBy + ' is already on your record and fills this. Confirm it shows on the audit.' }); return; }
       if (s.kind === 'open') { open.push(s); return; }
       // fixed or choice: keep options whose every course has eligible sections and is not already taken
       var usable = [], dropped = [];
@@ -484,12 +513,16 @@
       combos.forEach(function (combo) {
         var items = itemsFor(combo);
         var best = searchCombo(items, prefs, relaxed, 40000);
-        var pre = 0;
-        items.forEach(function (it) { if (prereqFlag((index.courses[it.code] || {}).info, ctx.taken)) pre++; });
-        if (best) res.push({ combo: combo, items: items, best: best, prereqCount: pre, key: combo.map(function (o) { return o.join('+'); }).join(',') });
+        var pre = 0, nonARE = 0;
+        items.forEach(function (it) {
+          if (prereqFlag((index.courses[it.code] || {}).info, ctx.taken)) pre++;
+          // Department preference: when a requirement has an ARE option, choosing something else counts against the mix.
+          if (!isARE(it.code) && (it.slot.usable || []).some(function (o) { return o.some(isARE); })) nonARE++;
+        });
+        if (best) res.push({ combo: combo, items: items, best: best, prereqCount: pre, nonARE: nonARE, key: combo.map(function (o) { return o.join('+'); }).join(',') });
       });
-      // Course mixes the student is ready for come first.
-      return res.sort(function (a, b) { return a.prereqCount - b.prereqCount || a.best.score - b.best.score; });
+      // Course mixes the student is ready for come first, then ARE courses where there is a choice.
+      return res.sort(function (a, b) { return a.prereqCount - b.prereqCount || a.nonARE - b.nonARE || a.best.score - b.best.score; });
     }
     var relaxed = false, results = runAll(false);
     if (!results.length && p1.length) { relaxed = true; results = runAll(true); }
@@ -517,7 +550,7 @@
       var used = [results[0] ? results[0].key : ''];
       [1, 2].forEach(function (n) {
         var alt = null;
-        for (var r = 1; r < results.length; r++) if (used.indexOf(results[r].key) === -1 && results[r].prereqCount <= results[0].prereqCount) { alt = results[r]; break; }
+        for (var r = 1; r < results.length; r++) if (used.indexOf(results[r].key) === -1 && results[r].prereqCount <= results[0].prereqCount && results[r].nonARE <= results[0].nonARE) { alt = results[r]; break; }
         if (alt) { used.push(alt.key); var pl = materialize(alt, String.fromCharCode(65 + n)); pl.kind = 'courses'; pl.diff = courseDiff(A, pl); plans.push(pl); return; }
         if (!results[0]) return;
         var prior = plans.map(function (p) { return p.items.map(function (it) { return it.code + '|' + it.group.timeKey; }); });
@@ -679,11 +712,14 @@
           var label = String(c.code || '').trim();
           if (!label || label === 'ARE 490' || c.id === 'ARE490') return; // ARE 490 stays near the end
           var opts = null;
+          if (c.transferPlan) return;
           if (optionFromLabel(label)) opts = [optionFromLabel(label)];
           else if (expandSlashCode(label) && !c.picker) opts = expandSlashCode(label);
           else if (c.picker && lists.SLASH_COURSES[c.picker] && !OPEN_PICKERS[c.picker] && lists.SLASH_COURSES[c.picker].length <= CHOICE_MAX)
             opts = lists.SLASH_COURSES[c.picker].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean);
           if (!opts) return;
+          opts = withSubs(opts, index.subs);
+          if (opts.some(function (o) { return o.every(function (x) { return ctx.taken[x]; }); })) return; // already met
           opts = preferARE(opts, function (x) { return !!index.courses[x] && groupsFor(x).groups.length > 0; });
           var prereqOk = paw_prereqs_ok(label);
           opts.forEach(function (opt) {
@@ -758,8 +794,8 @@
       return g.hard.length ? 'Needs ' + g.hard.join(' and ') + ' first' : '';
     }
     function slotOf(c) {
-      var probe = { code: c.schedOrigCode || c.code, picker: c.picker, units: c.units, cat: c.cat, name: c.name, tag: c.tag };
-      return classifySlots({ courses: [probe] }, 0, lists)[0];
+      var probe = { code: c.schedOrigCode || c.code, picker: c.picker, units: c.units, cat: c.cat, name: c.name, tag: c.tag, transferPlan: c.transferPlan };
+      return classifySlots({ courses: [probe] }, 0, lists, index.subs)[0];
     }
     function unitKey(u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }
     function findUnit(code, key) {
@@ -816,10 +852,17 @@
         if (times.length) out.fits.push(entry); else { entry.why = 'No section fits around your other picks'; out.noFit.push(entry); }
       });
       out.fits.sort(function (a, b) {
-        return ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
+        return ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isARE(b.option[0]) ? 1 : 0) - (isARE(a.option[0]) ? 1 : 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
           ((a.times[0].viol.length ? 1 : 0) - (b.times[0].viol.length ? 1 : 0)) || (b.sectionsFit - a.sectionsFit) || (a.code < b.code ? -1 : 1);
       });
       return out;
+    }
+    // A requirement already met by a course on record (for example ARE 255 for AEE 226).
+    function satisfiedBy(c) {
+      var sl = slotOf(c);
+      if (sl.kind !== 'fixed' && sl.kind !== 'choice') return '';
+      for (var i = 0; i < sl.options.length; i++) if (sl.options[i].every(function (x) { return ctx.taken[x]; })) return sl.options[i].join(' + ');
+      return '';
     }
     function backups(code, unit, occupied) {
       var occ = busy.concat(occupied || []), out = [];
@@ -846,7 +889,7 @@
       });
       return out;
     }
-    return { ctx: ctx, slotOf: slotOf, choices: choices, backups: backups, search: search, findUnit: findUnit, unitKey: unitKey, groupsFor: groupsFor, lockReason: lockReason, termRank: termRank };
+    return { ctx: ctx, slotOf: slotOf, choices: choices, satisfiedBy: satisfiedBy, subs: index.subs || {}, backups: backups, search: search, findUnit: findUnit, unitKey: unitKey, groupsFor: groupsFor, lockReason: lockReason, termRank: termRank };
   }
 
   function courseDiff(A, B) {
