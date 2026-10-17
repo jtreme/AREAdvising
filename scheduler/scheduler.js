@@ -781,6 +781,9 @@
   // Requirements with an ARE option (ARE 336, EC/ARE 301, ARE electives) are taken in ARE at NC State,
   // so there is no "another school" option (ARE over Poole, and ARE courses do not transfer in).
   function aREOnly(c) {
+    if (!av.T) av.T = E.toolkit(state.index, B.getPlan(), B.lists, engPrefs(), engInput());
+    var sl = av.T.slotOf(Object.assign({}, c, { transferPlan: null }));
+    if (sl.kind !== 'fixed' && sl.kind !== 'choice' && !/^ARE /.test(sl.label)) return false; // broad elective lists stay open
     return reqOptions(c).some(function (x) { return x.some(function (y) { return /^ARE /.test(y); }); });
   }
   function courseTitle(code) { var c = state.index.courses[code]; return c ? (c.info.lt || c.info.t || '') : ''; }
