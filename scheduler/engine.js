@@ -43,7 +43,7 @@
 
   // ---------- Data preparation ----------
   // overrides: department corrections to the Schedule of Classes, e.g.
-  // { "Spring 2027": { "notOffered": ["ARE 312"] } } for a tentative section that will not run.
+  // { "Spring 2027": { "notOffered": ["ARE 312"] } } for a course the department knows will not run.
   function prepare(data, overrides) {
     var F = data.fields, idx = {};
     F.forEach(function (f, i) { idx[f] = i; });
@@ -145,6 +145,7 @@
 
   function unitEligibility(u, student, opts) {
     if (u.status === 1 || u.status === 3) return { ok: false, note: 'Closed' };
+    if (u.tentative) return { ok: false, note: 'Tentative section (not offered)' };
     if (u.honors) return { ok: false, note: 'Honors section' };
     if (u.consent && !opts.includeConsent) return { ok: false, note: u.consent === 1 ? 'Instructor consent required' : 'Department consent required' };
     var notes = [];

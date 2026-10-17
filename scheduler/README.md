@@ -29,14 +29,15 @@ Re-running with a fresh CSV for the same term refreshes seat counts and section 
 ## Department corrections
 
 `data/overrides.json` lists courses the department knows will not run, even when the Schedule
-of Classes shows a section (usually a tentative one). Add the course code under the term's
+of Classes shows an active section. Add the course code under the term's
 `notOffered` list and commit; no rebuild is needed.
 
 ## What it checks
 
 - Time conflicts, including 8-week sessions and the student's busy times.
 - Lecture + lab / recitation / problem session pairing (sections sharing an Assoc Class number).
-- Closed, honors, cancelled, and consent-required sections are left out.
+- Closed, honors, cancelled, tentative, and consent-required sections are left out. A tentative
+  section is treated as not offered.
 - Section restrictions it can read (class standing, ABM-only, GPA from the audit). Sections with
   restrictions it cannot verify, such as other majors only, are left out.
 - Prerequisites are flagged from catalog text, never enforced.

@@ -20,7 +20,8 @@ import sys
 SKIP_COMPONENTS = {"IND", "RSC", "THE", "INT", "CLN", "ADM", "TEA", "PRA"}
 SKIP_LOCATIONS = {"VETMED"}
 SKIP_MODES = {"SA"}  # study abroad
-STATUS_CODE = {"Active": 0, "Tentative Section": 2, "Stop Further Enrollment": 3}  # 1 = closed (set below)
+# Department rule: a tentative section is not offered. Cancelled and tentative sections are dropped.
+STATUS_CODE = {"Active": 0, "Stop Further Enrollment": 3}  # 1 = closed (set below)
 
 
 def minutes(t):
@@ -65,7 +66,7 @@ def main():
     for r in recs:
         status = STATUS_CODE.get(r["Class Status"].strip())
         if status is None:
-            continue  # cancelled
+            continue  # cancelled or tentative
         num = re.match(r"^(\d{3})", r["Catalog Nbr"].strip())
         if not num or int(num.group(1)) >= 500:
             continue
