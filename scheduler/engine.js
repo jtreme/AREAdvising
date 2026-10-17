@@ -14,6 +14,16 @@
   var CHOICE_MAX = 6; // either/or lists longer than this are interest-driven electives -> pass 2
   var OPEN_PICKERS = { hum: 1, socsci: 1, gepelec: 1, ids: 1, tech: 1, depttech: 1, free: 1, are3xx: 1, are4xx: 1, hesf1: 1, hesf2: 1, natsci3: 1, natsci4: 1 };
   var CODE_RE = /^[A-Z]{1,4} \d{3}[A-Z]?$/;
+  // Department rule: never suggest a Poole College course over an ARE course for the same
+  // requirement (EC 301 is never offered in place of ARE 301; BUS 320 never over ARE 321/323).
+  var POOLE = { EC: 1, BUS: 1, ACC: 1, MIE: 1, MBA: 1 };
+  function isPoole(code) { return !!POOLE[String(code).split(' ')[0]]; }
+  function isARE(code) { return String(code).split(' ')[0] === 'ARE'; }
+  function preferARE(options, available) {
+    // options: [[code,...],...]; available(code) -> bool. Drop all-Poole options when an ARE option is available.
+    var hasARE = options.some(function (o) { return o.some(isARE) && o.every(available); });
+    return hasARE ? options.filter(function (o) { return !o.every(isPoole); }) : options;
+  }
   // Paw Plan suggests a first choice only for short GEP lists. Broad elective lists
   // (technical, departmental, GEP elective, free) are the student's call, so no auto-pick.
   var SUGGEST_PICKERS = { hum: 1, socsci: 1, ids: 1, hesf1: 1, hesf2: 1 };
@@ -429,6 +439,7 @@
         });
         if (bad) dropped.push({ opt: opt, why: bad }); else usable.push(opt);
       });
+      usable = preferARE(usable, function (c) { return groupsFor(c).groups.length > 0; });
       s.dropped = dropped; s.usable = usable;
       s.usableInfo = usable.map(function (opt) { return { option: opt, prereq: opt.map(function (c) { return prereqFlag((index.courses[c] || {}).info, ctx.taken); }).filter(Boolean).join(' ') }; });
       if (!usable.length) {
@@ -622,7 +633,7 @@
     }
     function rankCandidates(list) {
       return list.sort(function (a, b) {
-        return (b.alsoCounts.length - a.alsoCounts.length) || ((a.prereq ? 1 : 0) - (b.prereq ? 1 : 0)) ||
+        return ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) || ((a.prereq ? 1 : 0) - (b.prereq ? 1 : 0)) ||
           ((a.viol ? 1 : 0) - (b.viol ? 1 : 0)) || (b.sectionsFit - a.sectionsFit) || (a.code < b.code ? -1 : 1);
       });
     }
@@ -673,6 +684,7 @@
           else if (c.picker && lists.SLASH_COURSES[c.picker] && !OPEN_PICKERS[c.picker] && lists.SLASH_COURSES[c.picker].length <= CHOICE_MAX)
             opts = lists.SLASH_COURSES[c.picker].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean);
           if (!opts) return;
+          opts = preferARE(opts, function (x) { return !!index.courses[x] && groupsFor(x).groups.length > 0; });
           var prereqOk = paw_prereqs_ok(label);
           opts.forEach(function (opt) {
             if (opt.length !== 1) return;
@@ -761,6 +773,7 @@
       var slot = slotOf(c), out = { slot: slot, fits: [], noFit: [], locked: [], notOffered: [], free: !!slot.isFree, note: slot.kind === 'note' };
       if (slot.kind === 'note' || slot.isFree) return out;
       var options = slot.kind === 'open' ? slot.pool.options : slot.options;
+      if (slot.kind !== 'open') options = preferARE(options, function (x) { return !!index.courses[x] && groupsFor(x).groups.length > 0 && !lockReason(slot.label, x); });
       var occ = busy.concat(occupied || []);
       options.forEach(function (opt) {
         var code = opt.join(' + ');
@@ -803,7 +816,7 @@
         if (times.length) out.fits.push(entry); else { entry.why = 'No section fits around your other picks'; out.noFit.push(entry); }
       });
       out.fits.sort(function (a, b) {
-        return ((a.warnLevel || 0) - (b.warnLevel || 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
+        return ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
           ((a.times[0].viol.length ? 1 : 0) - (b.times[0].viol.length ? 1 : 0)) || (b.sectionsFit - a.sectionsFit) || (a.code < b.code ? -1 : 1);
       });
       return out;
@@ -842,7 +855,7 @@
   }
 
   var api = {
-    prepare: prepare, buildSchedules: buildSchedules, toolkit: toolkit, termRank: termRank, unitConflicts: unitConflicts, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
+    prepare: prepare, buildSchedules: buildSchedules, isPoole: isPoole, toolkit: toolkit, termRank: termRank, unitConflicts: unitConflicts, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
     checkRestriction: checkRestriction, parseDays: parseDays, VIOLATION_TEXT: VIOLATION_TEXT,
     standingFromCredits: standingFromCredits
   };

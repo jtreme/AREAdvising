@@ -48,3 +48,6 @@ of Classes shows an active section. Add the course code under the term's
 - Section restrictions it can read (class standing, ABM-only, GPA from the audit). Sections with
   restrictions it cannot verify, such as other majors only, are left out.
 - Prerequisites are flagged from catalog text, never enforced.
+- ARE over Poole: when a requirement can be met by an ARE course (EC/ARE 301, ARE 321/323 or
+  BUS 320), the Poole option (EC, BUS, ACC, MIE, MBA) is never suggested while the ARE course is
+  offered and open to the student. In elective lists, ARE courses rank above Poole courses.
