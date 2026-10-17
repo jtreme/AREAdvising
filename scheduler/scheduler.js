@@ -14,18 +14,7 @@
   var MODE_TEXT = { P: 'In person', OA: 'Online, no set meeting time', OS: 'Online, scheduled meetings', PH: 'Hybrid', PR: 'In person', IH: 'In person', SA: 'Study abroad' };
   function termYear() { var m = String((state.index && state.index.term) || '').match(/(\d{4})/); return m ? +m[1] : 0; }
   function abroadText(u) { var d = E.fmtDays(u.d0, u.d1, termYear()); return 'Study abroad' + (d ? ', ' + d : ''); }
-  // Plain-language reason a section is left out for this student.
-  function hiddenWhy(why) {
-    var m = String(why || '').match(/^Restricted:\s*(?:R:\s*)?(.*)$/);
-    if (m) {
-      var prog = m[1].match(/\b(\d{2}[A-Z]{4,})\b/);
-      return prog ? 'Reserved for students in program ' + prog[1] + '. If that is not your program, MyPack will not let you enroll without department permission.'
-        : 'Restricted: ' + m[1] + '. Paw Plan cannot confirm you qualify; check with the department.';
-    }
-    if (why === 'Closed') return 'Closed (no seats open)';
-    if (/consent/.test(why)) return why + '; ask for permission to enroll';
-    return why;
-  }
+  function hiddenWhy(why) { return E.caveatText(why); }
   function hiddenHtml(list) {
     if (!list || !list.length) return '';
     return '<details class="pps-hidden"><summary>' + list.length + ' section' + (list.length === 1 ? '' : 's') + ' not shown</summary><ul>' + list.map(function (x) {
@@ -399,7 +388,7 @@
     var flags = [];
     if (it.viol && it.viol.length) flags.push('<span class="pps-flag warn">This section ' + esc(violText(it.viol)) + '</span>');
     if (it.prereq) flags.push('<span class="pps-flag">' + esc(it.prereq) + '</span>');
-    if (it.group.note) flags.push('<span class="pps-flag">' + esc(it.group.note) + '</span>');
+    if (it.group.note) flags.push('<span class="pps-flag' + (it.group.restricted ? ' warn' : '') + '">' + esc(it.group.note) + '</span>');
     if (u.tentative) flags.push('<span class="pps-flag">Tentative section: the department may still cancel or change it</span>');
     if (u.restrict.length) flags.push('<span class="pps-flag muted">Section note: ' + esc(u.restrict.join('; ')) + '</span>');
     var req = it.slot.label !== it.code ? '<span class="pps-req">Fills: ' + esc(it.slot.label) + '</span>' : '';
@@ -795,7 +784,7 @@
     }
     if (r.status === 'planned') {
       if (r.units.some(function (u) { return !u; })) h += '<div class="pps-flag warn">That section is no longer offered. Choose again.</div>';
-      else h += r.units.map(function (u) { return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u); }).join('') + plannedExtras(r, rows, T);
+      else h += r.units.map(function (u) { var cv = u && T.caveat(u); return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u) + (cv ? '<div class="pps-flag warn">' + esc(cv) + '</div>' : ''); }).join('') + plannedExtras(r, rows, T);
     }
     h += '</div><div class="pps-avact">' + right + '</div></div>';
     if (av.expanded === key && (r.status === 'need' || r.status === 'planned')) h += choosePanel(r, rows, T);
@@ -839,9 +828,16 @@
     var times = av.all[key + ':' + ei] ? entry.times : entry.times.slice(0, max || 4);
     return '<div class="pps-chips">' + times.map(function (t, ti) {
       var txt = t.units.map(function (u) { return meetText(u); }).join(' + ');
-      return '<button type="button" class="pps-chip' + (t.viol.length ? ' viol' : '') + '" data-pick="' + key + ':' + ei + ':' + ti + '" title="' + esc(t.viol.length ? 'This time ' + violText(t.viol) : 'Pick this time') + '">' + esc(txt) +
-        '<span>' + (t.count > 1 ? t.count + ' sections' : '#' + t.units.map(function (u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }).join(' + ')) + '</span></button>';
+      return '<button type="button" class="pps-chip' + (t.viol.length ? ' viol' : '') + (t.restricted ? ' restr' : '') + '" data-pick="' + key + ':' + ei + ':' + ti + '" title="' + esc(t.restricted || (t.viol.length ? 'This time ' + violText(t.viol) : 'Pick this time')) + '">' + esc(txt) +
+        '<span>' + (t.count > 1 ? t.count + ' sections' : '#' + t.units.map(function (u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }).join(' + ')) + '</span>' +
+        (t.restricted ? '<em>' + esc(t.restricted) + '</em>' : '') + '</button>';
     }).join('') + (entry.times.length > times.length ? '<button type="button" class="pps-link" data-alltimes="' + key + ':' + ei + '">+' + (entry.times.length - times.length) + ' more times</button>' : '') + '</div>';
+  }
+  function fitText(e) {
+    var r = e.restrictedFit || 0, n = e.sectionsFit;
+    if (!r) return n + ' section' + (n === 1 ? '' : 's') + ' fit';
+    if (!n) return r + ' section' + (r === 1 ? '' : 's') + ' fit, all with seat restrictions';
+    return n + ' section' + (n === 1 ? '' : 's') + ' fit, plus ' + r + ' with seat restrictions';
   }
   function entryHtml(entry, ei, key) {
     var b = '';
@@ -849,8 +845,9 @@
     if (entry.warn) b += ' <span class="pps-badge warn" title="' + esc(entry.warn) + '">Check prerequisite</span>';
     if (entry.offList) b += ' <span class="pps-badge warn">Not on the approved list; ask your advisor</span>';
     if (entry.studyAbroad) b += ' <span class="pps-badge">Study abroad: for students accepted into the program</span>';
+    else if (entry.restrictedOnly) b += ' <span class="pps-badge warn">Seat restrictions: check before you pick</span>';
     Object.keys(av.T.subs || {}).forEach(function (orig) { if ((av.T.subs[orig] || []).indexOf(entry.code) !== -1) b += ' <span class="pps-badge good">Counts for ' + esc(orig) + ' (department substitution)</span>'; });
-    return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + entry.sectionsFit + ' section' + (entry.sectionsFit === 1 ? '' : 's') + ' fit</span></div>' + timeChips(entry, ei, key) + hiddenHtml(entry.hidden) + '</li>';
+    return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + fitText(entry) + '</span></div>' + timeChips(entry, ei, key) + hiddenHtml(entry.hidden) + '</li>';
   }
 
   function choosePanel(r, rows, T) {
@@ -903,7 +900,7 @@
         r.units.forEach(function (u, i) {
           if (!u) return;
           var code = r.c.sched.codes[i] || r.c.code, bk = T.backups(code, u, occ);
-          lines.push({ code: code, u: u, bk: bk });
+          lines.push({ code: code, u: u, bk: bk, cv: T.caveat(u) });
         });
       });
       lines.sort(function (a, b) { return a.bk.length - b.bk.length; });
@@ -911,6 +908,7 @@
       h += '<div class="pps-mypack pps-avpack"><h3 class="pps-h">Class numbers for MyPack</h3><p class="pps-sub">Register in this order: fewest backups first.</p><ol>' +
         lines.map(function (l) {
           return '<li><strong>' + esc(l.code) + '</strong> ' + l.u.sections.map(function (s) { return esc(s.comp + ' ' + s.sec) + ' <span class="pps-nbr">' + s.nbr + '</span>'; }).join(' + ') +
+            (l.cv ? '<div class="pps-flag warn">' + esc(l.cv) + '</div>' : '') +
             '<div class="pps-muted">Backups: ' + (l.bk.length ? esc(l.bk.slice(0, 3).map(function (b) { return b.unit.sections.map(function (x) { return x.nbr; }).join('+'); }).join(', ')) : 'none fit') + '</div></li>';
         }).join('') + '</ol><div class="pps-actions"><button type="button" class="pps-btn" data-av="copy">Copy class numbers</button><span class="pps-actmsg" aria-live="polite"></span></div></div>';
     }
@@ -1178,7 +1176,8 @@
     plan.items.forEach(function (it) {
       if (it.prereq) add('warn', it.code + ': ' + it.prereq + '. Confirm the student has it or is taking it now.');
       if (it.unit.tentative) add('warn', it.code + ' section ' + it.unit.sections[0].sec + ' is tentative and could still be cancelled.');
-      if (it.group.note) add('info', it.code + ': ' + it.group.note + '.');
+      if (it.group.restricted) add('warn', it.code + ' section ' + it.unit.sections[0].sec + ': ' + it.group.note + ' Confirm the student can enroll.');
+      else if (it.group.note) add('info', it.code + ': ' + it.group.note + '.');
     });
     // Options Paw Plan could not use, one line per requirement. Sections closed to ABM students
     // (other majors only) are left out: they were never real options.
@@ -1356,6 +1355,7 @@
       '.pps-bk-top{display:flex;flex-wrap:wrap;gap:.4rem .7rem;align-items:center;font-size:.8rem}',
       '.pps-bk-top .pps-btn{margin-left:auto}',
       '.pps-badge{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E5E5E5;color:#222;padding:.12rem .4rem;vertical-align:middle}',
+      '.pps-chip.restr{border-style:dashed;border-color:#B45309;max-width:340px;text-align:left}.pps-chip em{display:block;font-style:normal;font-size:11.5px;color:#92400E;white-space:normal;margin-top:2px}',
       '.pps-hidden{margin:4px 0 0;font-size:12.5px}.pps-hidden summary{cursor:pointer;color:#555}.pps-hidden ul{margin:4px 0 0 18px;padding:0}.pps-hidden li{margin:2px 0}',
       '.pps-badge.good{background:#DCFCE7;color:#14532D}.pps-badge.warn{background:#FEE2E2;color:#7F1D1D}',
       '.pps-muted{color:#666;font-size:.76rem;font-weight:400}',

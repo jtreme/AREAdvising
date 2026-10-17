@@ -63,16 +63,19 @@ to the NC State transfer database. Update the file from the new guide each year.
 
 - Time conflicts, including 8-week sessions and the student's busy times.
 - Lecture + lab / recitation / problem session pairing (sections sharing an Assoc Class number).
-- Closed, honors, cancelled, tentative, and consent-required sections are left out. A tentative
-  section is treated as not offered. In the audit view, each course lists the sections it left out
-  and why (for example, an online section reserved for another program), so a section a student
-  sees in the Enrollment Wizard is never silently missing.
+- Closed, cancelled, and tentative sections are left out (a tentative section is treated as not
+  offered). In the audit view, each course lists them under "sections not shown" with the reason.
+- Sections with seat restrictions (reserved for another program, honors, consent required, class
+  standing or GPA the student may not meet) are shown in the audit view as dashed time choices with
+  a plain-language caveat, after the open sections. A student can pick one; the caveat follows the
+  pick into the class number list and Plans A, B, C, and the advising check flags it. Automatic
+  plans and auto-pick never choose a restricted section on their own.
 - Study abroad sections (instruction mode SA, such as ARE 494) are kept. They show the travel dates
   instead of a meeting time, are marked "for students accepted into the program," appear last in
   each list, and are never picked automatically, used as a backup, or suggested to pull ahead. A
   student picks one in the audit view.
-- Section restrictions it can read (class standing, ABM-only, GPA from the audit). Sections with
-  restrictions it cannot verify, such as other majors only, are left out.
+- Section restrictions it can read (class standing, ABM-only, GPA from the audit). A restriction
+  it cannot verify, such as other majors only, is shown as a caveat rather than hidden.
 - Prerequisites are flagged from catalog text, never enforced.
 - ARE over Poole: when a requirement can be met by an ARE course (EC/ARE 301, ARE 321/323 or
   BUS 320), the Poole option (EC, BUS, ACC, MIE, MBA) is never suggested while the ARE course is

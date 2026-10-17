@@ -57,6 +57,22 @@
     var a = f(d0), b = f(d1);
     return a[0] + ' ' + a[1] + '\u2013' + (a[0] === b[0] ? '' : b[0] + ' ') + b[1] + ', ' + year;
   }
+  // Plain-language caveat for a seat restriction or other exclusion.
+  function caveatText(note) {
+    note = String(note || '');
+    var m = note.match(/^Restricted:\s*(?:[RX]:\s*)?(.*)$/);
+    if (m) {
+      var prog = m[1].match(/\b(\d{2}[A-Z]{4,})\b/);
+      return prog ? 'Seats reserved for program ' + prog[1] + '. If that is not your program, you need department permission to enroll.'
+        : 'Seats restricted: ' + m[1] + '. Paw Plan cannot confirm you qualify; check before you register.';
+    }
+    if (/^Requires .* standing/.test(note)) return note + '. Check your class standing in MyPack.';
+    if (/^Requires GPA/.test(note)) return note + ' (your audit GPA is below that).';
+    if (/Honors/.test(note)) return 'Honors or Scholars students only.';
+    if (/consent/i.test(note)) return note + ': ask for permission before you register.';
+    if (note === 'Closed') return 'Closed (no seats open).';
+    return note;
+  }
   function standingFromCredits(cr) { return cr >= 90 ? 'SR' : cr >= 60 ? 'JR' : cr >= 30 ? 'SO' : 'FR'; }
 
   // ---------- Data preparation ----------
@@ -170,12 +186,14 @@
   function unitEligibility(u, student, opts) {
     if (u.status === 1 || u.status === 3) return { ok: false, note: 'Closed' };
     if (u.tentative) return { ok: false, note: 'Tentative section (not offered)' };
-    if (u.honors) return { ok: false, note: 'Honors section' };
-    if (u.consent && !opts.includeConsent) return { ok: false, note: u.consent === 1 ? 'Instructor consent required' : 'Department consent required' };
+    // Seat restrictions (honors, consent, other programs, standing, GPA) are "soft": the section is
+    // still shown for the student to pick, with a caveat, but never chosen automatically.
+    if (u.honors) return { ok: false, soft: true, note: 'Honors section' };
+    if (u.consent && !opts.includeConsent) return { ok: false, soft: true, note: u.consent === 1 ? 'Instructor consent required' : 'Department consent required' };
     var notes = [];
     for (var i = 0; i < u.restrict.length; i++) {
       var r = checkRestriction(u.restrict[i], student);
-      if (!r.ok) return r;
+      if (!r.ok) return { ok: false, soft: true, note: r.note };
       if (r.note) notes.push(r.note);
     }
     return { ok: true, note: notes.join('; ') };
@@ -378,9 +396,16 @@
   function courseGroups(index, code, ctx, prefs, busy, opts) {
     var c = index.courses[code];
     if (!c) return { offered: false, groups: [], excluded: [] };
-    var groups = {}, excluded = {}, excludedUnits = [];
+    var groups = {}, rgroups = {}, excluded = {}, excludedUnits = [];
     c.units.forEach(function (u) {
       var el = unitEligibility(u, ctx.student, opts);
+      if (!el.ok && el.soft) {
+        if (unitConflicts(u, busy)) return;
+        var rk = u.timeKey + '|' + el.note, rg = rgroups[rk];
+        if (!rg) rg = rgroups[rk] = { code: code, timeKey: rk, units: [], meetings: u.meetings, rep: u, viol: prefViolations(u, prefs), note: caveatText(el.note), restricted: el.note };
+        rg.units.push(u);
+        return;
+      }
       if (!el.ok) { excluded[el.note] = (excluded[el.note] || 0) + 1; excludedUnits.push({ unit: u, why: el.note }); return; }
       if (unitConflicts(u, busy)) { excluded['Conflicts with your busy times'] = (excluded['Conflicts with your busy times'] || 0) + 1; return; }
       var g = groups[u.timeKey];
@@ -388,12 +413,15 @@
       g.units.push(u);
     });
     var list = Object.keys(groups).map(function (k) { return groups[k]; });
-    list.forEach(function (g) {
+    var rlist = Object.keys(rgroups).map(function (k) { return rgroups[k]; });
+    // Excluded reasons also count the restricted sections, for "no section you can take" messages.
+    rlist.forEach(function (g) { excluded[g.restricted] = (excluded[g.restricted] || 0) + g.units.length; });
+    list.concat(rlist).forEach(function (g) {
       g.units.sort(function (a, b) { return b.avail - a.avail; });
       g.rep = g.units[0];
       g.seats = g.units.reduce(function (t, u) { return t + Math.max(0, u.avail); }, 0);
     });
-    return { offered: true, groups: list, excluded: excluded, excludedUnits: excludedUnits, info: c.info };
+    return { offered: true, groups: list, restrictedGroups: rlist, excluded: excluded, excludedUnits: excludedUnits, info: c.info };
   }
 
   // ---------- Pass 1 search ----------
@@ -475,7 +503,7 @@
         opt.forEach(function (c) {
           var g = groupsFor(c);
           if (!g.offered) bad = bad || c + ' is not offered in ' + index.term;
-          else if (!g.groups.length) bad = bad || c + ' has no open sections you are eligible for (' + Object.keys(g.excluded).join('; ') + ')';
+          else if (!g.groups.length && !(s.pin && (g.restrictedGroups || []).length)) bad = bad || c + ' has no open sections you are eligible for (' + Object.keys(g.excluded).join('; ') + ')';
         });
         if (bad) dropped.push({ opt: opt, why: bad }); else usable.push(opt);
       });
@@ -502,6 +530,7 @@
       var gs = groupsFor(code).groups;
       // Without a pick, a study abroad section is used only when the course has nothing else.
       if (!pin) { var reg = gs.filter(function (g) { return !g.rep.studyAbroad; }); return reg.length ? reg : gs; }
+      gs = gs.concat(groupsFor(code).restrictedGroups || []);
       for (var i = 0; i < gs.length; i++) {
         for (var j = 0; j < gs[i].units.length; j++) {
           var u = gs[i].units[j], key = u.sections.map(function (x) { return x.nbr; }).join('+');
@@ -513,7 +542,7 @@
           }
         }
       }
-      return gs;
+      return groupsFor(code).groups;
     }
     function itemsFor(combo) {
       var items = [];
@@ -789,6 +818,11 @@
     var busy = (prefs.busy || []).map(function (b) { return { days: b.days, start: b.start, end: b.end, d0: 0, d1: 0, busy: true }; });
     var cache = {};
     function groupsFor(code) { if (!cache[code]) cache[code] = courseGroups(index, code, ctx, prefs, busy, opts); return cache[code]; }
+    // Every section a student could pick: open ones first, then ones with seat restrictions.
+    function allGroups(code) { var g = groupsFor(code); return g.groups.concat(g.restrictedGroups || []); }
+    function timeOf(g) { return { groups: [g], units: [g.rep], viol: g.viol, count: g.units.length, restricted: g.restricted ? g.note : '' }; }
+    // Caveat for one picked section ('' when it is open to the student).
+    function caveat(u) { var el = unitEligibility(u, ctx.student, opts); return el.ok ? '' : caveatText(el.note); }
     function labelCodes(label) {
       if (PREREQ_ALT_TK[label]) return PREREQ_ALT_TK[label];
       var sl = expandSlashCode(label);
@@ -844,7 +878,7 @@
         if (lock) { entry.why = lock; out.locked.push(entry); return; }
         var notOff = opt.filter(function (x) { return !index.courses[x]; });
         if (notOff.length) { entry.why = notOff.join(', ') + ' is not offered in ' + index.term; out.notOffered.push(entry); return; }
-        var noElig = opt.filter(function (x) { return !groupsFor(x).groups.length; });
+        var noElig = opt.filter(function (x) { return !groupsFor(x).groups.length && !(groupsFor(x).restrictedGroups || []).length; });
         if (noElig.length) { entry.why = 'No open section you can take (' + Object.keys(groupsFor(noElig[0]).excluded).join('; ') + ')'; entry.hidden = groupsFor(noElig[0]).excludedUnits || []; out.notOffered.push(entry); return; }
         var softGap = prereqGaps(slot.label, opt[0]).soft;
         var catFlags = opt.map(function (x) { return prereqFlag((index.courses[x] || {}).info, ctx.taken); }).filter(Boolean);
@@ -855,22 +889,25 @@
         // course), the first fitting combination.
         var o2 = occ.slice(), times = [];
         if (opt.length === 1) {
-          times = groupsFor(opt[0]).groups.filter(function (g) { return !unitConflicts(g.rep, o2); })
-            .sort(function (a, b) { return a.viol.length - b.viol.length || unitCost(a.rep, prefs, true) - unitCost(b.rep, prefs, true); })
-            .map(function (g) { return { groups: [g], units: [g.rep], viol: g.viol, count: g.units.length }; });
+          times = allGroups(opt[0]).filter(function (g) { return !unitConflicts(g.rep, o2); })
+            .sort(function (a, b) { return (a.restricted ? 1 : 0) - (b.restricted ? 1 : 0) || a.viol.length - b.viol.length || unitCost(a.rep, prefs, true) - unitCost(b.rep, prefs, true); })
+            .map(timeOf);
         } else {
           var gsel = [];
           for (var i = 0; i < opt.length; i++) {
-            var g = groupsFor(opt[i]).groups.filter(function (x) { return !unitConflicts(x.rep, o2); })[0];
+            var g = allGroups(opt[i]).filter(function (x) { return !unitConflicts(x.rep, o2); })[0];
             if (!g) { gsel = null; break; }
             gsel.push(g); o2 = o2.concat(g.meetings);
           }
-          if (gsel) times = [{ groups: gsel, units: gsel.map(function (x) { return x.rep; }), viol: [].concat.apply([], gsel.map(function (x) { return x.viol; })), count: 1 }];
+          if (gsel) times = [{ groups: gsel, units: gsel.map(function (x) { return x.rep; }), viol: [].concat.apply([], gsel.map(function (x) { return x.viol; })), count: 1,
+            restricted: gsel.filter(function (x) { return x.restricted; }).map(function (x) { return x.code + ': ' + x.note; }).join(' ') }];
         }
         // Regular sections first; study abroad last.
         times.sort(function (a, b) { return (a.units.some(function (u) { return u.studyAbroad; }) ? 1 : 0) - (b.units.some(function (u) { return u.studyAbroad; }) ? 1 : 0); });
         entry.times = times;
-        entry.sectionsFit = times.reduce(function (t, x) { return t + x.count; }, 0);
+        entry.sectionsFit = times.reduce(function (t, x) { return t + (x.restricted ? 0 : x.count); }, 0);
+        entry.restrictedFit = times.reduce(function (t, x) { return t + (x.restricted ? x.count : 0); }, 0);
+        entry.restrictedOnly = times.length > 0 && !entry.sectionsFit;
         entry.studyAbroad = times.length > 0 && times.every(function (t) { return t.units.every(function (u) { return u.studyAbroad; }); });
         // Sections left out for this student (other programs only, consent, honors, closed, tentative),
         // listed so a section seen in the Enrollment Wizard is explained rather than silently missing.
@@ -880,7 +917,7 @@
           // Name what is in the way: the other picks (by course) or the student's busy times.
           var blockers = {}, busyHit = false;
           opt.forEach(function (x) {
-            groupsFor(x).groups.forEach(function (g) {
+            allGroups(x).forEach(function (g) {
               g.meetings.forEach(function (m) { occ.forEach(function (o) { if (meetConflict(m, o)) { if (o.busy) busyHit = true; else if (o.code) blockers[o.code] = 1; } }); });
             });
           });
@@ -891,7 +928,7 @@
         }
       });
       out.fits.sort(function (a, b) {
-        return ((a.studyAbroad ? 1 : 0) - (b.studyAbroad ? 1 : 0)) || ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isARE(b.option[0]) ? 1 : 0) - (isARE(a.option[0]) ? 1 : 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
+        return ((a.studyAbroad ? 2 : a.restrictedOnly ? 1 : 0) - (b.studyAbroad ? 2 : b.restrictedOnly ? 1 : 0)) || ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isARE(b.option[0]) ? 1 : 0) - (isARE(a.option[0]) ? 1 : 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
           ((a.times[0].viol.length ? 1 : 0) - (b.times[0].viol.length ? 1 : 0)) || (b.sectionsFit - a.sectionsFit) || (a.code < b.code ? -1 : 1);
       });
       return out;
@@ -921,16 +958,16 @@
         var info = index.courses[code].info || {};
         if ((code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) return;
         if (ctx.taken[code] || (used && used[code])) return;
-        var times = groupsFor(code).groups.filter(function (g) { return !unitConflicts(g.rep, occ); })
-          .map(function (g) { return { groups: [g], units: [g.rep], viol: g.viol, count: g.units.length }; });
+        var times = allGroups(code).filter(function (g) { return !unitConflicts(g.rep, occ); }).map(timeOf);
         if (!times.length) return;
-        times.sort(function (a, b) { return (a.units[0].studyAbroad ? 1 : 0) - (b.units[0].studyAbroad ? 1 : 0); });
-        out.push({ option: [code], code: code, title: info.lt || info.t || '', times: times, sectionsFit: times.reduce(function (t, x) { return t + x.count; }, 0), alsoCounts: [], warn: prereqFlag(info, ctx.taken),
-          studyAbroad: times.every(function (t) { return t.units[0].studyAbroad; }), hidden: groupsFor(code).excludedUnits || [] });
+        times.sort(function (a, b) { return ((a.units[0].studyAbroad ? 2 : a.restricted ? 1 : 0) - (b.units[0].studyAbroad ? 2 : b.restricted ? 1 : 0)); });
+        var nf = times.reduce(function (t, x) { return t + (x.restricted ? 0 : x.count); }, 0);
+        out.push({ option: [code], code: code, title: info.lt || info.t || '', times: times, sectionsFit: nf, restrictedFit: times.reduce(function (t, x) { return t + (x.restricted ? x.count : 0); }, 0), restrictedOnly: !nf,
+          alsoCounts: [], warn: prereqFlag(info, ctx.taken), studyAbroad: times.every(function (t) { return t.units[0].studyAbroad; }), hidden: groupsFor(code).excludedUnits || [] });
       });
       return out;
     }
-    return { ctx: ctx, slotOf: slotOf, choices: choices, satisfiedBy: satisfiedBy, subs: index.subs || {}, backups: backups, search: search, findUnit: findUnit, unitKey: unitKey, groupsFor: groupsFor, lockReason: lockReason, termRank: termRank };
+    return { ctx: ctx, slotOf: slotOf, choices: choices, satisfiedBy: satisfiedBy, subs: index.subs || {}, backups: backups, search: search, findUnit: findUnit, unitKey: unitKey, groupsFor: groupsFor, lockReason: lockReason, termRank: termRank, caveat: caveat };
   }
 
   function courseDiff(A, B) {
@@ -939,7 +976,7 @@
   }
 
   var api = {
-    prepare: prepare, buildSchedules: buildSchedules, isPoole: isPoole, fmtDays: fmtDays, toolkit: toolkit, termRank: termRank, unitConflicts: unitConflicts, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
+    prepare: prepare, buildSchedules: buildSchedules, isPoole: isPoole, fmtDays: fmtDays, caveatText: caveatText, toolkit: toolkit, termRank: termRank, unitConflicts: unitConflicts, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
     checkRestriction: checkRestriction, parseDays: parseDays, VIOLATION_TEXT: VIOLATION_TEXT,
     standingFromCredits: standingFromCredits
   };
