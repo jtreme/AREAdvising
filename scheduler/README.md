@@ -50,7 +50,14 @@ audit).
 
 In the audit view, any remaining requirement can be marked "Taking it at another school" with the
 school, course, and term. It moves to that term in the plan, is not scheduled here, and shows a
-reminder to confirm transfer credit. Paw Plan does not check transfer equivalency.
+reminder to confirm transfer credit.
+
+For NC community colleges, `data/transfer-nccc.json` holds the course mappings from NC State's
+CAA transfer guide for Agricultural Business Management (2026-27, revised May 2026). The form
+suggests the guide's course for each requirement (for example MAT 152 for ST 311), checks what the
+student types, and flags a course that transfers as something else. No community college course is
+suggested for a requirement with an ARE option. Courses outside the guide, and other schools, point
+to the NC State transfer database. Update the file from the new guide each year.
 
 ## What it checks
 

@@ -95,7 +95,8 @@
       // Department corrections (optional file): courses listed there are treated as not offered.
       fetchJSON(BASE + 'data/overrides.json?v=' + Date.now(), function (e2, ov) {
         state.index = E.prepare(data, e2 ? null : ov);
-        cb();
+        // NC community college transfer guide (optional file).
+        fetchJSON(BASE + 'data/transfer-nccc.json?v=' + Date.now(), function (e3, cc) { state.cc = e3 ? null : cc; cb(); });
       });
     });
   }
@@ -721,6 +722,7 @@
     main.innerHTML = h;
     main.scrollTop = scroll;
     side.innerHTML = sideHtml(rows, T);
+    av.msg = null; // shown once
     wireAudit(o, rows, T);
   }
 
@@ -762,8 +764,10 @@
     if (r.metBy) h += '<div class="pps-muted">' + esc(r.metBy) + ' counts for this requirement (department substitution). Confirm it shows on the audit; ask your advisor if it does not.</div>';
     if (r.status === 'transfer') {
       var tp = c.transferPlan;
+      var chk = ccCheck(c, tp);
       h += '<div class="pps-when">' + esc([tp.school || 'Another school', tp.course, tp.term].filter(Boolean).join(' \u00b7 ')) + '</div>' +
-        '<div class="pps-muted">Paw Plan cannot check transfer credit. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that this course transfers to NC State as ' + esc(label) + ' before enrolling.</div>';
+        (chk ? '<div class="pps-flag ' + (chk.level === 'ok' ? 'good' : chk.level === 'stop' ? 'warn' : '') + '">' + esc(chk.text) + '</div>' : '') +
+        '<div class="pps-muted">' + (chk && chk.level === 'ok' ? 'Guides can change, so ' + (ADVISOR ? 'confirm' : 'confirm with your advisor') + ' before enrolling.' : (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that this course transfers to NC State as ' + esc(label) + ' before enrolling.') + '</div>';
     }
     if (r.status === 'planned') {
       if (r.units.some(function (u) { return !u; })) h += '<div class="pps-flag warn">That section is no longer offered. Choose again.</div>';
@@ -855,7 +859,8 @@
     planned.forEach(function (r) { r.units.forEach(function (u, i) { if (u) items.push({ code: (r.c.sched.codes[i] || r.c.code), unit: u, slot: { cat: r.c.cat } }); }); });
     var h = '<div class="pps-avcredits"><div><strong>' + cr + '</strong> credits picked for ' + esc(term) + '</div>' +
       (scr ? '<div class="pps-muted">' + scr + ' more credits suggested and not picked yet</div>' : '') +
-      (cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') + '</div>';
+      (cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
+      (av.msg ? '<div class="pps-flag warn" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
     if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Pick the best sections for my suggested courses</button>';
     h += calendar({ items: items, open: [] });
     if (planned.length) {
@@ -882,17 +887,56 @@
     return h;
   }
 
+  // ---------- NC community college transfer guide ----------
+  function normCode(x) { var m = String(x || '').toUpperCase().replace(/\s+/g, ' ').trim().match(/^([A-Z]{2,4})\s?(\d{3}[A-Z]?)$/); return m ? m[1] + ' ' + m[2] : String(x || '').toUpperCase().trim(); }
+  function ccEntry(code) { var k = normCode(code); return ((state.cc || {}).courses || []).filter(function (e) { return e.cc === k; })[0] || null; }
+  function reqOptions(c) {
+    // Classify the requirement itself, ignoring any transfer plan already saved on it.
+    if (!av.T) av.T = E.toolkit(state.index, B.getPlan(), B.lists, engPrefs(), engInput());
+    var sl = av.T.slotOf(Object.assign({}, c, { transferPlan: null }));
+    if (sl.kind === 'fixed' || sl.kind === 'choice') return sl.options;
+    if (sl.kind === 'open' && sl.pool) return sl.pool.options;
+    return [];
+  }
+  function ccFills(entry, options) {
+    if (!entry || !entry.ncsu.length) return false;
+    return options.some(function (o) { return o.every(function (x) { return entry.ncsu.indexOf(x) !== -1; }); });
+  }
+  // Guide courses that fill this requirement. Never for a requirement with an ARE option (ARE over Poole).
+  function ccMatches(c) {
+    var opts = reqOptions(c);
+    if (opts.some(function (o) { return o.some(function (x) { return /^ARE /.test(x); }); })) return [];
+    return ((state.cc || {}).courses || []).filter(function (e) { return ccFills(e, opts); });
+  }
+  function ccCheck(c, tp) {
+    if (!tp || tp.kind !== 'nccc' || !tp.course) return null;
+    var e = ccEntry(tp.course), label = c.schedOrigCode || c.code;
+    if (!e) return { level: 'warn', text: tp.course + ' is not in the ABM transfer guide. Check the NC State transfer database before enrolling.' };
+    if (ccFills(e, reqOptions(c))) return { level: 'ok', text: 'In the ABM transfer guide: ' + e.cc + ' transfers as ' + e.as + '.' };
+    return { level: 'stop', text: e.cc + ' transfers as ' + e.as + ', which does not fill ' + label + '.' };
+  }
+
   function elsewhereForm(r) {
     var key = rowKey(r.c), plan = B.getPlan(), tr = E.termRank(state.index.term), terms = [];
     plan.forEach(function (s) { var x = E.termRank(s.term); if (x !== null && x >= tr) terms.push(s.term); });
     terms.sort(function (a, b) { return E.termRank(a) - E.termRank(b); });
     return '<div class="pps-choose pps-elsewhere" role="region" aria-label="Taking this course at another school">' +
       '<p>For a course at a community college or another school. It comes off ' + esc(state.index.term) + ' scheduling and shows as planned elsewhere.</p>' +
-      '<div class="pps-elsef"><label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
+      ccHint(r) +
+      '<div class="pps-elsef"><label>Type of school<select data-ew="kind"><option value="nccc">NC community college</option><option value="other">Other college or university</option></select></label>' +
+      '<label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
       '<label>Course<input type="text" data-ew="course" placeholder="e.g. ENG 111"></label>' +
       '<label>Term<select data-ew="term">' + terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label></div>' +
-      '<p class="pps-muted">Paw Plan cannot check transfer credit. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
+      '<p class="pps-muted">Courses not in the ABM transfer guide, and courses from other schools, need a check in the <a href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">NC State transfer database</a>. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
       '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Save</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
+  }
+  function ccHint(r) {
+    var m = ccMatches(r.c), cc = state.cc;
+    if (!cc) return '';
+    if (!m.length) return '<div class="pps-cchint none">No NC community college course for this requirement is in the ABM transfer guide.</div>';
+    return '<div class="pps-cchint"><div class="pps-flabel">From NC State\'s ABM transfer guide (' + esc((cc.source.match(/\d{4}-\d{4}/) || [''])[0].replace('-', '\u2013')) + ')</div><ul>' +
+      m.map(function (e) { return '<li><strong>' + esc(e.cc) + '</strong> at any NC community college transfers as ' + esc(e.as) + ' (' + e.hrs + ' cr). <button type="button" class="pps-link" data-ccuse="' + esc(e.cc) + '">Use ' + esc(e.cc) + '</button></li>'; }).join('') +
+      '</ul><a class="pps-muted" href="' + esc(cc.url) + '" target="_blank" rel="noopener">See the full guide</a></div>';
   }
   function planElsewhere(c, info) {
     B.commit(function (plan) {
@@ -972,11 +1016,17 @@
     var A = res.plans[0], bySlot = {};
     A.items.forEach(function (it) { var k = it.slot.si + ':' + it.slot.ci; (bySlot[k] = bySlot[k] || { slot: it.slot, codes: [], units: [] }); bySlot[k].codes.push(it.code); bySlot[k].units.push(it.unit); });
     A.open.forEach(function (o) { if (o.pick) bySlot[o.slot.si + ':' + o.slot.ci] = { slot: o.slot, codes: o.pick.option.slice(), units: o.pick.groupsFit.map(function (g) { return g.rep; }), title: o.pick.title }; });
-    var n = 0;
+    var n = 0, skipped = [];
+    // Meetings of sections already picked: auto-pick never creates a conflict with them.
+    var taken = meetingsOf(av.rows || [], null);
     B.commit(function (pl) {
       Object.keys(bySlot).forEach(function (k) {
         var b = bySlot[k], c = pl[b.slot.si] && pl[b.slot.si].courses[b.slot.ci];
         if (!c || c.sched) return;
+        var mine = [].concat.apply([], b.units.map(function (u) { return u.meetings; }));
+        var clash = taken.filter(function (o) { return mine.some(function (m) { return E.unitConflicts({ meetings: [m] }, [o]); }); });
+        if (clash.length) { skipped.push(b.codes.join(' + ') + ' (conflicts with ' + clash.map(function (o) { return o.code; }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }).join(', ') + ')'); return; }
+        taken = taken.concat(mine);
         var slot = T.slotOf(c);
         if (slot.kind !== 'fixed') {
           if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; }
@@ -987,6 +1037,7 @@
         n++;
       });
     });
+    if (skipped.length) return 'Not filled: ' + skipped.join('; ') + '. Change the conflicting pick, then try again.';
     return n ? '' : 'Nothing new to fill.';
   }
 
@@ -1012,8 +1063,17 @@
         var r = rowBy(b.getAttribute('data-ewsave')), box = b.closest('.pps-elsewhere');
         if (!r) return;
         var v = function (k) { return (box.querySelector('[data-ew="' + k + '"]').value || '').trim(); };
-        planElsewhere(r.c, { school: v('school'), course: v('course').toUpperCase(), term: v('term') });
+        var kind = v('kind'), course = kind === 'nccc' ? normCode(v('course')) : v('course').toUpperCase();
+        planElsewhere(r.c, { kind: kind, school: v('school') || (kind === 'nccc' ? 'NC community college' : ''), course: course, term: v('term') });
         av.elsewhere = null; renderAudit();
+      });
+    });
+    o.querySelectorAll('[data-ccuse]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var box = b.closest('.pps-elsewhere');
+        box.querySelector('[data-ew="kind"]').value = 'nccc';
+        box.querySelector('[data-ew="course"]').value = b.getAttribute('data-ccuse');
+        var sc = box.querySelector('[data-ew="school"]'); if (!sc.value) sc.focus();
       });
     });
     o.querySelectorAll('[data-untransfer]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-untransfer')); if (r) { undoElsewhere(r.c); renderAudit(); } }); });
@@ -1038,7 +1098,7 @@
       b.addEventListener('click', function () {
         if (act === 'builder') { openBuilder(); return; }
         if (act === 'next') { close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
-        if (act === 'auto') { var msg = autoPick(); renderAudit(); if (msg) { var m = o.querySelector('.pps-avcredits'); if (m) flash(m, msg); } return; }
+        if (act === 'auto') { av.msg = autoPick(); renderAudit(); return; }
         if (act === 'copy') {
           var txt = state.index.term + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
             return (i + 1) + '. ' + l.code + '  ' + l.u.sections.map(function (s) { return s.comp + ' ' + s.sec + ': ' + s.nbr; }).join(' + ') + (l.bk.length ? '   backups: ' + l.bk.slice(0, 3).map(function (x) { return x.unit.sections.map(function (y) { return y.nbr; }).join('+'); }).join(', ') : '');
@@ -1069,7 +1129,7 @@
     else if (total > 18) add('stop', load + ' That is above 18 and needs an overload approval.');
     else add('info', load);
     r.notes.forEach(function (n) { if (n.severe) add('stop', n.text); });
-    r.notes.forEach(function (n) { if (!n.severe) add('warn', n.text); });
+    r.notes.forEach(function (n) { if (!n.severe && !n.transfer) add('warn', n.text); });
     if (plan.relaxed) add('warn', 'No schedule meets every preference set below. Sections that break one are marked on their cards.');
     var only = [], few = [];
     plan.items.forEach(function (it) {
@@ -1100,11 +1160,11 @@
     if (unpicked.length) add('info', 'Still to choose: ' + unpicked.join(', ') + '.');
     // Courses planned at another school in later terms (spring ones already appear as notes).
     B.getPlan().forEach(function (sem) {
-      if (sem.term === r.term) return;
       sem.courses.forEach(function (c) {
         if (!c.transferPlan) return;
         var tp = c.transferPlan;
-        add('warn', (c.code) + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. Confirm it transfers before the student enrolls.');
+        var chk = ccCheck(c, tp);
+        add(chk && chk.level === 'stop' ? 'stop' : 'warn', (c.code) + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. ' + (chk ? chk.text + ' ' : '') + 'Confirm it transfers before the student enrolls.');
       });
     });
     add('info', STANDING_TEXT[ctx.student.standing] + ' standing by credits (' + ctx.priorCredits + ' earned or in progress)' + (ctx.student.gpa != null ? ', cumulative GPA ' + ctx.student.gpa.toFixed(3) : '') + '.');
@@ -1287,6 +1347,8 @@
       '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
       '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
       '.st-row-transfer{background:#F5F3FF}',
+      '.pps-flag.good{background:#DCFCE7;color:#14532D}',
+      '.pps-cchint{background:#fff;border:1px solid #C7C7C7;border-left:4px solid #6D28D9;padding:.45rem .7rem;margin:.4rem 0;font-size:.82rem}.pps-cchint ul{margin:.2rem 0 .3rem;padding-left:1.1rem}.pps-cchint.none{border-left-color:#999;color:#555}',
       '.pps-elsef{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}.pps-elsef label{display:flex;flex-direction:column;font-size:.76rem;font-weight:600;gap:.2rem}',
       '.pps-elsef input,.pps-elsef select{font:inherit;font-weight:400;font-size:.85rem;padding:.35rem .45rem;border:1px solid #777;border-radius:0;min-width:9rem}',
       '.pps-avsec{background:#fff;border:1px solid #C7C7C7;margin-bottom:.75rem}',

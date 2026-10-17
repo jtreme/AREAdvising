@@ -1,0 +1,22 @@
+{
+ "_how": "NC community college courses and the NC State courses they transfer as, from NC State's CAA transfer guide for Agricultural Business Management. Course numbers are shared across all NC community colleges. Update from the new guide each year.",
+ "source": "NC State Transfer Guide: Agricultural Business Management, B.S. (Associate in Science), 2026-2027, revised May 2026",
+ "url": "https://coursetransfer.northcarolina.edu/guide/2026-2027/1246",
+ "database": "https://webappprd.acs.ncsu.edu/php/transfer/",
+ "courses": [
+  { "cc": "COM 231", "hrs": 3, "ncsu": ["COM 110"], "as": "COM 110" },
+  { "cc": "COM 120", "hrs": 3, "ncsu": ["COM 112"], "as": "COM 112" },
+  { "cc": "ECO 251", "hrs": 3, "ncsu": ["EC 201"], "as": "EC 201" },
+  { "cc": "ECO 252", "hrs": 3, "ncsu": ["EC 202"], "as": "EC 202" },
+  { "cc": "ACC 120", "hrs": 4, "ncsu": ["ACC 210"], "as": "ACC 210 + an accounting elective" },
+  { "cc": "MAT 152", "hrs": 4, "ncsu": ["ST 311"], "as": "ST 311 + a 300-level statistics course" },
+  { "cc": "MAT 171", "hrs": 4, "ncsu": ["MA 107"], "as": "MA 107 + a 100-level math course" },
+  { "cc": "MAT 263", "hrs": 4, "ncsu": ["MA 121"], "as": "MA 121 + a 100-level math course" },
+  { "cc": "CHM 151", "hrs": 4, "ncsu": ["CH 101", "CH 102"], "as": "CH 101 + CH 102" },
+  { "cc": "CHM 152", "hrs": 4, "ncsu": ["CH 201", "CH 202"], "as": "CH 201 + CH 202" },
+  { "cc": "ENG 111", "hrs": 3, "ncsu": [], "as": "ENG 1GEP (100-level composition)" },
+  { "cc": "ENG 112", "hrs": 3, "ncsu": [], "as": "ENG 1GEP (100-level composition)" },
+  { "cc": "BIO 111", "hrs": 4, "ncsu": [], "as": "see the NC State transfer database" },
+  { "cc": "BIO 112", "hrs": 4, "ncsu": [], "as": "see the NC State transfer database" }
+ ]
+}

@@ -530,14 +530,17 @@
     var dropNote = null;
     if (!results.length && p1.length) {
       // Find the course whose removal makes a schedule possible.
-      for (var d = 0; d < p1.length && !results.length; d++) {
+      // Leave out an unpicked course before ever leaving out a section the student picked.
+      var dropOrder = p1.map(function (_, i) { return i; }).sort(function (a, b) { return (p1[a].pin ? 1 : 0) - (p1[b].pin ? 1 : 0); });
+      for (var di = 0; di < dropOrder.length && !results.length; di++) {
+        var d = dropOrder[di];
         var keep = p1.filter(function (_, i) { return i !== d; });
         var sub = cartesian(keep.map(function (s) { return s.usable; }), 200);
         var save = p1; p1 = keep; combos = sub;
         results = runAll(true);
         p1 = save;
         if (results.length) relaxed = true;
-        if (results.length) dropNote = { slot: save[d], text: 'No conflict-free schedule includes ' + save[d].label + ' with your other courses and busy times. These plans leave it out; look at its sections below or move it to another term.' };
+        if (results.length) dropNote = { slot: save[d], text: 'No conflict-free schedule includes ' + save[d].label + ' with your other courses' + (p1.some(function (x) { return x.pin; }) ? ', picked sections,' : '') + ' and busy times. These plans leave it out; change a conflicting pick, look at its sections below, or move it to another term.' };
       }
     }
     if (dropNote) notes.push(dropNote);
@@ -753,6 +756,9 @@
       return out.sort(function (a, b) { return ((a.cat === 'dept' ? 0 : 1) - (b.cat === 'dept' ? 0 : 1)) || termRank(a.fromTerm) - termRank(b.fromTerm) || b.sectionsFit - a.sectionsFit; });
     }
 
+    // "No schedule meets every preference" only when a chosen section actually breaks one.
+    plans.forEach(function (p) { p.relaxed = p.items.some(function (it) { return it.group && it.group.viol && it.group.viol.length; }); });
+    relaxed = plans.length ? plans[0].relaxed : relaxed;
     return { ok: true, term: index.term, ctx: ctx, slots: slots, plans: plans, notes: notes, relaxed: relaxed, openSlots: open,
       refresh: refresh, search: searchFitting, sectionsOf: sectionsOf, pullAhead: pullAhead };
   }
@@ -849,7 +855,20 @@
         }
         entry.times = times;
         entry.sectionsFit = times.reduce(function (t, x) { return t + x.count; }, 0);
-        if (times.length) out.fits.push(entry); else { entry.why = 'No section fits around your other picks'; out.noFit.push(entry); }
+        if (times.length) out.fits.push(entry);
+        else {
+          // Name what is in the way: the other picks (by course) or the student's busy times.
+          var blockers = {}, busyHit = false;
+          opt.forEach(function (x) {
+            groupsFor(x).groups.forEach(function (g) {
+              g.meetings.forEach(function (m) { occ.forEach(function (o) { if (meetConflict(m, o)) { if (o.busy) busyHit = true; else if (o.code) blockers[o.code] = 1; } }); });
+            });
+          });
+          var names = Object.keys(blockers);
+          entry.blockers = names;
+          entry.why = 'Every section conflicts with ' + (names.length ? names.join(', ') : '') + (names.length && busyHit ? ' or ' : '') + (busyHit ? 'your busy times' : '') + (names.length ? '. Change that pick to free up a time.' : '.');
+          out.noFit.push(entry);
+        }
       });
       out.fits.sort(function (a, b) {
         return ((a.warnLevel || 0) - (b.warnLevel || 0)) || ((isARE(b.option[0]) ? 1 : 0) - (isARE(a.option[0]) ? 1 : 0)) || ((isPoole(a.option[0]) ? 1 : 0) - (isPoole(b.option[0]) ? 1 : 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
