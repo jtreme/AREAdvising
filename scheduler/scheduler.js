@@ -767,6 +767,7 @@
       var chk = ccCheck(c, tp);
       h += '<div class="pps-when">' + esc([tp.school || 'Another school', tp.course, tp.term].filter(Boolean).join(' \u00b7 ')) + '</div>' +
         (chk ? '<div class="pps-flag ' + (chk.level === 'ok' ? 'good' : chk.level === 'stop' ? 'warn' : '') + '">' + esc(chk.text) + '</div>' : '') +
+        (!chk || chk.level !== 'ok' ? '<div>' + dbLink() + '</div>' : '') +
         '<div class="pps-muted">' + (chk && chk.level === 'ok' ? 'Guides can change, so ' + (ADVISOR ? 'confirm' : 'confirm with your advisor') + ' before enrolling.' : (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that this course transfers to NC State as ' + esc(label) + ' before enrolling.') + '</div>';
     }
     if (r.status === 'planned') {
@@ -938,13 +939,16 @@
       '<p class="pps-muted">Courses not in the ABM transfer guide, and courses from other schools, need a check in the <a href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">NC State transfer database</a>. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
       '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Save</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
   }
+  function dbLink(text) {
+    return '<a class="pps-dblink" href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">' + esc(text || 'Search the NC State transfer database') + ' &#8599;</a>';
+  }
   function ccHint(r) {
     var m = ccMatches(r.c), cc = state.cc;
-    if (!cc) return '';
-    if (!m.length) return '<div class="pps-cchint none">No NC community college course for this requirement is in the ABM transfer guide.</div>';
+    if (!cc) return '<div class="pps-cchint none">' + dbLink() + '</div>';
+    if (!m.length) return '<div class="pps-cchint none">No NC community college course for this requirement is in the ABM transfer guide. ' + dbLink('Search the NC State transfer database for one') + '</div>';
     return '<div class="pps-cchint"><div class="pps-flabel">From NC State\'s ABM transfer guide (' + esc((cc.source.match(/\d{4}-\d{4}/) || [''])[0].replace('-', '\u2013')) + ')</div><ul>' +
       m.map(function (e) { return '<li><strong>' + esc(e.cc) + '</strong> at any NC community college transfers as ' + esc(e.as) + ' (' + e.hrs + ' cr). <button type="button" class="pps-link" data-ccuse="' + esc(e.cc) + '">Use ' + esc(e.cc) + '</button></li>'; }).join('') +
-      '</ul><a class="pps-muted" href="' + esc(cc.url) + '" target="_blank" rel="noopener">See the full guide</a></div>';
+      '</ul><a class="pps-muted" href="' + esc(cc.url) + '" target="_blank" rel="noopener">See the full guide</a> \u00b7 Taking a different course? ' + dbLink('Check it in the NC State transfer database') + '</div>';
   }
   function planElsewhere(c, info) {
     B.commit(function (plan) {
@@ -1356,6 +1360,7 @@
       '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
       '.st-row-transfer{background:#F5F3FF}',
       '.pps-flag.good{background:#DCFCE7;color:#14532D}',
+      '.pps-dblink{color:#1D4ED8;font-weight:600;text-decoration:underline}',
       '.pps-cchint{background:#fff;border:1px solid #C7C7C7;border-left:4px solid #6D28D9;padding:.45rem .7rem;margin:.4rem 0;font-size:.82rem}.pps-cchint ul{margin:.2rem 0 .3rem;padding-left:1.1rem}.pps-cchint.none{border-left-color:#999;color:#555}',
       '.pps-elsef{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}.pps-elsef label{display:flex;flex-direction:column;font-size:.76rem;font-weight:600;gap:.2rem}',
       '.pps-elsef input,.pps-elsef select{font:inherit;font-weight:400;font-size:.85rem;padding:.35rem .45rem;border:1px solid #777;border-radius:0;min-width:9rem}',
