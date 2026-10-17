@@ -244,7 +244,7 @@
       return;
     }
     var h = '<p class="pps-source">Times and seats from the ' + esc(state.index.term) + ' Schedule of Classes (data from ' + esc(fmtDate(state.term.built)) +
-      '). Seats change daily, so confirm every section in MyPack before you register.</p>';
+      '). Seats change daily, so confirm every section in MyPack before you register. Built from the current Paw Plan: after moving courses between semesters, reopen this window to rebuild.</p>';
     var severe = r.notes.filter(function (n) { return n.severe; }), mild = r.notes.filter(function (n) { return !n.severe; });
     if (ADVISOR && r.plans.length) h += advisorPanel(r, r.plans[state.pi] || r.plans[0]);
     else if (severe.length) h += '<div class="pps-alert">' + severe.map(function (n) { return '<p>' + esc(n.text) + '</p>'; }).join('') + '</div>';
@@ -390,8 +390,16 @@
       bh = '<div class="pps-nobk">' + (total <= 1 ? 'This is the only section of ' + esc(it.code) + ' you can take this term, so register for it early.' :
         'No other section fits this plan. If this one fills, try ' + (r2(plan) ? 'another plan tab or ' : '') + 'talk with your advisor.') + '</div>';
     }
+    var pa = state.result.pullAhead(plan, it).slice(0, 4), ph = '';
+    if (pa.length) {
+      ph = '<details class="pps-backups pps-pull"><summary>If every section fills: ' + pa.length + ' later course' + (pa.length === 1 ? '' : 's') + ' you could take now</summary>' +
+        '<p class="pps-muted">These are in a later semester of ' + (ADVISOR ? 'the student\'s' : 'your') + ' plan, are offered this term, fit the rest of this schedule, and ' + (ADVISOR ? 'the student has' : 'you have') + ' the prerequisites. To switch, move one into ' + esc(state.index.term) + ' in Paw Plan, move ' + esc(it.code) + ' to a later semester, and reopen this window.</p><ol>' +
+        pa.map(function (c) {
+          return '<li><div class="pps-bk-main"><strong>' + esc(c.code) + '</strong> ' + esc(c.title) + ' <span class="pps-muted">Planned for ' + esc(c.fromTerm) + (c.label !== c.code ? ' (' + esc(c.label) + ')' : '') + ' \u00b7 ' + c.sectionsFit + ' section' + (c.sectionsFit === 1 ? '' : 's') + ' fit</span>' + secLines(c.group.rep) + '</div></li>';
+        }).join('') + '</ol></details>';
+    }
     return '<article class="pps-card" style="--c:' + (CAT_COLORS[it.slot.cat] || '#444') + '"><header><div><h4>' + esc(it.code) + ' <span>' + esc(it.info.lt || it.info.t || '') + '</span></h4>' + req + '</div>' +
-      '<div class="pps-when">' + esc(meetText(u)) + '</div></header>' + secLines(u) + (flags.length ? '<div class="pps-flags">' + flags.join('') + '</div>' : '') + others + bh + '</article>';
+      '<div class="pps-when">' + esc(meetText(u)) + '</div></header>' + secLines(u) + (flags.length ? '<div class="pps-flags">' + flags.join('') + '</div>' : '') + others + bh + ph + '</article>';
   }
   function r2(plan) { return state.result.plans.length > 1; }
 
@@ -648,6 +656,12 @@
         t.push('- ' + lbl + (top.length ? ': options that fit include ' + top.join(', ') : ': any course that fits your open times') + '.');
       });
     }
+    var pullLines = [];
+    plan.items.forEach(function (it) {
+      var pa = r.pullAhead(plan, it).slice(0, 2);
+      if (pa.length) pullLines.push('- If ' + it.code + ' fills: take ' + pa.map(function (c) { return c.code + ' now (planned for ' + c.fromTerm + ', #' + nbrs(c.group.rep) + ')'; }).join(' or ') + ', and move ' + it.code + ' later.');
+    });
+    if (pullLines.length) { t.push(''); t.push('If a course fills completely, these later courses fit instead:'); pullLines.forEach(function (l) { t.push(l); }); }
     var alt = r.plans.filter(function (p) { return p !== plan; })[0];
     if (alt) {
       t.push('');

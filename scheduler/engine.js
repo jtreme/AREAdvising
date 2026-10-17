@@ -621,8 +621,71 @@
     }
     function sectionsOf(code) { return groupsFor(code); }
 
+    // ---------- Pull ahead ----------
+    // If every section of a course fills, which core courses from LATER semesters of the
+    // student's plan could they take this term instead? A course qualifies when it is offered,
+    // has an eligible section that fits the rest of the schedule, and its prerequisites are
+    // already done or in progress (Paw Plan's own rules plus the catalog text).
+    var PREREQ_ALT = { 'ARE 201': ['ARE 201', 'EC 201', 'EC 205'], 'EC/ARE 301': ['EC 301', 'ARE 301'], 'MA 121/131/141': ['MA 121', 'MA 131', 'MA 141'] };
+    function labelCodes(label) {
+      if (PREREQ_ALT[label]) return PREREQ_ALT[label];
+      var sl = expandSlashCode(label);
+      if (sl) return sl.map(function (o) { return o[0]; });
+      return String(label).split(/,|\bor\b/).map(function (x) { return x.trim(); }).filter(function (x) { return CODE_RE.test(x); });
+    }
+    function paw_prereqs_ok(label) {
+      var reqs = (lists.PREREQS || {})[label] || [];
+      return reqs.every(function (r) { return labelCodes(r).some(function (c) { return ctx.taken[c]; }); });
+    }
+    var laterPool = null;
+    function buildLaterPool() {
+      var target = termRank(index.term), pool = [], seen = {};
+      plan.forEach(function (sem) {
+        var r = termRank(sem.term);
+        if (r === null || target === null || r <= target) return;
+        sem.courses.forEach(function (c) {
+          var label = String(c.code || '').trim();
+          if (!label || label === 'ARE 490' || c.id === 'ARE490') return; // ARE 490 stays near the end
+          var opts = null;
+          if (optionFromLabel(label)) opts = [optionFromLabel(label)];
+          else if (expandSlashCode(label) && !c.picker) opts = expandSlashCode(label);
+          else if (c.picker && lists.SLASH_COURSES[c.picker] && !OPEN_PICKERS[c.picker] && lists.SLASH_COURSES[c.picker].length <= CHOICE_MAX)
+            opts = lists.SLASH_COURSES[c.picker].map(function (o) { return optionFromLabel(o.c); }).filter(Boolean);
+          if (!opts) return;
+          var prereqOk = paw_prereqs_ok(label);
+          opts.forEach(function (opt) {
+            if (opt.length !== 1) return;
+            var code = opt[0];
+            if (seen[code] || ctx.taken[code]) return;
+            seen[code] = 1;
+            var info = (index.courses[code] || {}).info;
+            if (!index.courses[code] || !prereqOk || prereqFlag(info, ctx.taken)) return;
+            pool.push({ code: code, label: label, fromTerm: sem.term, units: c.units || 3, cat: c.cat || 'dept' });
+          });
+        });
+      });
+      return pool;
+    }
+    function pullAhead(p, it) {
+      if (!laterPool) laterPool = buildLaterPool();
+      var oc = occupiedExcept(p, it, null), out = [], perLabel = {};
+      laterPool.forEach(function (c) {
+        if (oc.used[c.code] || perLabel[c.label]) return; // first listed option that fits, one per requirement
+        var gs = groupsFor(c.code);
+        if (!gs.offered) return;
+        var fit = gs.groups.filter(function (g) { return !unitConflicts(g.rep, oc.occ); })
+          .sort(function (a, b) { return a.viol.length - b.viol.length || unitCost(a.rep, prefs, true) - unitCost(b.rep, prefs, true); });
+        if (!fit.length) return;
+        var n = fit.reduce(function (t, g) { return t + g.units.length; }, 0);
+        perLabel[c.label] = 1;
+        out.push({ code: c.code, label: c.label, fromTerm: c.fromTerm, units: c.units, cat: c.cat, group: fit[0], sectionsFit: n, title: ((index.courses[c.code] || {}).info || {}).lt || '' });
+      });
+      // Department core first, then the soonest planned term, then the most sections that fit.
+      return out.sort(function (a, b) { return ((a.cat === 'dept' ? 0 : 1) - (b.cat === 'dept' ? 0 : 1)) || termRank(a.fromTerm) - termRank(b.fromTerm) || b.sectionsFit - a.sectionsFit; });
+    }
+
     return { ok: true, term: index.term, ctx: ctx, slots: slots, plans: plans, notes: notes, relaxed: relaxed, openSlots: open,
-      refresh: refresh, search: searchFitting, sectionsOf: sectionsOf };
+      refresh: refresh, search: searchFitting, sectionsOf: sectionsOf, pullAhead: pullAhead };
   }
 
   function courseDiff(A, B) {
