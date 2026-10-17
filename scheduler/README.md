@@ -3,7 +3,14 @@
 Builds conflict-free section schedules (Plan A, B, C) for the semester in a student's Paw Plan,
 with backup sections, open-requirement choices, and MyPack class numbers.
 
-Hidden until approved: it only loads at `index.html?scheduler=1`.
+Hidden until approved: it only loads at `index.html?scheduler=1` (students) or
+`index.html?advisor=1` (advisors).
+
+After an audit upload, the first screen is the **audit view**: the degree audit with every
+remaining requirement as a red X and a "Choose for <term>" button. Picking a course and a time
+writes it into the plan's term (moving it from a later semester if needed); Remove puts it back,
+and "Not this term" moves a suggested course to the next term with room. The full builder
+(Plans A/B/C, preferences, advising check) opens from there and keeps every picked section.
 
 ## Files
 

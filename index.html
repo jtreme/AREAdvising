@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="pull-ahead-v1">
+<meta name="paw-plan-build-id" content="audit-view-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -6473,11 +6473,15 @@ window.openVerifyList = openVerifyList;
 window.PawPlanBridge={
 getPlan:function(){return plan;},
 getTransferred:function(){return transferredCourses;},
-lists:{HUM_COURSES:HUM_COURSES,SOCSCI_COURSES:SOCSCI_COURSES,GEP_ELEC_COURSES:GEP_ELEC_COURSES,IDS_COURSES:IDS_COURSES,TECH_ELECTIVE_LIST:TECH_ELECTIVE_LIST,SLASH_COURSES:SLASH_COURSES,DEPT_VALID_CODES:DEPT_VALID_CODES,TECH_PREFIXES:TECH_PREFIXES,VERIFY_GLOBAL_KNOWLEDGE:VERIFY_GLOBAL_KNOWLEDGE,VERIFY_AMER_DEMOCRACY:VERIFY_AMER_DEMOCRACY,PREREQS:PREREQS},
+lists:{HUM_COURSES:HUM_COURSES,SOCSCI_COURSES:SOCSCI_COURSES,GEP_ELEC_COURSES:GEP_ELEC_COURSES,IDS_COURSES:IDS_COURSES,TECH_ELECTIVE_LIST:TECH_ELECTIVE_LIST,SLASH_COURSES:SLASH_COURSES,DEPT_VALID_CODES:DEPT_VALID_CODES,TECH_PREFIXES:TECH_PREFIXES,VERIFY_GLOBAL_KNOWLEDGE:VERIFY_GLOBAL_KNOWLEDGE,VERIFY_AMER_DEMOCRACY:VERIFY_AMER_DEMOCRACY,PREREQS:PREREQS,SOFT_PREREQS:SOFT_PREREQS},
 getCourseCredits:getCourseCredits,
 getAuditGpa:function(){return typeof window.pawPlanAuditGpa==='number'?window.pawPlanAuditGpa:null;},
 getAuditStudent:function(){return window.pawPlanAuditStudent||null;},
 openAuditUpload:function(){var b=document.getElementById('transcript-btn');if(b)b.click();},
+categories:CATEGORIES,
+// Apply a change to the plan with undo support, then redraw Paw Plan (which also autosaves).
+commit:function(fn){saveUndo();try{fn(plan);}finally{render();}},
+isSummerTerm:isSummerTerm,
 isUploaded:function(){return document.body.classList.contains('uploaded-mode');},
 // Write a chosen course into a plan slot (same effect as picking it in the slot's picker).
 setSlotCourse:function(si,ci,code,name){

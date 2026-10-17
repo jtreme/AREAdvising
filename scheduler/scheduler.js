@@ -29,9 +29,11 @@
       addToolbarButton();
     });
   });
-  window.PawSched = { open: openBuilder };
+  window.PawSched = { open: openBuilder, openAudit: function () { openAudit(); } };
+  // After every confirmed audit upload, the audit view is the first screen.
   window.addEventListener('pawplan:auditapplied', function () {
-    if (ADVISOR && state.autoOpen) { state.autoOpen = false; setTimeout(openBuilder, 150); }
+    state.autoOpen = false;
+    setTimeout(function () { if (state.manifest) openAudit(); }, 150);
   });
 
   function loadScript(src, cb) {
@@ -68,17 +70,16 @@
     btn.className = 'reset-btn';
     btn.type = 'button';
     btn.innerHTML = buttonLabel(state.manifest.terms[state.manifest.terms.length - 1].term);
-    btn.addEventListener('click', openBuilder);
+    btn.addEventListener('click', function () { openAudit(); });
     anchor.parentNode.insertBefore(btn, anchor.nextSibling);
     injectStyle();
   }
 
-  function buttonLabel(term) { return '&#128197; ' + esc(term) + (ADVISOR ? ' Advising' : ' Schedule') + ' <span class="pps-beta">Beta</span>'; }
+  function buttonLabel(term) { return '&#128197; ' + esc(term) + ' Registration <span class="pps-beta">Beta</span>'; }
   function studentName() { var st = B.getAuditStudent ? B.getAuditStudent() : null; return st && st.name ? st.name : ''; }
 
   // ---------- open / build ----------
-  function openBuilder() {
-    injectStyle();
+  function syncStudent() {
     state.term = pickTerm();
     var btn = document.getElementById('pps-open-btn');
     if (btn) btn.innerHTML = buttonLabel(state.term.term);
@@ -86,19 +87,29 @@
     var stu = B.getAuditStudent ? B.getAuditStudent() : null, key = stu ? String(stu.loadedAt) : '';
     if (ADVISOR && key !== state.auditKey) { state.prefs = defaultPrefs(); state.result = null; state.pi = 0; }
     state.auditKey = key;
+  }
+  function ensureData(cb) {
+    if (state.index && state.index.term === state.term.term) { cb(); return; }
+    fetchJSON(BASE + state.term.file + '?v=' + encodeURIComponent(state.term.built || VER), function (err, data) {
+      if (err) { cb(err); return; }
+      // Department corrections (optional file): courses listed there are treated as not offered.
+      fetchJSON(BASE + 'data/overrides.json?v=' + Date.now(), function (e2, ov) {
+        state.index = E.prepare(data, e2 ? null : ov);
+        cb();
+      });
+    });
+  }
+  function openBuilder() {
+    injectStyle();
+    syncStudent();
     shell();
     state.open = true;
     document.body.classList.add('pps-open');
     if (!B.isUploaded()) { renderMessage('Upload your degree audit first', 'The schedule builder works from the ' + state.term.term + ' courses in your Paw Plan. Close this window, click <strong>Upload New Degree Audit</strong>, then come back.'); return; }
-    if (state.index && state.index.term === state.term.term) { build(); return; }
-    renderMessage('Loading ' + state.term.term + ' classes...', '');
-    fetchJSON(BASE + state.term.file + '?v=' + encodeURIComponent(state.term.built || VER), function (err, data) {
+    if (!(state.index && state.index.term === state.term.term)) renderMessage('Loading ' + state.term.term + ' classes...', '');
+    ensureData(function (err) {
       if (err) { renderMessage('Could not load the class schedule', 'Check your connection and try again.'); return; }
-      // Department corrections (optional file): courses listed there are treated as not offered.
-      fetchJSON(BASE + 'data/overrides.json?v=' + Date.now(), function (e2, ov) {
-        state.index = E.prepare(data, e2 ? null : ov);
-        build();
-      });
+      build();
     });
   }
 
@@ -154,10 +165,11 @@
     o.innerHTML =
       '<div class="pps-top"><div class="pps-top-in"><div><div class="pps-kicker">Paw Plan</div>' +
       '<h2 id="pps-title">' + esc(state.term.term) + (ADVISOR ? ' Advising' + (studentName() ? ': ' + esc(studentName()) : '') : ' Schedule Builder') + ' <span class="pps-beta">Beta</span></h2></div>' +
-      '<button type="button" class="pps-x" aria-label="Close schedule builder">&times;</button></div></div>' +
+      '<div class="pps-topbtns"><button type="button" class="pps-back">&larr; My audit</button><button type="button" class="pps-x" aria-label="Close schedule builder">&times;</button></div></div></div>' +
       '<div class="pps-body"><aside class="pps-prefs" aria-label="Preferences"></aside><main class="pps-main"></main></div>';
     document.body.appendChild(o);
     o.querySelector('.pps-x').addEventListener('click', close);
+    o.querySelector('.pps-back').addEventListener('click', function () { openAudit(); });
     o.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     o.querySelector('.pps-x').focus();
   }
@@ -537,7 +549,7 @@
     main.querySelectorAll('[data-act]').forEach(function (b) {
       b.addEventListener('click', function () {
         var act = b.getAttribute('data-act'), msg = main.querySelector('.pps-actmsg');
-        if (act === 'next') { state.autoOpen = true; close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
+        if (act === 'next') { close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
         if (act === 'copy' || act === 'note') {
           var txt = act === 'note' ? advisingNote(state.result, plan) : copyText(plan);
           var done = function () { msg.textContent = 'Copied.'; };
@@ -574,6 +586,411 @@
       if (B.setSlotCourse(o.slot.si, o.slot.ci, o.pick.code, o.pick.title)) n.push(o.pick.code);
     });
     return n;
+  }
+
+  // ---------- audit view: the first screen after upload ----------
+  // Looks like the degree audit. Every remaining requirement in the plan is a red X with a
+  // "Choose" button; picking a course and section writes it into the plan's spring semester
+  // (moving it from a later term if needed) and marks the row as planned.
+  var SECTION_NAMES = [['1', 'Orientation'], ['2', 'Communications & Tech Fluency'], ['3', 'Mathematical Sciences'], ['4', 'Natural Sciences'],
+    ['5', 'Dept Course Requirements'], ['6', 'Restricted Electives'], ['8', 'General Education Program (GEP) Courses'], ['20', 'Free Electives']];
+  var CAT_TO_SEC = { orientation: '1', comm: '2', math: '3', natsci: '4', dept: '5', restricted: '6', gep: '8', free: '20' };
+  var av = { expanded: null, queries: {}, all: {}, lists: {}, rows: [], T: null };
+
+  function openAudit() {
+    injectStyle();
+    syncStudent();
+    var o = document.getElementById('pps-overlay');
+    if (o) o.remove();
+    o = document.createElement('div');
+    o.id = 'pps-overlay';
+    o.className = 'pps pps-audit';
+    o.setAttribute('role', 'dialog');
+    o.setAttribute('aria-modal', 'true');
+    o.setAttribute('aria-labelledby', 'pps-title');
+    var name = studentName();
+    o.innerHTML = '<div class="pps-top"><div class="pps-top-in"><div><div class="pps-kicker">Paw Plan' + (name ? ' · ' + esc(name) : '') + '</div>' +
+      '<h2 id="pps-title">' + esc(state.term.term) + ' Registration <span class="pps-beta">Beta</span></h2></div>' +
+      '<div class="pps-topbtns"><button type="button" class="pps-back" data-av="plan">Four-year plan</button><button type="button" class="pps-x" aria-label="Close">&times;</button></div></div></div>' +
+      '<div class="pps-body pps-avbody"><main class="pps-main pps-avmain"></main><aside class="pps-avside" aria-label="Your spring schedule"></aside></div>';
+    document.body.appendChild(o);
+    document.body.classList.add('pps-open');
+    state.open = true;
+    o.querySelector('.pps-x').addEventListener('click', close);
+    o.querySelector('[data-av=plan]').addEventListener('click', close);
+    o.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    o.querySelector('.pps-x').focus();
+    var main = o.querySelector('.pps-avmain');
+    if (!B.isUploaded()) { main.innerHTML = '<div class="pps-msg"><h3>Upload your degree audit first</h3><p>Close this window and click <strong>Upload New Degree Audit</strong>. Your audit opens here after it loads.</p></div>'; return; }
+    main.innerHTML = '<div class="pps-msg"><h3>Loading ' + esc(state.term.term) + ' classes...</h3></div>';
+    ensureData(function (err) {
+      if (err) { main.innerHTML = '<div class="pps-msg"><h3>Could not load the class schedule</h3><p>Check your connection and try again.</p></div>'; return; }
+      av.expanded = null; av.queries = {}; av.all = {};
+      renderAudit();
+    });
+  }
+
+  function engPrefs() { var p = state.prefs; return { earliest: +p.earliest || 0, latest: +p.latest || 0, noFriday: !!p.noFriday, online: p.online, busy: p.busy, includeConsent: !!p.includeConsent }; }
+  function engInput() { return { transferred: B.getTransferred(), standing: state.prefs.standing || undefined, gpa: B.getAuditGpa() }; }
+  function secOf(c) {
+    var a = String(c.auditSection || '');
+    for (var i = 0; i < SECTION_NAMES.length; i++) if (SECTION_NAMES[i][0] === a) return a;
+    return CAT_TO_SEC[c.cat] || '20';
+  }
+  function rowKey(c) { if (!c._avk) c._avk = 'k' + Math.random().toString(36).slice(2, 9); return c._avk; }
+  function findCourse(plan, c) {
+    for (var si = 0; si < plan.length; si++) { var ci = plan[si].courses.indexOf(c); if (ci !== -1) return { si: si, ci: ci }; }
+    return null;
+  }
+  function pickedUnits(T, c) {
+    if (!c.sched || !c.sched.nbrs) return [];
+    return c.sched.nbrs.map(function (key, i) { return T.findUnit(c.sched.codes[i] || c.code, key); });
+  }
+
+  function collectRows(plan, T) {
+    var term = state.index.term, tr = E.termRank(term), rows = [];
+    plan.forEach(function (s, si) {
+      var r = E.termRank(s.term);
+      var named = /^(Completed NC State|Prior NC State|Transfer|In Progress)/.test(s.term);
+      var prior = named || (r !== null && r < tr);
+      var future = !named && r !== null && r >= tr;
+      s.courses.forEach(function (c) {
+        if (prior) {
+          if (c.classification === 'advisor_review' || c.classification === 'non_degree') return;
+          var inprog = c.classification === 'planned_current' || /^In Progress/.test(s.term) || (!named && r < tr);
+          rows.push({ sec: secOf(c), status: inprog ? 'inprog' : 'done', c: c, term: s.term });
+        } else if (future) {
+          var planned = s.term === term && c.sched && c.sched.term === term;
+          rows.push({ sec: secOf(c), status: planned ? 'planned' : 'need', c: c, term: s.term, suggested: s.term === term && !planned, units: planned ? pickedUnits(T, c) : [] });
+        }
+      });
+    });
+    return rows;
+  }
+  function meetingsOf(rows, except) {
+    var m = [];
+    rows.forEach(function (r) { if (r !== except && r.status === 'planned') r.units.forEach(function (u) { if (u) m = m.concat(u.meetings); }); });
+    return m;
+  }
+  function usedFor(rows, row, T) {
+    var used = {};
+    rows.forEach(function (r) {
+      if (r === row) return;
+      if (r.status === 'planned') (r.c.sched.codes || []).forEach(function (x) { used[x] = 1; });
+      if (r.status === 'need' || r.status === 'planned') {
+        // Core requirements keep their own courses: EC 301 fills EC/ARE 301, not an ARE elective.
+        var sl = T.slotOf(r.c);
+        if (sl.kind === 'fixed' || sl.kind === 'choice') sl.options.forEach(function (o) { o.forEach(function (x) { used[x] = 1; }); });
+      }
+    });
+    return used;
+  }
+  function are490Lock(row) { return /^ARE 490$/.test(String(row.c.schedOrigCode || row.c.code)) && !row.suggested && row.status !== 'planned' ? 'ARE 490 belongs in one of your last semesters' : ''; }
+
+  function renderAudit() {
+    var o = document.getElementById('pps-overlay');
+    if (!o || !o.classList.contains('pps-audit')) return;
+    var main = o.querySelector('.pps-avmain'), side = o.querySelector('.pps-avside');
+    var scroll = main.scrollTop;
+    var plan = B.getPlan(), term = state.index.term;
+    if (!plan.some(function (s) { return s.term === term; })) {
+      main.innerHTML = '<div class="pps-msg"><h3>No ' + esc(term) + ' semester in this plan</h3><p>Paw Plan did not place any courses in ' + esc(term) + '. Check the planning start term you confirmed when you uploaded the audit.</p></div>';
+      side.innerHTML = ''; return;
+    }
+    var T = av.T = E.toolkit(state.index, plan, B.lists, engPrefs(), engInput());
+    var rows = av.rows = collectRows(plan, T);
+    var n = { done: 0, inprog: 0, planned: 0, need: 0 };
+    rows.forEach(function (r) { n[r.status]++; });
+    var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p>' +
+      '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span><span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
+    SECTION_NAMES.forEach(function (sec) {
+      var list = rows.filter(function (r) { return r.sec === sec[0]; });
+      var gep = sec[0] === '8' ? gepVerifyRows(rows) : [];
+      if (!list.length && !gep.length) return;
+      var open = list.some(function (r) { return r.status === 'need' || r.status === 'planned'; }) || gep.some(function (g) { return g.status !== 'done'; });
+      h += '<section class="pps-avsec"><h3><span class="pps-ic ' + (open ? 'st-need' : 'st-done') + '">' + (open ? '&#10007;' : '&#10003;') + '</span>' + esc(sec[1]) + '</h3><div class="pps-avrows" role="table">';
+      var order = { planned: 0, need: 1, inprog: 2, done: 3 };
+      list.sort(function (a, b) { return order[a.status] - order[b.status] || (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0); });
+      list.forEach(function (r) { h += rowHtml(r, rows, T); });
+      gep.forEach(function (g) { h += '<div class="pps-avrow" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong><span class="pps-muted">' + esc(g.text) + '</span></div></div>'; });
+      h += '</div></section>';
+    });
+    main.innerHTML = h;
+    main.scrollTop = scroll;
+    side.innerHTML = sideHtml(rows, T);
+    wireAudit(o, rows, T);
+  }
+
+  function gepVerifyRows(rows) {
+    var L = B.lists, out = [];
+    [['GEP Global Knowledge', L.VERIFY_GLOBAL_KNOWLEDGE, 'Global Knowledge'], ['Found. of American Democracy', L.VERIFY_AMER_DEMOCRACY, 'American Democracy']].forEach(function (g) {
+      var set = {}; (g[1] || []).forEach(function (x) { set[x] = 1; });
+      var done = rows.filter(function (r) { return (r.status === 'done' || r.status === 'inprog') && set[r.c.code]; })[0];
+      var plan = rows.filter(function (r) { return r.status === 'planned' && (r.c.sched.codes || []).some(function (x) { return set[x]; }); })[0];
+      if (done) out.push({ label: g[0], status: 'done', text: 'Met by ' + done.c.code + '. Verify on the audit.' });
+      else if (plan) out.push({ label: g[0], status: 'planned', text: 'Planned: ' + plan.c.sched.codes.join(' + ') + ' also counts.' });
+      else out.push({ label: g[0], status: 'need', text: 'Choose a course marked "Also counts: ' + g[2] + '" for another requirement, such as Humanities or an elective.' });
+    });
+    return out;
+  }
+
+  function rowHtml(r, rows, T) {
+    var c = r.c, key = rowKey(c), term = state.index.term;
+    var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;' }[r.status];
+    var label = r.status === 'planned' ? c.code : (c.schedOrigCode || c.code);
+    var title = r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : (c.tag || ''));
+    var right = '';
+    if (r.status === 'done') right = '<span class="pps-avterm">' + esc(/Transfer/.test(r.term) ? 'Transfer / test credit' : 'Complete') + '</span>';
+    else if (r.status === 'inprog') right = '<span class="pps-avterm">In progress · ' + esc(r.term) + '</span>';
+    else if (r.status === 'need') {
+      var lock = are490Lock(r);
+      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>') +
+        (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
+        (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '');
+    } else {
+      right = '<span class="pps-badge">Planned ' + esc(term) + '</span><button type="button" class="pps-link" data-choose="' + key + '">' + (av.expanded === key ? 'Close' : 'Change') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
+    }
+    var h = '<div class="pps-avrow st-row-' + r.status + (av.expanded === key ? ' on' : '') + '" role="row"><span class="pps-ic st-' + r.status + '">' + icon + '</span>' +
+      '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr</span>';
+    if (r.status === 'planned') {
+      if (r.units.some(function (u) { return !u; })) h += '<div class="pps-flag warn">That section is no longer offered. Choose again.</div>';
+      else h += r.units.map(function (u) { return '<div class="pps-when">' + esc(meetText(u)) + '</div>' + secLines(u); }).join('') + plannedExtras(r, rows, T);
+    }
+    h += '</div><div class="pps-avact">' + right + '</div></div>';
+    if (av.expanded === key && (r.status === 'need' || r.status === 'planned')) h += choosePanel(r, rows, T);
+    return h;
+  }
+  function courseTitle(code) { var c = state.index.courses[code]; return c ? (c.info.lt || c.info.t || '') : ''; }
+
+  function plannedExtras(r, rows, T) {
+    var occ = meetingsOf(rows, r), h = '';
+    var bk = r.units[0] ? T.backups(r.c.sched.codes[0] || r.c.code, r.units[0], occ) : [];
+    r.backupCount = bk.length;
+    if (bk.length) {
+      h += '<details class="pps-backups"><summary>Backup sections (' + bk.length + ')</summary><ol>' + bk.slice(0, 8).map(function (b) {
+        return '<li><div class="pps-bk-main">' + (b.same ? '<span class="pps-badge">Same time</span> ' : '') + secLines(b.unit) + '</div></li>';
+      }).join('') + '</ol>' + (bk.length > 8 ? '<p class="pps-muted">' + (bk.length - 8) + ' more in the full schedule view.</p>' : '') + '</details>';
+    } else h += '<div class="pps-nobk">No other section fits. Register for this one first.</div>';
+    // If every section fills: core requirements still open that fit in its place.
+    var alts = [];
+    rows.forEach(function (o) {
+      if (o === r || o.status !== 'need' || alts.length >= 3 || are490Lock(o)) return;
+      var sl = T.slotOf(o.c);
+      if (sl.kind !== 'fixed' && sl.kind !== 'choice') return;
+      var ch = T.choices(o.c, occ, usedFor(rows, o, T));
+      if (ch.fits.length) alts.push({ row: o, entry: ch.fits[0] });
+    });
+    if (alts.length) h += '<details class="pps-backups pps-pull"><summary>If every section fills: ' + alts.length + ' other requirement' + (alts.length === 1 ? '' : 's') + ' you could take instead</summary><ol>' +
+      alts.map(function (a) { return '<li><div class="pps-bk-main"><strong>' + esc(a.entry.code) + '</strong> ' + esc(a.entry.title) + ' <span class="pps-muted">fills ' + esc(a.row.c.schedOrigCode || a.row.c.code) + ' (Paw Plan: ' + esc(a.row.term) + ')</span>' + secLines(a.entry.times[0].units[0]) + '</div></li>'; }).join('') + '</ol></details>';
+    return h;
+  }
+
+  function timeChips(entry, ei, key, max) {
+    var times = av.all[key + ':' + ei] ? entry.times : entry.times.slice(0, max || 4);
+    return '<div class="pps-chips">' + times.map(function (t, ti) {
+      var txt = t.units.map(function (u) { return meetText(u); }).join(' + ');
+      return '<button type="button" class="pps-chip' + (t.viol.length ? ' viol' : '') + '" data-pick="' + key + ':' + ei + ':' + ti + '" title="' + esc(t.viol.length ? 'This time ' + violText(t.viol) : 'Pick this time') + '">' + esc(txt) +
+        '<span>' + (t.count > 1 ? t.count + ' sections' : '#' + t.units.map(function (u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }).join(' + ')) + '</span></button>';
+    }).join('') + (entry.times.length > times.length ? '<button type="button" class="pps-link" data-alltimes="' + key + ':' + ei + '">+' + (entry.times.length - times.length) + ' more times</button>' : '') + '</div>';
+  }
+  function entryHtml(entry, ei, key) {
+    var b = '';
+    entry.alsoCounts.forEach(function (a) { b += ' <span class="pps-badge good">Also counts: ' + esc(a) + '</span>'; });
+    if (entry.warn) b += ' <span class="pps-badge warn" title="' + esc(entry.warn) + '">Check prerequisite</span>';
+    if (entry.offList) b += ' <span class="pps-badge warn">Not on the approved list; ask your advisor</span>';
+    return '<li><div class="pps-entry"><strong>' + esc(entry.code) + '</strong> ' + esc(entry.title) + b + ' <span class="pps-muted">' + entry.sectionsFit + ' section' + (entry.sectionsFit === 1 ? '' : 's') + ' fit</span></div>' + timeChips(entry, ei, key) + '</li>';
+  }
+
+  function choosePanel(r, rows, T) {
+    var key = rowKey(r.c), occ = meetingsOf(rows, r), used = usedFor(rows, r, T);
+    var ch = T.choices(r.c, occ, used), term = state.index.term;
+    var h = '<div class="pps-choose" role="region" aria-label="Courses for ' + esc(r.c.schedOrigCode || r.c.code) + '">';
+    if (ch.note) return h + '<p>This is not a specific course, so it cannot be scheduled here. Talk with your advisor about what fills it.</p></div>';
+    var q = av.queries[key] || '', list;
+    if (ch.free || ch.fits.length > 8) h += '<div class="pps-search"><input type="search" data-q="' + key + '" value="' + esc(q) + '" placeholder="' + (ch.free ? 'Search any course that fits (subject like SPA, or a word in the title)' : 'Filter by code or title') + '" aria-label="Search courses"></div>';
+    if (ch.free) {
+      list = q.length >= 2 ? T.search(q, occ, used, 25) : [];
+      if (!list.length) h += '<p class="pps-muted">' + (q.length >= 2 ? 'Nothing matching that fits your other picks.' : 'Almost any course counts as a free elective. Search for one that fits.') + '</p>';
+    } else {
+      list = ch.fits;
+      if (q.length >= 2) {
+        var ql = q.toLowerCase();
+        list = list.filter(function (e) { return (e.code + ' ' + e.title).toLowerCase().indexOf(ql) !== -1; });
+        if (!list.length && ch.slot.kind === 'open') list = T.search(q, occ, used, 15).map(function (e) { e.offList = true; return e; });
+      }
+      if (!list.length) h += '<p class="pps-muted">' + (q ? 'Nothing matching that fits.' : 'No course for this requirement fits ' + term + ' right now.') + '</p>';
+    }
+    av.lists[key] = list;
+    var shown = av.all[key] ? list : list.slice(0, 10);
+    if (shown.length) h += '<ol class="pps-entries">' + shown.map(function (e, ei) { return entryHtml(e, ei, key); }).join('') + '</ol>';
+    if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
+    var unavailable = ch.locked.concat(ch.noFit);
+    if (ch.slot.kind !== 'open') unavailable = unavailable.concat(ch.notOffered);
+    if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(term) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + '</li>'; }).join('') + '</ul>' +
+      (unavailable.length > 12 ? '<p class="pps-muted">' + (unavailable.length - 12) + ' more not available.</p>' : '') + '</div>';
+    return h + '</div>';
+  }
+
+  function sideHtml(rows, T) {
+    var term = state.index.term, planned = rows.filter(function (r) { return r.status === 'planned'; });
+    var suggested = rows.filter(function (r) { return r.status === 'need' && r.suggested; });
+    var cr = planned.reduce(function (t, r) { return t + (Number(r.c.units) || 0); }, 0);
+    var scr = suggested.reduce(function (t, r) { return t + (Number(r.c.units) || 0); }, 0);
+    var items = [];
+    planned.forEach(function (r) { r.units.forEach(function (u, i) { if (u) items.push({ code: (r.c.sched.codes[i] || r.c.code), unit: u, slot: { cat: r.c.cat } }); }); });
+    var h = '<div class="pps-avcredits"><div><strong>' + cr + '</strong> credits picked for ' + esc(term) + '</div>' +
+      (scr ? '<div class="pps-muted">' + scr + ' more credits suggested and not picked yet</div>' : '') +
+      (cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') + '</div>';
+    if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Pick the best sections for my suggested courses</button>';
+    h += calendar({ items: items, open: [] });
+    if (planned.length) {
+      var lines = [];
+      planned.forEach(function (r) {
+        var occ = meetingsOf(rows, r);
+        r.units.forEach(function (u, i) {
+          if (!u) return;
+          var code = r.c.sched.codes[i] || r.c.code, bk = T.backups(code, u, occ);
+          lines.push({ code: code, u: u, bk: bk });
+        });
+      });
+      lines.sort(function (a, b) { return a.bk.length - b.bk.length; });
+      av.lines = lines;
+      h += '<div class="pps-mypack pps-avpack"><h3 class="pps-h">Class numbers for MyPack</h3><p class="pps-sub">Register in this order: fewest backups first.</p><ol>' +
+        lines.map(function (l) {
+          return '<li><strong>' + esc(l.code) + '</strong> ' + l.u.sections.map(function (s) { return esc(s.comp + ' ' + s.sec) + ' <span class="pps-nbr">' + s.nbr + '</span>'; }).join(' + ') +
+            '<div class="pps-muted">Backups: ' + (l.bk.length ? esc(l.bk.slice(0, 3).map(function (b) { return b.unit.sections.map(function (x) { return x.nbr; }).join('+'); }).join(', ')) : 'none fit') + '</div></li>';
+        }).join('') + '</ol><div class="pps-actions"><button type="button" class="pps-btn" data-av="copy">Copy class numbers</button><span class="pps-actmsg" aria-live="polite"></span></div></div>';
+    }
+    h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="builder">' + (ADVISOR ? 'Plans A, B, C and advising check' : 'See Plans A, B, C and preferences') + '</button>';
+    if (ADVISOR) h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="next">Next student</button>';
+    h += '<p class="pps-muted pps-small">Seats change daily. Confirm each section in MyPack before you register. Class data from ' + esc(fmtDate(state.term.built)) + '.</p>';
+    return h;
+  }
+
+  // ---------- audit view: writing picks back to Paw Plan ----------
+  function pickInto(c, entry, time) {
+    var T = av.T, term = state.index.term;
+    B.commit(function (plan) {
+      var ti = -1; plan.forEach(function (s, i) { if (s.term === term) ti = i; });
+      var at = findCourse(plan, c);
+      if (!at || ti === -1) return;
+      if (plan[at.si].term !== term) {
+        if (!c.schedFrom) c.schedFrom = plan[at.si].term;
+        plan[at.si].courses.splice(at.ci, 1);
+        plan[ti].courses.push(c);
+      }
+      var slot = T.slotOf(c);
+      if (slot.kind !== 'fixed') {
+        if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; }
+        c.code = entry.code; c.name = entry.title;
+      }
+      c.sched = { term: term, codes: entry.option.slice(), nbrs: time.units.map(function (u) { return T.unitKey(u); }) };
+    });
+  }
+  function removePick(c) {
+    B.commit(function (plan) {
+      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; }
+      delete c.schedOrigCode; delete c.schedOrigName; delete c.sched;
+      if (c.schedFrom) {
+        var at = findCourse(plan, c), back = -1;
+        plan.forEach(function (s, i) { if (s.term === c.schedFrom) back = i; });
+        if (at && back !== -1 && at.si !== back) { plan[at.si].courses.splice(at.ci, 1); plan[back].courses.push(c); }
+        delete c.schedFrom;
+      }
+    });
+  }
+  // "Not this term": move a suggested course to the earliest later regular term that stays at 18 credits or less.
+  function deferCourse(c) {
+    var term = state.index.term, tr = E.termRank(term);
+    B.commit(function (plan) {
+      var at = findCourse(plan, c);
+      if (!at) return;
+      var load = function (i) { return plan[i].courses.reduce(function (t, x) { return t + (Number(x.units) || 0); }, 0); };
+      var later = [];
+      plan.forEach(function (s, i) { var r = E.termRank(s.term); if (r !== null && r > tr && !B.isSummerTerm(s.term)) later.push(i); });
+      later.sort(function (a, b) { return E.termRank(plan[a].term) - E.termRank(plan[b].term); });
+      var u = Number(c.units) || 3, dest = null;
+      for (var i = 0; i < later.length && dest === null; i++) if (load(later[i]) + u <= 18) dest = later[i];
+      if (dest === null && later.length) dest = later[0];
+      if (dest === null) return;
+      plan[at.si].courses.splice(at.ci, 1);
+      plan[dest].courses.push(c);
+    });
+  }
+  // Fill every suggested spring course with the best sections, using the full schedule engine
+  // (same search as Plan A). Sections the student already picked stay as they are.
+  function autoPick() {
+    var plan = B.getPlan(), T = av.T;
+    var res = E.buildSchedules(state.index, plan, B.lists, engPrefs(), engInput());
+    if (!res.ok || !res.plans.length) return 'Paw Plan could not fit the suggested courses together. Pick them one at a time instead.';
+    var A = res.plans[0], bySlot = {};
+    A.items.forEach(function (it) { var k = it.slot.si + ':' + it.slot.ci; (bySlot[k] = bySlot[k] || { slot: it.slot, codes: [], units: [] }); bySlot[k].codes.push(it.code); bySlot[k].units.push(it.unit); });
+    A.open.forEach(function (o) { if (o.pick) bySlot[o.slot.si + ':' + o.slot.ci] = { slot: o.slot, codes: o.pick.option.slice(), units: o.pick.groupsFit.map(function (g) { return g.rep; }), title: o.pick.title }; });
+    var n = 0;
+    B.commit(function (pl) {
+      Object.keys(bySlot).forEach(function (k) {
+        var b = bySlot[k], c = pl[b.slot.si] && pl[b.slot.si].courses[b.slot.ci];
+        if (!c || c.sched) return;
+        var slot = T.slotOf(c);
+        if (slot.kind !== 'fixed') {
+          if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; }
+          c.code = b.codes.join(' + ');
+          c.name = b.title || courseTitle(b.codes[0]);
+        }
+        c.sched = { term: state.index.term, codes: b.codes.slice(), nbrs: b.units.map(function (u) { return T.unitKey(u); }) };
+        n++;
+      });
+    });
+    return n ? '' : 'Nothing new to fill.';
+  }
+
+  function wireAudit(o, rows, T) {
+    function rowBy(key) { for (var i = 0; i < rows.length; i++) if (rows[i].c._avk === key) return rows[i]; return null; }
+    o.querySelectorAll('[data-choose]').forEach(function (b) {
+      b.addEventListener('click', function () { var k = b.getAttribute('data-choose'); av.expanded = av.expanded === k ? null : k; renderAudit(); });
+    });
+    o.querySelectorAll('[data-pick]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = b.getAttribute('data-pick').split(':'), r = rowBy(p[0]), entry = av.lists[p[0]][+p[1]];
+        if (!r || !entry) return;
+        pickInto(r.c, entry, entry.times[+p[2]]);
+        av.expanded = null; av.queries[p[0]] = '';
+        renderAudit();
+      });
+    });
+    o.querySelectorAll('[data-remove]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-remove')); if (r) { removePick(r.c); renderAudit(); } }); });
+    o.querySelectorAll('[data-skip]').forEach(function (b) { b.addEventListener('click', function () { var r = rowBy(b.getAttribute('data-skip')); if (r) { deferCourse(r.c); renderAudit(); } }); });
+    o.querySelectorAll('[data-allfor]').forEach(function (b) { b.addEventListener('click', function () { av.all[b.getAttribute('data-allfor')] = true; renderAudit(); }); });
+    o.querySelectorAll('[data-alltimes]').forEach(function (b) { b.addEventListener('click', function () { av.all[b.getAttribute('data-alltimes')] = true; renderAudit(); }); });
+    o.querySelectorAll('[data-q]').forEach(function (inp) {
+      var t = null;
+      inp.addEventListener('input', function () {
+        clearTimeout(t);
+        t = setTimeout(function () {
+          var k = inp.getAttribute('data-q');
+          av.queries[k] = inp.value; renderAudit();
+          var again = o.querySelector('[data-q="' + k + '"]');
+          if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+        }, 250);
+      });
+    });
+    o.querySelectorAll('[data-av]').forEach(function (b) {
+      var act = b.getAttribute('data-av');
+      if (act === 'plan') return;
+      b.addEventListener('click', function () {
+        if (act === 'builder') { openBuilder(); return; }
+        if (act === 'next') { close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
+        if (act === 'auto') { var msg = autoPick(); renderAudit(); if (msg) { var m = o.querySelector('.pps-avcredits'); if (m) flash(m, msg); } return; }
+        if (act === 'copy') {
+          var txt = state.index.term + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
+            return (i + 1) + '. ' + l.code + '  ' + l.u.sections.map(function (s) { return s.comp + ' ' + s.sec + ': ' + s.nbr; }).join(' + ') + (l.bk.length ? '   backups: ' + l.bk.slice(0, 3).map(function (x) { return x.unit.sections.map(function (y) { return y.nbr; }).join('+'); }).join(', ') : '');
+          }).join('\n');
+          var done = function () { var m = o.querySelector('.pps-avpack .pps-actmsg'); if (m) m.textContent = 'Copied.'; };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function () { fallbackCopy(txt); done(); });
+          else { fallbackCopy(txt); done(); }
+        }
+      });
+    });
   }
 
   // ---------- advisor view ----------
@@ -793,6 +1210,37 @@
       '.pps-actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.8rem}',
       '.pps-actmsg{font-size:.8rem;color:#14532D}',
       '.pps-msg{background:#fff;border:2px solid #000;padding:1.25rem 1.5rem;max-width:40rem}',
+      '.pps-topbtns{display:flex;gap:.5rem;align-items:center}',
+      '.pps-back{background:none;border:2px solid #fff;color:#fff;font:600 .78rem Inter,sans-serif;padding:.45rem .7rem;cursor:pointer}',
+      '.pps-back:hover,.pps-back:focus-visible{background:#fff;color:#000;outline:none}',
+      '.pps-avbody{grid-template-columns:1fr 380px}',
+      '.pps-avside{overflow-y:auto;padding:1rem 1.25rem 2rem 1rem;border-left:1px solid #C7C7C7;background:#F7F7F7}',
+      '.pps-avside .pps-cal{grid-template-columns:2.4rem repeat(var(--cols),minmax(52px,1fr));min-width:0}.pps-avside .pps-cal-head{font-size:.62rem;padding:.35rem .1rem}.pps-avside .pps-ev{font-size:.58rem}.pps-avside .pps-ev strong{font-size:.62rem}',
+      '.pps-avhead{margin-bottom:.75rem}',
+      '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
+      '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}',
+      '.pps-avsec{background:#fff;border:1px solid #C7C7C7;margin-bottom:.75rem}',
+      '.pps-avsec h3{margin:0;padding:.55rem .8rem;font:700 .98rem "Roboto Slab",Georgia,serif;border-bottom:2px solid #000;display:flex;gap:.5rem;align-items:center}',
+      '.pps-avrow{display:grid;grid-template-columns:1.6rem 1fr auto;gap:.6rem;align-items:start;padding:.5rem .8rem;border-top:1px solid #EEE}',
+      '.pps-avrow:first-child{border-top:none}.pps-avrow.on{background:#FFF8E6}',
+      '.st-row-need{background:#FFF7F7}.st-row-planned{background:#FFFBEB}',
+      '.pps-ic{font-weight:700;font-size:1rem;line-height:1.3;text-align:center}',
+      '.pps-avcls{font-size:.86rem;min-width:0}.pps-avcls>span{color:#444}',
+      '.pps-avact{display:flex;flex-direction:column;align-items:flex-end;gap:.3rem;text-align:right}',
+      '.pps-avterm{font-size:.74rem;color:#555}',
+      '.pps-choose{border-top:1px dashed #C7C7C7;background:#FFFDF6;padding:.6rem .8rem .8rem 3rem}',
+      '.pps-entries{list-style:none;margin:.3rem 0;padding:0}.pps-entries>li{padding:.45rem 0;border-bottom:1px solid #EEE}',
+      '.pps-entry{font-size:.86rem}',
+      '.pps-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem;align-items:center}',
+      '.pps-chip{font:500 .74rem Inter,sans-serif;background:#fff;border:1px solid #000;padding:.3rem .5rem;cursor:pointer;text-align:left;display:flex;flex-direction:column;border-radius:0}',
+      '.pps-chip span{font-size:.66rem;color:#555}.pps-chip:hover,.pps-chip:focus-visible{background:#000;color:#fff;outline:none}.pps-chip:hover span,.pps-chip:focus-visible span{color:#ddd}',
+      '.pps-chip.viol{border-style:dashed;border-color:#B45309}',
+      '.pps-unavail{margin-top:.6rem;font-size:.78rem;color:#444}.pps-unavail ul{margin:.2rem 0 0;padding-left:1.1rem}',
+      '.pps-avcredits{background:#fff;border:2px solid #000;padding:.6rem .8rem;margin-bottom:.6rem;font-size:.88rem}',
+      '.pps-wide{width:100%;margin:.4rem 0}',
+      '.pps-avpack{padding:.2rem .8rem .8rem}.pps-avpack ol{margin:.3rem 0;padding-left:1.2rem;font-size:.82rem}.pps-avpack li{margin:.35rem 0}',
+      '.pps-small{font-size:.72rem;margin-top:.6rem}',
+      '@media (max-width:899px){.pps-avbody{display:block;overflow-y:auto}.pps-avside{border-left:none;border-top:2px solid #000}.pps-avrow{grid-template-columns:1.4rem 1fr}.pps-avact{grid-column:2;align-items:flex-start;text-align:left;flex-direction:row;flex-wrap:wrap}.pps-choose{padding-left:.8rem}.pps-back{font-size:.7rem;padding:.35rem .5rem}}',
       '.pps-advise{background:#fff;border:2px solid #000;border-top:6px solid #CC0000;padding:.6rem 1rem .75rem;margin:0 0 1rem}',
       '.pps-advise h3{margin:0 0 .4rem;font:700 1.05rem "Roboto Slab",Georgia,serif}.pps-advise h3 span{font:400 .8rem Inter,sans-serif;color:#555}',
       '.pps-advise ul{list-style:none;margin:0;padding:0}',

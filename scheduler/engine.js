@@ -133,7 +133,9 @@
     if (/senior|\bsr\b/.test(low) && !minStand) minStand = 'SR';
     var gpa = low.match(/gpa\s*(?:>|>=|of|above)?\s*(\d\.\d+)/);
     // Strip what we understand; whatever is left is a restriction we cannot verify.
+    // ABM students are CALS undergraduates, so "Undergraduate Students CALS" is open to them.
     var rest = low.replace(/^[rpx]\s*:/, '').replace(/11agbusbs|agri ?business|abm/g, '')
+      .replace(/college of agriculture (and|&) life sciences|\bcals\b|undergrad(uate)?s?|\bstu\b/g, '')
       .replace(/juniors?|seniors?|sophomores?|freshm[ae]n|\b(so|jr|sr)\b|standing|or above|and up|\(i.*$/g, '')
       .replace(/gpa\s*[>=]*\s*\d\.\d+/g, '').replace(/\b(only|and|or|students?|class)\b/g, '').replace(/[^a-z0-9]/g, '');
     if (rest) return { ok: false, note: 'Restricted: ' + t };
@@ -249,7 +251,8 @@
     var slots = [];
     semester.courses.forEach(function (c, ci) {
       var code = String(c.code || '').trim();
-      var base = { si: si, ci: ci, label: code, name: c.name || '', units: c.units || 3, cat: c.cat || 'free', picker: c.picker || '', tag: c.tag || '' };
+      var base = { si: si, ci: ci, label: code, name: c.name || '', units: c.units || 3, cat: c.cat || 'free', picker: c.picker || '', tag: c.tag || '',
+        pin: c.sched && c.sched.nbrs ? c.sched.nbrs : null };
       var opt = optionFromLabel(code);
       if (opt) { base.kind = 'fixed'; base.options = [opt]; slots.push(base); return; }
       var slash = expandSlashCode(code);
@@ -442,9 +445,27 @@
       return true;
     });
 
+    // A section the student already picked (audit view) is pinned: only that time group is
+    // used, with the picked section as its first choice and same-time sections as backups.
+    function pinnedGroups(code, pin) {
+      var gs = groupsFor(code).groups;
+      if (!pin) return gs;
+      for (var i = 0; i < gs.length; i++) {
+        for (var j = 0; j < gs[i].units.length; j++) {
+          var u = gs[i].units[j], key = u.sections.map(function (x) { return x.nbr; }).join('+');
+          if (pin.indexOf(key) !== -1) {
+            var g = Object.assign({}, gs[i]);
+            g.units = [u].concat(gs[i].units.filter(function (x) { return x !== u; }));
+            g.rep = u;
+            return [g];
+          }
+        }
+      }
+      return gs;
+    }
     function itemsFor(combo) {
       var items = [];
-      combo.forEach(function (opt, i) { opt.forEach(function (code) { items.push({ code: code, slot: p1[i], groups: groupsFor(code).groups }); }); });
+      combo.forEach(function (opt, i) { opt.forEach(function (code) { items.push({ code: code, slot: p1[i], groups: pinnedGroups(code, p1[i].pin) }); }); });
       return items;
     }
     function runAll(relaxed) {
@@ -688,13 +709,140 @@
       refresh: refresh, search: searchFitting, sectionsOf: sectionsOf, pullAhead: pullAhead };
   }
 
+  // ---------- Toolkit for the audit view ----------
+  // Per-requirement choices: which spring courses fill a plan slot, which sections fit around
+  // the student's other picks, and why the rest are unavailable (not offered, prerequisites,
+  // restrictions, time conflicts). Uses the same rules as buildSchedules.
+  var PREREQ_ALT_TK = { 'ARE 201': ['ARE 201', 'EC 201', 'EC 205'], 'EC/ARE 301': ['EC 301', 'ARE 301'], 'MA 121/131/141': ['MA 121', 'MA 131', 'MA 141'] };
+  function toolkit(index, plan, lists, prefs, input) {
+    prefs = prefs || {};
+    var opts = { includeConsent: !!prefs.includeConsent };
+    var ctx = buildContext(index, plan, lists, input);
+    var busy = (prefs.busy || []).map(function (b) { return { days: b.days, start: b.start, end: b.end, d0: 0, d1: 0, busy: true }; });
+    var cache = {};
+    function groupsFor(code) { if (!cache[code]) cache[code] = courseGroups(index, code, ctx, prefs, busy, opts); return cache[code]; }
+    function labelCodes(label) {
+      if (PREREQ_ALT_TK[label]) return PREREQ_ALT_TK[label];
+      var sl = expandSlashCode(label);
+      if (sl) return sl.map(function (o) { return o[0]; });
+      return String(label).split(/,|\bor\b/).map(function (x) { return x.trim(); }).filter(function (x) { return CODE_RE.test(x); });
+    }
+    // Paw Plan's own prerequisite rules (PREREQS) are firm, except those it marks as soft
+    // preferences (SOFT_PREREQS), which only raise a note. Catalog text only raises a flag.
+    function prereqGaps(label, code) {
+      var hard = [], soft = [];
+      [label, code].forEach(function (k) {
+        var softList = (lists.SOFT_PREREQS || {})[k] || [];
+        ((lists.PREREQS || {})[k] || []).forEach(function (r) {
+          if (labelCodes(r).some(function (c) { return ctx.taken[c]; })) return;
+          var bucket = softList.indexOf(r) !== -1 ? soft : hard;
+          if (bucket.indexOf(r) === -1) bucket.push(r);
+        });
+      });
+      return { hard: hard, soft: soft };
+    }
+    function lockReason(label, code) {
+      var g = prereqGaps(label, code);
+      return g.hard.length ? 'Needs ' + g.hard.join(' and ') + ' first' : '';
+    }
+    function slotOf(c) {
+      var probe = { code: c.schedOrigCode || c.code, picker: c.picker, units: c.units, cat: c.cat, name: c.name, tag: c.tag };
+      return classifySlots({ courses: [probe] }, 0, lists)[0];
+    }
+    function unitKey(u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }
+    function findUnit(code, key) {
+      var c = index.courses[code];
+      if (!c) return null;
+      for (var i = 0; i < c.units.length; i++) if (unitKey(c.units[i]) === key) return c.units[i];
+      return null;
+    }
+    // All choices for one plan slot. occupied: meetings of the student's other picks (+ busy).
+    function choices(c, occupied, used) {
+      var slot = slotOf(c), out = { slot: slot, fits: [], noFit: [], locked: [], notOffered: [], free: !!slot.isFree, note: slot.kind === 'note' };
+      if (slot.kind === 'note' || slot.isFree) return out;
+      var options = slot.kind === 'open' ? slot.pool.options : slot.options;
+      var occ = busy.concat(occupied || []);
+      options.forEach(function (opt) {
+        var code = opt.join(' + ');
+        if (opt.some(function (x) { return (used && used[x]) || (ctx.taken[x]); })) return;
+        var info = (index.courses[opt[0]] || {}).info || {};
+        var entry = { option: opt, code: code, title: info.lt || info.t || '', alsoCounts: [], warn: '' };
+        opt.forEach(function (x) {
+          if (ctx.needGK && ctx.gkSet[x] && entry.alsoCounts.indexOf('Global Knowledge') === -1) entry.alsoCounts.push('Global Knowledge');
+          if (ctx.needAD && ctx.adSet[x] && entry.alsoCounts.indexOf('American Democracy') === -1) entry.alsoCounts.push('American Democracy');
+        });
+        var lock = lockReason(slot.label, opt[0]);
+        if (lock) { entry.why = lock; out.locked.push(entry); return; }
+        var notOff = opt.filter(function (x) { return !index.courses[x]; });
+        if (notOff.length) { entry.why = notOff.join(', ') + ' is not offered in ' + index.term; out.notOffered.push(entry); return; }
+        var noElig = opt.filter(function (x) { return !groupsFor(x).groups.length; });
+        if (noElig.length) { entry.why = 'No open section you can take (' + Object.keys(groupsFor(noElig[0]).excluded).join('; ') + ')'; out.notOffered.push(entry); return; }
+        var softGap = prereqGaps(slot.label, opt[0]).soft;
+        var catFlags = opt.map(function (x) { return prereqFlag((index.courses[x] || {}).info, ctx.taken); }).filter(Boolean);
+        entry.warn = catFlags.concat(softGap.length ? ['Paw Plan suggests ' + softGap.join(' and ') + ' first'] : []).join(' ');
+        // Missing catalog prerequisite ranks below a soft Paw Plan preference.
+        entry.warnLevel = catFlags.length ? 2 : softGap.length ? 1 : 0;
+        // Time options: for a single course, every fitting time group; for a bundle (course + lab
+        // course), the first fitting combination.
+        var o2 = occ.slice(), times = [];
+        if (opt.length === 1) {
+          times = groupsFor(opt[0]).groups.filter(function (g) { return !unitConflicts(g.rep, o2); })
+            .sort(function (a, b) { return a.viol.length - b.viol.length || unitCost(a.rep, prefs, true) - unitCost(b.rep, prefs, true); })
+            .map(function (g) { return { groups: [g], units: [g.rep], viol: g.viol, count: g.units.length }; });
+        } else {
+          var gsel = [];
+          for (var i = 0; i < opt.length; i++) {
+            var g = groupsFor(opt[i]).groups.filter(function (x) { return !unitConflicts(x.rep, o2); })[0];
+            if (!g) { gsel = null; break; }
+            gsel.push(g); o2 = o2.concat(g.meetings);
+          }
+          if (gsel) times = [{ groups: gsel, units: gsel.map(function (x) { return x.rep; }), viol: [].concat.apply([], gsel.map(function (x) { return x.viol; })), count: 1 }];
+        }
+        entry.times = times;
+        entry.sectionsFit = times.reduce(function (t, x) { return t + x.count; }, 0);
+        if (times.length) out.fits.push(entry); else { entry.why = 'No section fits around your other picks'; out.noFit.push(entry); }
+      });
+      out.fits.sort(function (a, b) {
+        return ((a.warnLevel || 0) - (b.warnLevel || 0)) || (b.alsoCounts.length - a.alsoCounts.length) ||
+          ((a.times[0].viol.length ? 1 : 0) - (b.times[0].viol.length ? 1 : 0)) || (b.sectionsFit - a.sectionsFit) || (a.code < b.code ? -1 : 1);
+      });
+      return out;
+    }
+    function backups(code, unit, occupied) {
+      var occ = busy.concat(occupied || []), out = [];
+      groupsFor(code).groups.forEach(function (g) {
+        var same = g.units.some(function (u) { return u === unit; }) || g.timeKey === unit.timeKey;
+        if (!same && unitConflicts(g.rep, occ)) return;
+        g.units.forEach(function (u) { if (unitKey(u) !== unitKey(unit)) out.push({ unit: u, same: same, viol: g.viol }); });
+      });
+      return out.sort(function (a, b) { return (b.same ? 1 : 0) - (a.same ? 1 : 0) || a.viol.length - b.viol.length || b.unit.avail - a.unit.avail; });
+    }
+    function search(query, occupied, used, limit) {
+      var q = String(query || '').trim().toUpperCase(), out = [];
+      if (q.length < 2) return out;
+      var occ = busy.concat(occupied || []);
+      Object.keys(index.courses).sort().forEach(function (code) {
+        if (out.length >= (limit || 30)) return;
+        var info = index.courses[code].info || {};
+        if ((code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) return;
+        if (ctx.taken[code] || (used && used[code])) return;
+        var times = groupsFor(code).groups.filter(function (g) { return !unitConflicts(g.rep, occ); })
+          .map(function (g) { return { groups: [g], units: [g.rep], viol: g.viol, count: g.units.length }; });
+        if (!times.length) return;
+        out.push({ option: [code], code: code, title: info.lt || info.t || '', times: times, sectionsFit: times.reduce(function (t, x) { return t + x.count; }, 0), alsoCounts: [], warn: prereqFlag(info, ctx.taken) });
+      });
+      return out;
+    }
+    return { ctx: ctx, slotOf: slotOf, choices: choices, backups: backups, search: search, findUnit: findUnit, unitKey: unitKey, groupsFor: groupsFor, lockReason: lockReason, termRank: termRank };
+  }
+
   function courseDiff(A, B) {
     var a = A.items.map(function (i) { return i.code; }), b = B.items.map(function (i) { return i.code; });
     return { added: b.filter(function (c) { return a.indexOf(c) === -1; }), removed: a.filter(function (c) { return b.indexOf(c) === -1; }) };
   }
 
   var api = {
-    prepare: prepare, buildSchedules: buildSchedules, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
+    prepare: prepare, buildSchedules: buildSchedules, toolkit: toolkit, termRank: termRank, unitConflicts: unitConflicts, fmtTime: fmtTime, DAY_NAMES: DAY_NAMES,
     checkRestriction: checkRestriction, parseDays: parseDays, VIOLATION_TEXT: VIOLATION_TEXT,
     standingFromCredits: standingFromCredits
   };
