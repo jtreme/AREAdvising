@@ -42,11 +42,16 @@
   function standingFromCredits(cr) { return cr >= 90 ? 'SR' : cr >= 60 ? 'JR' : cr >= 30 ? 'SO' : 'FR'; }
 
   // ---------- Data preparation ----------
-  function prepare(data) {
+  // overrides: department corrections to the Schedule of Classes, e.g.
+  // { "Spring 2027": { "notOffered": ["ARE 312"] } } for a tentative section that will not run.
+  function prepare(data, overrides) {
     var F = data.fields, idx = {};
     F.forEach(function (f, i) { idx[f] = i; });
+    var ov = (overrides && overrides[data.term]) || {}, skip = {};
+    (ov.notOffered || []).forEach(function (c) { skip[String(c).trim().toUpperCase()] = 1; });
     var byCourse = {};
     data.sections.forEach(function (r) {
+      if (skip[r[idx.code]]) return;
       var s = {};
       F.forEach(function (f) { s[f] = r[idx[f]]; });
       s.dayList = parseDays(s.days);

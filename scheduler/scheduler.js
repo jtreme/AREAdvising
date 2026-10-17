@@ -94,8 +94,11 @@
     renderMessage('Loading ' + state.term.term + ' classes...', '');
     fetchJSON(BASE + state.term.file + '?v=' + encodeURIComponent(state.term.built || VER), function (err, data) {
       if (err) { renderMessage('Could not load the class schedule', 'Check your connection and try again.'); return; }
-      state.index = E.prepare(data);
-      build();
+      // Department corrections (optional file): courses listed there are treated as not offered.
+      fetchJSON(BASE + 'data/overrides.json?v=' + Date.now(), function (e2, ov) {
+        state.index = E.prepare(data, e2 ? null : ov);
+        build();
+      });
     });
   }
 

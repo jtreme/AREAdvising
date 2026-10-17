@@ -26,6 +26,12 @@ Hidden until approved: it only loads at `index.html?scheduler=1`.
 
 Re-running with a fresh CSV for the same term refreshes seat counts and section changes.
 
+## Department corrections
+
+`data/overrides.json` lists courses the department knows will not run, even when the Schedule
+of Classes shows a section (usually a tentative one). Add the course code under the term's
+`notOffered` list and commit; no rebuild is needed.
+
 ## What it checks
 
 - Time conflicts, including 8-week sessions and the student's busy times.

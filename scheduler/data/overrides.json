@@ -1,0 +1,6 @@
+{
+ "_how": "Courses listed under notOffered are treated as not offered that term, even if the Schedule of Classes lists a section (for example, a tentative section that will not run). Use course codes like \"ARE 312\".",
+ "Spring 2027": {
+  "notOffered": ["ARE 312"]
+ }
+}
