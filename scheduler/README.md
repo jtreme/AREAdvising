@@ -45,8 +45,8 @@ requirements (a Free Elective slot marked `schedExtra`; Remove deletes it). Cour
 
 Agricultural Institute (AGI) courses never count toward the BS, so they are never shown: the AGI
 subject, any course or section whose requirement text names AGI or the Agricultural Institute, and
-the courses listed under `agiCourses` in `data/overrides.json` (ARE 104, 113, 115, 132, which the
-catalog text does not mark).
+the courses listed under `agiCourses` in `data/overrides.json` (ARE 104, 113, 115, 132 and HS 121,
+141, which the catalog text does not mark).
 
 Courses with no meeting time (online, study abroad, TBA) appear in a "No set time" row at the top
 of the weekly calendar.
