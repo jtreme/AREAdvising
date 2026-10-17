@@ -754,7 +754,7 @@
       right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>') +
         (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
         (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '') +
-        '<button type="button" class="pps-link" data-elsewhere="' + key + '">Taking it at another school</button>';
+        (aREOnly(c) ? '' : '<button type="button" class="pps-link" data-elsewhere="' + key + '">Taking it at another school</button>');
     } else {
       right = '<span class="pps-badge">Planned ' + esc(term) + '</span><button type="button" class="pps-link" data-choose="' + key + '">' + (av.expanded === key ? 'Close' : 'Change') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
     }
@@ -777,6 +777,11 @@
     if (av.expanded === key && (r.status === 'need' || r.status === 'planned')) h += choosePanel(r, rows, T);
     if (av.elsewhere === key && r.status === 'need') h += elsewhereForm(r);
     return h;
+  }
+  // Requirements with an ARE option (ARE 336, EC/ARE 301, ARE electives) are taken in ARE at NC State,
+  // so there is no "another school" option (ARE over Poole, and ARE courses do not transfer in).
+  function aREOnly(c) {
+    return reqOptions(c).some(function (x) { return x.some(function (y) { return /^ARE /.test(y); }); });
   }
   function courseTitle(code) { var c = state.index.courses[code]; return c ? (c.info.lt || c.info.t || '') : ''; }
 
