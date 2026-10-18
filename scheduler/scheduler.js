@@ -671,8 +671,8 @@
     B.commit(function () {
       c.schedFull = (c.schedFull || []).concat(c.schedFull && c.schedFull.indexOf(key) !== -1 ? [] : [key]);
       if (next) { c.sched.nbrs[i] = T2.unitKey(next.unit); return; }
-      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; }
-      delete c.schedOrigCode; delete c.schedOrigName; delete c.sched;
+      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; if (c.schedOrigUnits) c.units = c.schedOrigUnits; }
+      delete c.schedOrigCode; delete c.schedOrigName; delete c.schedOrigUnits; delete c.sched;
     });
     av.rowMsg = { k: rowKey(c) };
     if (next) av.msg = code + ': swapped #' + key + ' for #' + T2.unitKey(next.unit) + (next.same ? ' (same time).' : ' (' + meetText(next.unit) + ').') + ' Update your shopping cart.';
@@ -1143,11 +1143,12 @@
       }
       var slot = T.slotOf(c);
       if (slot.kind !== 'fixed') {
-        if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; }
+        if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; c.schedOrigUnits = c.units; }
         c.code = entry.code; c.name = entry.title;
+        // Credits follow the course picked (a 2-credit elective remainder filled by a 3-credit course).
+        c.units = time.units.reduce(function (t, u) { return t + (parseFloat(u.units) || 0); }, 0) || c.units;
       }
       c.sched = { term: term, codes: entry.option.slice(), nbrs: time.units.map(function (u) { return T.unitKey(u); }) };
-      if (c.schedExtra) c.units = time.units.reduce(function (t, u) { return t + (parseFloat(u.units) || 0); }, 0) || 3;
     });
   }
   // A class beyond the degree requirements (to try options or reach full time). It is a Free Elective
@@ -1161,8 +1162,8 @@
   function removePick(c) {
     if (c.schedExtra) { B.commit(function (plan) { var at = findCourse(plan, c); if (at) plan[at.si].courses.splice(at.ci, 1); }); return; }
     B.commit(function (plan) {
-      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; }
-      delete c.schedOrigCode; delete c.schedOrigName; delete c.sched;
+      if (c.schedOrigCode) { c.code = c.schedOrigCode; c.name = c.schedOrigName || 'Click to choose'; if (c.schedOrigUnits) c.units = c.schedOrigUnits; }
+      delete c.schedOrigCode; delete c.schedOrigName; delete c.schedOrigUnits; delete c.sched;
       if (c.schedFrom) {
         var at = findCourse(plan, c), back = -1;
         plan.forEach(function (s, i) { if (s.term === c.schedFrom) back = i; });
@@ -1211,7 +1212,8 @@
         taken = taken.concat(mine);
         var slot = T.slotOf(c);
         if (slot.kind !== 'fixed') {
-          if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; }
+          if (!c.schedOrigCode) { c.schedOrigCode = c.code; c.schedOrigName = c.name; c.schedOrigUnits = c.units; }
+          c.units = b.units.reduce(function (t, u) { return t + (parseFloat(u.units) || 0); }, 0) || c.units;
           c.code = b.codes.join(' + ');
           c.name = b.title || courseTitle(b.codes[0]);
         }

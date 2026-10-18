@@ -108,3 +108,14 @@ to the NC State transfer database. Update the file from the new guide each year.
 - ARE over Poole: when a requirement can be met by an ARE course (EC/ARE 301, ARE 321/323 or
   BUS 320), the Poole option (EC, BUS, ACC, MIE, MBA) is never suggested while the ARE course is
   offered and open to the student. In elective lists, ARE courses rank above Poole courses.
+
+## Checking plans against audits
+
+`tools/check_audits.sh /path/to/audit-pdfs` uploads each audit PDF to a local copy of the site
+(`tools/dump_plan.js`) and compares the plan with the audit (`tools/check_audit_plan.py`). For
+every unmet audit line, the plan's future slots must add up to the credits the audit says remain,
+and no future slot may appear that the audit does not ask for. It reads the audit text on its own,
+without Paw Plan's parser. Run it before each change. Keep the audit PDFs outside the repository;
+they hold student names and IDs. When a new requirement description shows up, add it to `REQS` in
+`check_audit_plan.py`.
+
