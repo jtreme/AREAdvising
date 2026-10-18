@@ -739,7 +739,28 @@
     });
     return used;
   }
-  function are490Lock(row) { return /^ARE 490$/.test(String(row.c.schedOrigCode || row.c.code)) && !row.suggested && row.status !== 'planned' ? 'ARE 490 belongs in one of your last semesters' : ''; }
+  // ARE 490 goes in one of the last three regular semesters with coursework (Paw Plan's own rule).
+  function are490Lock(row) {
+    if (!/^ARE 490$/.test(String(row.c.schedOrigCode || row.c.code)) || row.suggested || row.status === 'planned') return '';
+    return lastThree() ? '' : 'ARE 490 belongs in one of your last three semesters';
+  }
+  function lastThree() {
+    var tr = E.termRank(state.index.term), later = 0;
+    B.getPlan().forEach(function (s) {
+      var r = E.termRank(s.term);
+      if (r !== null && r > tr && !B.isSummerTerm(s.term) && (s.courses || []).some(function (c) { return !c.schedExtra; })) later++;
+    });
+    return later <= 2;
+  }
+  // A requirement Paw Plan placed in a later semester that the student could take this term:
+  // offered, prerequisites done, and a section fits the other picks.
+  function readyNow(r, rows, T) {
+    if (r.status !== 'need' || r.suggested || are490Lock(r)) return false;
+    var sl = T.slotOf(r.c);
+    if (sl.kind !== 'fixed' && sl.kind !== 'choice') return false;
+    var ch = T.choices(r.c, meetingsOf(rows, r), usedFor(rows, r, T));
+    return ch.fits.some(function (e) { return !e.warnLevel && !e.restrictedOnly && !e.studyAbroad; });
+  }
 
   function renderAudit() {
     var o = document.getElementById('pps-overlay');
@@ -753,6 +774,7 @@
     }
     var T = av.T = E.toolkit(state.index, plan, B.lists, engPrefs(), engInput());
     var rows = av.rows = collectRows(plan, T);
+    rows.forEach(function (r) { r.ready = readyNow(r, rows, T); });
     var n = { done: 0, inprog: 0, planned: 0, need: 0, transfer: 0 };
     rows.forEach(function (r) { if (!(r.c.schedExtra && r.status === 'need')) n[r.status]++; });
     var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
@@ -764,7 +786,7 @@
       var open = list.some(function (r) { return r.status === 'need' || r.status === 'planned' || r.status === 'transfer'; }) || gep.some(function (g) { return g.status !== 'done'; });
       h += '<section class="pps-avsec"><h3><span class="pps-ic ' + (open ? 'st-need' : 'st-done') + '">' + (open ? '&#10007;' : '&#10003;') + '</span>' + esc(sec[1]) + '</h3><div class="pps-avrows" role="table">';
       var order = { planned: 0, need: 1, transfer: 2, inprog: 3, done: 4 };
-      list.sort(function (a, b) { return order[a.status] - order[b.status] || (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0); });
+      list.sort(function (a, b) { return order[a.status] - order[b.status] || (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0) || (b.ready ? 1 : 0) - (a.ready ? 1 : 0); });
       list.forEach(function (r) { h += rowHtml(r, rows, T); });
       gep.forEach(function (g) { h += '<div class="pps-avrow" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong><span class="pps-muted">' + esc(g.text) + '</span></div></div>'; });
       h += '</div></section>';
@@ -804,7 +826,8 @@
     }
     else if (r.status === 'need') {
       var lock = are490Lock(r);
-      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>') +
+      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>' +
+        (r.ready ? '<span class="pps-badge good">Open to you in ' + esc(term) + '</span>' : '')) +
         (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
         (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '') +
         (aREOnly(c) ? '' : '<button type="button" class="pps-link" data-elsewhere="' + key + '">Taking it at another school</button>');
