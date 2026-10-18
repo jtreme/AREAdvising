@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="ready-now-v1">
+<meta name="paw-plan-build-id" content="hum-count-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -2647,7 +2647,11 @@ rawAuditLine:item&&item.raw||'',
 catReason:cat?'kind-explicit':(base.cat?'default-slot':('section-'+(item&&item.section||'?')))
 };
 }
-if(kind==='Humanities Elective'){slots.push(mk('GEPHUMANITIES','GEP Humanities','Click to select course',3,'gep','hum','Humanities GEP'));slots.push(mk('HUMGEP','GEP Humanities 2','Click to select course',3,'gep','hum','Humanities GEP'));}
+if(kind==='Humanities Elective'){
+// The audit reports REMAINING humanities credits: 6 means two courses, 3 means one (one already counted).
+var humCount=Math.min(2,Math.max(1,Math.ceil((item.units||6)/3)));
+slots.push(mk('GEPHUMANITIES','GEP Humanities','Click to select course',3,'gep','hum','Humanities GEP'));
+if(humCount>1)slots.push(mk('HUMGEP','GEP Humanities 2','Click to select course',3,'gep','hum','Humanities GEP'));}
 else if(kind==='Technical Electives'){var techCount=Math.max(1,Math.ceil((item.units||9)/3));for(var ti=0;ti<techCount;ti++)slots.push(mk('RSTD'+(ti+1),'Technical Elective','Click to choose',ti===techCount-1&&item.units%3?item.units%3:3,'restricted','tech','Tech Elective'));}
 else if(kind==='Departmental or Technical Electives'){var dtCount=Math.max(1,Math.ceil((item.units||6)/3));for(var di=0;di<dtCount;di++)slots.push(mk('RSTD'+(di+4),'Dept or Technical Elective','Click to choose',di===dtCount-1&&item.units%3?item.units%3:3,'restricted','depttech','Dept/Tech Elective'));}
 // The audit reports REMAINING elective credits. A new student normally has

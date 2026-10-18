@@ -744,6 +744,19 @@
     if (!/^ARE 490$/.test(String(row.c.schedOrigCode || row.c.code)) || row.suggested || row.status === 'planned') return '';
     return lastThree() ? '' : 'ARE 490 belongs in one of your last three semesters';
   }
+  // Close to graduating: if the requirements left after this term are few, say what finishing
+  // this term would take.
+  function finishNote(rows, term) {
+    var now = rows.filter(function (r) { return (r.status === 'planned' || (r.status === 'need' && r.suggested)) && !(r.c.schedExtra && r.status === 'need'); });
+    var later = rows.filter(function (r) { return r.status === 'need' && !r.suggested && !r.c.schedExtra; });
+    if (!later.length || later.length > 3) return '';
+    var cr = function (list) { return list.reduce(function (t, r) { return t + (Number(r.c.units) || 0); }, 0); };
+    var total = cr(now) + cr(later);
+    if (total > 21) return '';
+    var names = later.map(function (r) { return r.c.schedOrigCode || r.c.code; }).join(', ');
+    return '<p class="pps-finish">' + (ADVISOR ? 'The student could' : 'You could') + ' finish in ' + esc(term) + '. Paw Plan left ' + cr(later) + ' credit' + (cr(later) === 1 ? '' : 's') + ' for a later term (' + esc(names) + '). Choosing ' + (later.length === 1 ? 'it' : 'them') + ' for ' + esc(term) + ' makes ' + total + ' credits' +
+      (total > 18 ? ', which needs an overload approval.' : '.') + '</p>';
+  }
   function lastThree() {
     var tr = E.termRank(state.index.term), later = 0;
     B.getPlan().forEach(function (s) {
@@ -779,6 +792,7 @@
     rows.forEach(function (r) { if (!(r.c.schedExtra && r.status === 'need')) n[r.status]++; });
     var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
       '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
+    h += finishNote(rows, term);
     SECTION_NAMES.forEach(function (sec) {
       var list = rows.filter(function (r) { return r.sec === sec[0]; });
       var gep = sec[0] === '8' ? gepVerifyRows(rows) : [];
@@ -1517,6 +1531,7 @@
       '.pps-bk-top .pps-btn{margin-left:auto}',
       '.pps-badge{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E5E5E5;color:#222;padding:.12rem .4rem;vertical-align:middle}',
       '.pps-chip.restr{border-style:dashed;border-color:#B45309;max-width:340px;text-align:left}.pps-chip em{display:block;font-style:normal;font-size:11.5px;color:#92400E;white-space:normal;margin-top:2px}',
+      '.pps-finish{font-size:.85rem;background:#ECFDF5;border-left:3px solid #047857;padding:.45rem .6rem;margin:0 0 .75rem}',
       '.pps-stale{font-size:.8rem;background:#FEF3C7;border-left:3px solid #B45309;padding:.45rem .6rem;margin:0 0 .75rem}.pps-fullbtn{display:block;margin:.2rem 0 .1rem;font-size:.78rem}.pps-fulllist{margin:.8rem 0;font-size:.8rem}.pps-fulllist ul{margin:.2rem 0 0 1rem;padding:0}',
       '.pps-hidden{margin:4px 0 0;font-size:12.5px}.pps-hidden summary{cursor:pointer;color:#555}.pps-hidden ul{margin:4px 0 0 18px;padding:0}.pps-hidden li{margin:2px 0}',
       '.pps-badge.good{background:#DCFCE7;color:#14532D}.pps-badge.warn{background:#FEE2E2;color:#7F1D1D}',
