@@ -896,10 +896,19 @@
     return out;
   }
 
+  // How a requirement reads on the audit view (department rules: ARE 301, never EC 301).
+  function dispCode(code) { return code === 'EC/ARE 301' ? 'ARE 301' : code; }
+  // Department substitutions that fill this requirement (ARE 255 for AEE 226), named on the row.
+  function subNote(r, T) {
+    if (r.status !== 'need') return '';
+    var subs = T.subs || {}, code = r.c.schedOrigCode || r.c.code, out = [];
+    Object.keys(subs).forEach(function (orig) { if (code.indexOf(orig) !== -1) out = out.concat(subs[orig]); });
+    return out.length ? out.join(' or ') + ' also counts for this requirement' : '';
+  }
   function rowHtml(r, rows, T) {
     var c = r.c, key = rowKey(c), term = state.index.term;
     var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;', transfer: '&#8644;' }[r.status];
-    var label = r.status === 'planned' ? c.code : c.schedExtra ? 'Extra class' : (c.schedOrigCode || c.code);
+    var label = r.status === 'planned' ? c.code : c.schedExtra ? 'Extra class' : dispCode(c.schedOrigCode || c.code);
     var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : c.schedExtra ? 'Any course, beyond your requirements' : (c.tag || ''));
     var right = '';
     if (r.metBy) right = '<span class="pps-avterm">Met by ' + esc(r.metBy) + '</span>';
@@ -923,6 +932,8 @@
       '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr' +
       (r.status === 'planned' && c.schedExtra ? ' \u00b7 extra class' : r.status === 'planned' && c.schedOrigCode && c.schedOrigCode !== c.code ? ' \u00b7 fills ' + esc(c.schedOrigCode) : '') + '</span>';
     if (av.rowMsg && av.rowMsg.k === key) h += '<div class="pps-flag good" role="status">' + esc(av.rowMsg.t) + '</div>';
+    var sn = subNote(r, T);
+    if (sn) h += '<div class="pps-subnote">' + esc(sn) + ' (department substitution).</div>';
     if (r.metBy) {
       var isSub = Object.keys(T.subs || {}).some(function (k) { return (T.subs[k] || []).indexOf(r.metBy) !== -1; });
       h += '<div class="pps-muted">' + esc(r.metBy) + ' counts for this requirement' + (isSub ? ' (department substitution)' : '') + '. Confirm it shows on the audit; ask your advisor if it does not.</div>';
@@ -1101,8 +1112,8 @@
     var h = '<div class="pps-avcredits"><div><strong>' + cr + '</strong> credits picked for ' + esc(term) + '</div>' +
       (scr ? '<div class="pps-muted">' + scr + ' more credits suggested and not picked yet</div>' : '') +
       (isSummer() ? summerSplit(planned) : cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
-      (av.msg ? '<div class="pps-flag warn" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
-    if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Pick the best sections for my suggested courses</button>';
+      (av.msg ? '<div class="pps-flag' + (/Not filled|No other|Nothing to fill/.test(av.msg) ? ' warn' : ' good') + '" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
+    if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Choose times for me</button><p class="pps-muted pps-small">Picks a section that fits for each course marked "Suggested for ' + esc(term) + '." Electives you choose yourself. You can change any pick.</p>';
     h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="addx">+ Add another class</button>';
     h += calendar({ items: items, open: [] });
     if (planned.length) {
@@ -1168,14 +1179,14 @@
     plan.forEach(function (s) { var x = E.termRank(s.term); if (x !== null && x >= tr) terms.push(s.term); });
     terms.sort(function (a, b) { return E.termRank(a) - E.termRank(b); });
     return '<div class="pps-choose pps-elsewhere" role="region" aria-label="Taking this course at another school">' +
-      '<p>For a course at a community college or another school. It comes off ' + esc(state.index.term) + ' scheduling and shows as planned elsewhere.</p>' +
+      '<p><strong>Plan to take ' + esc(dispCode(r.c.schedOrigCode || r.c.code)) + ' at another school.</strong> Fill in the school, course, and term, then click the button. The requirement moves to that term in your plan and is marked "At another school." You still enroll at that school yourself and send the transcript to NC State.</p>' +
       ccHint(r) +
       '<div class="pps-elsef"><label>Type of school<select data-ew="kind"><option value="nccc">NC community college</option><option value="other">Other college or university</option></select></label>' +
       '<label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
       '<label>Course<input type="text" data-ew="course" placeholder="e.g. ENG 111"></label>' +
       '<label>Term<select data-ew="term">' + termChoices(terms).map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('') + '</select></label></div>' +
       '<p class="pps-muted">Courses not in the ABM transfer guide, and courses from other schools, need a check in the <a href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">NC State transfer database</a>. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
-      '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Save</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
+      '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Add to my plan as another school</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
   }
   function dbLink(text) {
     return '<a class="pps-dblink" href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">' + esc(text || 'Search the NC State transfer database') + ' &#8599;</a>';
@@ -1308,8 +1319,12 @@
         n++;
       });
     });
-    if (skipped.length) return 'Not filled: ' + skipped.join('; ') + '. Change the conflicting pick, then try again.';
-    return n ? '' : 'Nothing new to fill.';
+    var left = (av.rows || []).filter(function (r) { return r.status === 'need' && r.suggested; }).map(function (r) { return dispCode(r.c.schedOrigCode || r.c.code); });
+    var picked = n ? 'Picked times for ' + n + ' course' + (n === 1 ? '' : 's') + '. ' : '';
+    if (skipped.length) return picked + 'Not filled: ' + skipped.join('; ') + '. Change the conflicting pick, then try again.';
+    var notAuto = left.filter(function (x) { return !Object.keys(bySlot).some(function (k) { return dispCode(bySlot[k].slot.label) === x; }); });
+    if (!n) return 'Nothing to fill automatically. ' + (notAuto.length ? 'Choose these yourself with "Choose for ' + state.index.term + '": ' + notAuto.join(', ') + '.' : 'Every suggested course already has a time.');
+    return picked + (notAuto.length ? 'Choose these yourself: ' + notAuto.join(', ') + '.' : '');
   }
 
   function wireAudit(o, rows, T) {
@@ -1392,7 +1407,7 @@
       b.addEventListener('click', function () {
         if (act === 'builder') { openBuilder(); return; }
         if (act === 'next') { close(); if (B.openAuditUpload) B.openAuditUpload(); return; }
-        if (act === 'auto') { av.msg = autoPick(); renderAudit(); return; }
+        if (act === 'auto') { av.msg = autoPick(); renderAudit(); var sp = o.querySelector('.pps-avside'); if (sp) sp.scrollTop = 0; return; }
         if (act === 'addx') { addExtra(); renderAudit(); var x = o.querySelector('.pps-avrow.on'); if (x && x.scrollIntoView) x.scrollIntoView({ block: 'center' }); return; }
         if (act === 'copy') {
           var txt = state.index.term + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
@@ -1628,6 +1643,7 @@
       '.pps-badge{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E5E5E5;color:#222;padding:.12rem .4rem;vertical-align:middle}',
       '.pps-chip.restr{border-style:dashed;border-color:#B45309;max-width:340px;text-align:left}.pps-chip em{display:block;font-style:normal;font-size:11.5px;color:#92400E;white-space:normal;margin-top:2px}',
       '.pps-termtabs{display:flex;gap:.35rem;margin-top:.45rem}.pps-termtab{font:600 .75rem Inter,sans-serif;background:transparent;color:#fff;border:1px solid #fff;padding:.25rem .7rem;cursor:pointer}.pps-termtab.on{background:#fff;color:#000}',
+      '.pps-subnote{font-size:.8rem;color:#14532D;margin-top:.15rem}',
       '.pps-finish{font-size:.85rem;background:#ECFDF5;border-left:3px solid #047857;padding:.45rem .6rem;margin:0 0 .75rem}',
       '.pps-stale{font-size:.8rem;background:#FEF3C7;border-left:3px solid #B45309;padding:.45rem .6rem;margin:0 0 .75rem}.pps-fullbtn{display:block;margin:.2rem 0 .1rem;font-size:.78rem}.pps-fulllist{margin:.8rem 0;font-size:.8rem}.pps-fulllist ul{margin:.2rem 0 0 1rem;padding:0}',
       '.pps-hidden{margin:4px 0 0;font-size:12.5px}.pps-hidden summary{cursor:pointer;color:#555}.pps-hidden ul{margin:4px 0 0 18px;padding:0}.pps-hidden li{margin:2px 0}',

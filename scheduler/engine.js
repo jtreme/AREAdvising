@@ -351,7 +351,13 @@
         x = x.trim(); return expandSlashCode(x) || (CODE_RE.test(x) ? [[x]] : []);
       })) : null;
       var slash = expandSlashCode(code) || orParts;
-      if (slash && slash.length && !c.picker) { base.kind = 'choice'; base.options = withSubs(slash, subs); slots.push(base); return; }
+      if (slash && slash.length && !c.picker) {
+        // Department rule: EC 301 is never offered for EC/ARE 301 (it still counts if already taken).
+        if (code === 'EC/ARE 301') slash = slash.filter(function (o) { return o[0] !== 'EC 301'; });
+        base.options = withSubs(slash, subs);
+        base.kind = base.options.length > 1 ? 'choice' : 'fixed';
+        slots.push(base); return;
+      }
       var pk = c.picker;
       if (pk && lists.SLASH_COURSES[pk] && !OPEN_PICKERS[pk] && lists.SLASH_COURSES[pk].length <= CHOICE_MAX) {
         base.kind = 'choice';
