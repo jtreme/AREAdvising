@@ -837,6 +837,11 @@
       });
     });
     list.sort(function (a, b) { return ((a.restrictedOnly ? 1 : 0) - (b.restrictedOnly ? 1 : 0)) || ((a.warn ? 1 : 0) - (b.warn ? 1 : 0)) || (a.code < b.code ? -1 : 1); });
+    // Courses that count but fill none of the student's open requirements: offered as an extra class.
+    var occAll = meetingsOf(rows, null), usedAll = usedFor(rows, null, T);
+    T.search('', occAll, usedAll, 400, function (x) { return g.set[x] && !seen[x]; }).forEach(function (e) {
+      list.push(Object.assign({}, e, { makeExtra: true, fills: 'an extra class (no open requirement)' }));
+    });
     av.lists[key] = list;
     var h = '<div class="pps-choose" role="region" aria-label="Courses for ' + esc(g.label) + '">';
     if (!list.length) return h + '<p class="pps-muted">No course that counts for ' + esc(g.label) + ' fits one of your open requirements in ' + esc(state.index.term) + '. Ask your advisor, or use "+ Add another class" to take one beyond your requirements.</p></div>';
@@ -1200,6 +1205,7 @@
     B.commit(function (plan) { plan.forEach(function (s) { if (s.term === term) s.courses.push(c); }); });
     av.expanded = rowKey(c);
     av.chips[av.expanded] = { are: 1, _free: 1 };
+    return c;
   }
   function removePick(c) {
     if (c.schedExtra) { B.commit(function (plan) { var at = findCourse(plan, c); if (at) plan[at.si].courses.splice(at.ci, 1); }); return; }
@@ -1276,6 +1282,12 @@
       b.addEventListener('click', function () {
         var p = b.getAttribute('data-pick').split(':'), entry = av.lists[p[0]] && av.lists[p[0]][+p[1]];
         var r = entry && entry.rowKey ? rowBy(entry.rowKey) : rowBy(p[0]);
+        if (entry && entry.makeExtra) {
+          var xid = addExtra().id, xc = null;
+          B.getPlan().forEach(function (sem) { sem.courses.forEach(function (c) { if (c.id === xid) xc = c; }); });
+          if (xc) pickInto(xc, entry, entry.times[+p[2]]);
+          av.expanded = null; renderAudit(); return;
+        }
         if (!r || !entry) return;
         pickInto(r.c, entry, entry.times[+p[2]]);
         av.expanded = null; av.queries[p[0]] = '';
