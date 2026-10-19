@@ -802,7 +802,12 @@
       var order = { planned: 0, need: 1, transfer: 2, inprog: 3, done: 4 };
       list.sort(function (a, b) { return order[a.status] - order[b.status] || (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0) || (b.ready ? 1 : 0) - (a.ready ? 1 : 0); });
       list.forEach(function (r) { h += rowHtml(r, rows, T); });
-      gep.forEach(function (g) { h += '<div class="pps-avrow" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong><span class="pps-muted">' + esc(g.text) + '</span></div></div>'; });
+      gep.forEach(function (g) {
+        var gk = 'gep-' + g.id, open = av.expanded === gk;
+        h += '<div class="pps-avrow st-row-' + g.status + (open ? ' on' : '') + '" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong> <span class="pps-muted">' + esc(g.text) + '</span></div>' +
+          (g.status === 'need' ? '<div class="pps-avact"><button type="button" class="pps-btn pps-btn-sm" data-choose="' + gk + '" aria-expanded="' + open + '">' + (open ? 'Close' : 'Choose for ' + esc(term)) + '</button></div>' : '') + '</div>';
+        if (open && g.status === 'need') h += gepPanel(g, rows, T);
+      });
       h += '</div></section>';
     });
     main.innerHTML = h;
@@ -812,15 +817,43 @@
     wireAudit(o, rows, T);
   }
 
+  // Courses that count for Global Knowledge or American Democracy AND fill one of the student's
+  // open requirements (Humanities, Social Science, electives). Picking one fills that requirement.
+  function gepPanel(g, rows, T) {
+    var key = 'gep-' + g.id, list = [], seen = {}, excl = {};
+    (B.lists.FREE_EXCLUDED || []).forEach(function (x) { excl[x] = 1; });
+    var targets = rows.filter(function (r) { return r.status === 'need' && !are490Lock(r); })
+      .sort(function (a, b) { return (b.suggested ? 1 : 0) - (a.suggested ? 1 : 0); });
+    targets.forEach(function (r) {
+      var sl = T.slotOf(r.c);
+      if (sl.kind !== 'open' && !sl.isFree) return;
+      var occ = meetingsOf(rows, r), used = usedFor(rows, r, T), ents;
+      if (sl.isFree || r.c.schedExtra) ents = T.search('', occ, used, 400, function (x) { return g.set[x] && !excl[x]; });
+      else ents = T.choices(r.c, occ, used).fits.filter(function (e) { return e.option.every(function (x) { return g.set[x]; }); });
+      ents.forEach(function (e) {
+        if (seen[e.code]) return;
+        seen[e.code] = 1;
+        list.push(Object.assign({}, e, { rowKey: rowKey(r.c), fills: r.c.schedExtra ? 'an extra class' : (r.c.schedOrigCode || r.c.code) }));
+      });
+    });
+    list.sort(function (a, b) { return ((a.restrictedOnly ? 1 : 0) - (b.restrictedOnly ? 1 : 0)) || ((a.warn ? 1 : 0) - (b.warn ? 1 : 0)) || (a.code < b.code ? -1 : 1); });
+    av.lists[key] = list;
+    var h = '<div class="pps-choose" role="region" aria-label="Courses for ' + esc(g.label) + '">';
+    if (!list.length) return h + '<p class="pps-muted">No course that counts for ' + esc(g.label) + ' fits one of your open requirements in ' + esc(state.index.term) + '. Ask your advisor, or use "+ Add another class" to take one beyond your requirements.</p></div>';
+    var shown = av.all[key] ? list : list.slice(0, 10);
+    h += '<p class="pps-muted">Each course below counts for ' + esc(g.label) + ' and fills the requirement shown.</p><ol class="pps-entries">' + shown.map(function (e, ei) { return entryHtml(e, ei, key); }).join('') + '</ol>';
+    if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
+    return h + '</div>';
+  }
   function gepVerifyRows(rows) {
     var L = B.lists, out = [];
-    [['GEP Global Knowledge', L.VERIFY_GLOBAL_KNOWLEDGE, 'Global Knowledge'], ['Found. of American Democracy', L.VERIFY_AMER_DEMOCRACY, 'American Democracy']].forEach(function (g) {
+    [['GEP Global Knowledge', L.VERIFY_GLOBAL_KNOWLEDGE, 'Global Knowledge', 'gk'], ['Found. of American Democracy', L.VERIFY_AMER_DEMOCRACY, 'American Democracy', 'ad']].forEach(function (g) {
       var set = {}; (g[1] || []).forEach(function (x) { set[x] = 1; });
       var done = rows.filter(function (r) { return (r.status === 'done' || r.status === 'inprog') && set[r.c.code]; })[0];
       var plan = rows.filter(function (r) { return r.status === 'planned' && (r.c.sched.codes || []).some(function (x) { return set[x]; }); })[0];
-      if (done) out.push({ label: g[0], status: 'done', text: 'Met by ' + done.c.code + '. Verify on the audit.' });
-      else if (plan) out.push({ label: g[0], status: 'planned', text: 'Planned: ' + plan.c.sched.codes.join(' + ') + ' also counts.' });
-      else out.push({ label: g[0], status: 'need', text: 'Choose a course marked "Also counts: ' + g[2] + '" for another requirement, such as Humanities or an elective.' });
+      if (done) out.push({ id: g[3], label: g[0], status: 'done', text: 'Met by ' + done.c.code + '. Verify on the audit.' });
+      else if (plan) out.push({ id: g[3], label: g[0], status: 'planned', text: 'Planned: ' + plan.c.sched.codes.join(' + ') + ' also counts.' });
+      else out.push({ id: g[3], label: g[0], status: 'need', set: set, text: 'Not a separate class: take a course that counts for it while filling another requirement, such as Humanities or an elective.' });
     });
     return out;
   }
@@ -840,7 +873,7 @@
     }
     else if (r.status === 'need') {
       var lock = are490Lock(r);
-      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">Paw Plan: ' + esc(r.term) + '</span>' +
+      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">In your plan for ' + esc(r.term) + '</span>' +
         (r.ready ? '<span class="pps-badge good">Open to you in ' + esc(term) + '</span>' : '')) +
         (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
         (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '') +
@@ -859,7 +892,7 @@
     if (r.status === 'transfer') {
       var tp = c.transferPlan;
       var chk = ccCheck(c, tp);
-      h += '<div class="pps-when">' + esc([tp.school || 'Another school', tp.course, tp.term].filter(Boolean).join(' \u00b7 ')) + '</div>' +
+      h += '<div class="pps-when">' + esc([tp.school || 'Another school', tp.course, tp.termLabel || tp.term].filter(Boolean).join(' \u00b7 ')) + '</div>' +
         (chk ? '<div class="pps-flag ' + (chk.level === 'ok' ? 'good' : chk.level === 'stop' ? 'warn' : '') + '">' + esc(chk.text) + '</div>' : '') +
         (!chk || chk.level !== 'ok' ? '<div>' + dbLink() + '</div>' : '') +
         '<div class="pps-muted">' + (chk && chk.level === 'ok' ? 'Guides can change, so ' + (ADVISOR ? 'confirm' : 'confirm with your advisor') + ' before enrolling.' : (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that this course transfers to NC State as ' + esc(label) + ' before enrolling.') + '</div>';
@@ -927,6 +960,7 @@
     entry.alsoCounts.forEach(function (a) { b += ' <span class="pps-badge good">Also counts: ' + esc(a) + '</span>'; });
     if (entry.warn) b += ' <span class="pps-badge warn" title="' + esc(entry.warn) + '">Check prerequisite</span>';
     if (entry.offList) b += ' <span class="pps-badge warn">Not on the approved list; ask your advisor</span>';
+    if (entry.fills) b += ' <span class="pps-badge good">Fills ' + esc(entry.fills) + '</span>';
     if (entry.studyAbroad) b += ' <span class="pps-badge">Study abroad: for students accepted into the program</span>';
     else if (entry.restrictedOnly) b += ' <span class="pps-badge warn">Seat restrictions: check before you pick</span>';
     Object.keys(av.T.subs || {}).forEach(function (orig) { if ((av.T.subs[orig] || []).indexOf(entry.code) !== -1) b += ' <span class="pps-badge good">Counts for ' + esc(orig) + ' (department substitution)</span>'; });
@@ -1095,7 +1129,7 @@
       '<div class="pps-elsef"><label>Type of school<select data-ew="kind"><option value="nccc">NC community college</option><option value="other">Other college or university</option></select></label>' +
       '<label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
       '<label>Course<input type="text" data-ew="course" placeholder="e.g. ENG 111"></label>' +
-      '<label>Term<select data-ew="term">' + terms.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label></div>' +
+      '<label>Term<select data-ew="term">' + termChoices(terms).map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('') + '</select></label></div>' +
       '<p class="pps-muted">Courses not in the ABM transfer guide, and courses from other schools, need a check in the <a href="' + esc((state.cc || {}).database || 'https://webappprd.acs.ncsu.edu/php/transfer/') + '" target="_blank" rel="noopener">NC State transfer database</a>. ' + (ADVISOR ? 'Confirm' : 'Confirm with your advisor') + ' that the course transfers to NC State as ' + esc(r.c.schedOrigCode || r.c.code) + ' before enrolling.</p>' +
       '<div class="pps-actions"><button type="button" class="pps-btn pps-btn-sm" data-ewsave="' + key + '">Save</button><button type="button" class="pps-link" data-ewcancel="1">Cancel</button></div></div>';
   }
@@ -1110,7 +1144,15 @@
       m.map(function (e) { return '<li><strong>' + esc(e.cc) + '</strong> at any NC community college transfers as ' + esc(e.as) + ' (' + e.hrs + ' cr). <button type="button" class="pps-link" data-ccuse="' + esc(e.cc) + '">Use ' + esc(e.cc) + '</button></li>'; }).join('') +
       '</ul><a class="pps-muted" href="' + esc(cc.url) + '" target="_blank" rel="noopener">See the full guide</a> \u00b7 Taking a different course? ' + dbLink('Check it in the NC State transfer database') + '</div>';
   }
+  // Summer has two sessions; both belong to the plan's single summer term.
+  function termChoices(terms) {
+    var out = [];
+    terms.forEach(function (t) { var m = t.match(/^Summer (\d{4})$/); if (m) out.push('Summer 1 ' + m[1], 'Summer 2 ' + m[1]); else out.push(t); });
+    return out;
+  }
+  function planTermOf(label) { var m = String(label || '').match(/^Summer [12] (\d{4})$/); return m ? 'Summer ' + m[1] : label; }
   function planElsewhere(c, info) {
+    info.termLabel = info.term; info.term = planTermOf(info.term);
     B.commit(function (plan) {
       var at = findCourse(plan, c), dest = -1;
       if (!at) return;
@@ -1232,7 +1274,8 @@
     });
     o.querySelectorAll('[data-pick]').forEach(function (b) {
       b.addEventListener('click', function () {
-        var p = b.getAttribute('data-pick').split(':'), r = rowBy(p[0]), entry = av.lists[p[0]][+p[1]];
+        var p = b.getAttribute('data-pick').split(':'), entry = av.lists[p[0]] && av.lists[p[0]][+p[1]];
+        var r = entry && entry.rowKey ? rowBy(entry.rowKey) : rowBy(p[0]);
         if (!r || !entry) return;
         pickInto(r.c, entry, entry.times[+p[2]]);
         av.expanded = null; av.queries[p[0]] = '';
@@ -1366,7 +1409,7 @@
         if (!c.transferPlan) return;
         var tp = c.transferPlan;
         var chk = ccCheck(c, tp);
-        add(chk && chk.level === 'stop' ? 'stop' : 'warn', (c.code) + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. ' + (chk ? chk.text + ' ' : '') + 'Confirm it transfers before the student enrolls.');
+        add(chk && chk.level === 'stop' ? 'stop' : 'warn', (c.code) + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + (tp.termLabel || tp.term) : '') + '. ' + (chk ? chk.text + ' ' : '') + 'Confirm it transfers before the student enrolls.');
       });
     });
     add('info', STANDING_TEXT[ctx.student.standing] + ' standing by credits (' + ctx.priorCredits + ' earned or in progress)' + (ctx.student.gpa != null ? ', cumulative GPA ' + ctx.student.gpa.toFixed(3) : '') + '.');

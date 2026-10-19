@@ -504,7 +504,7 @@
 
     slots.forEach(function (s) {
       if (s.kind === 'note') { notes.push({ slot: s, text: s.label + ': not a specific course, so it is not scheduled. Talk with your advisor about what fills it.' }); return; }
-      if (s.kind === 'transfer') { var tp = s.transferPlan; notes.push({ slot: s, transfer: true, text: s.label + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + tp.term : '') + '. Confirm it transfers before enrolling.' }); return; }
+      if (s.kind === 'transfer') { var tp = s.transferPlan; notes.push({ slot: s, transfer: true, text: s.label + ': planned at ' + (tp.school || 'another school') + (tp.course ? ' (' + tp.course + ')' : '') + (tp.term ? ', ' + (tp.termLabel || tp.term) : '') + '. Confirm it transfers before enrolling.' }); return; }
       // Already met by a course on record (including a department substitution such as ARE 255 for AEE 226).
       var metBy = null;
       // Only a department substitution can mark an audit requirement met here (the audit already
