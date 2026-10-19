@@ -135,7 +135,9 @@ forces the current import. To compare both on a folder of audits:
 (`tools/build_coursecat_xlsx.py "Summer 2027" NC_State_Summer_2027_Classes.xlsx`). Sections carry
 their session (Summer I, Summer II, 10-week, Maymester) and dates; most have no set meeting time.
 The catalog gives no Assoc Class numbers, so a lecture pairs with labs from the same session.
-When a student's plan has more than one listed term, the audit view shows term tabs (Spring 2027 |
-Summer 2027). Planning summer after spring: spring slots not yet picked stay choosable, and spring
+When a student's plan has more than one listed term, the audit view shows term tabs: Spring 2027 |
+Summer I 2027 | Summer II 2027. Summer I shows the first 5-week session, the 10-week session and
+Maymester; Summer II the second session. Both write to the plan's one Summer 2027 semester, and each
+pick remembers its session (a Summer II pick shows as "Picked for Summer II" on the Summer I tab). Planning summer after spring: spring slots not yet picked stay choosable, and spring
 picks count as taken. Summer shows credits per session instead of full-time/overload notes.
 

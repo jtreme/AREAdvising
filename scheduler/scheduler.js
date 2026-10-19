@@ -71,17 +71,31 @@
     var plan = B.getPlan();
     return state.manifest.terms.filter(function (t) { return plan.some(function (s) { return s.term === t.term; }); });
   }
-  function pickTerm() {
-    var list = planTerms();
-    for (var i = 0; i < list.length; i++) if (list[i].term === state.chosen) return list[i];
-    return list[0] || state.manifest.terms[0];
+  // Tabs: one per listed term in the plan; summer splits into Summer I and Summer II (one plan semester).
+  // Summer I holds the 5-week first session, the 10-week session, and Maymester; Summer II the second session.
+  var SUMMER_TABS = [['S1', 'Summer I', ['S1', 'S10', 'MAY']], ['S2', 'Summer II', ['S2']]];
+  function termTabList() {
+    var out = [];
+    planTerms().forEach(function (t) {
+      if (/^Summer/.test(t.term)) SUMMER_TABS.forEach(function (x) { out.push({ key: t.term + '|' + x[0], label: x[1] + ' ' + t.term.split(' ')[1], t: t, session: x[0], sessions: x[2] }); });
+      else out.push({ key: t.term, label: t.term, t: t, session: null, sessions: null });
+    });
+    return out;
   }
+  function pickTerm() {
+    var list = termTabList(), tab = null;
+    for (var i = 0; i < list.length; i++) if (list[i].key === state.chosen) tab = list[i];
+    tab = tab || list[0];
+    state.tab = tab || { key: '', label: state.manifest.terms[0].term, session: null, sessions: null };
+    return tab ? tab.t : state.manifest.terms[0];
+  }
+  function termLabel() { return (state.tab && state.tab.label) || (state.term && state.term.term) || ''; }
   function termTabs() {
-    var list = planTerms();
+    var list = termTabList();
     if (list.length < 2) return '';
     return '<div class="pps-termtabs" role="tablist" aria-label="Term">' + list.map(function (t) {
-      var on = t.term === state.term.term;
-      return '<button type="button" role="tab" aria-selected="' + on + '" class="pps-termtab' + (on ? ' on' : '') + '" data-term="' + esc(t.term) + '">' + esc(t.term) + '</button>';
+      var on = state.tab && t.key === state.tab.key;
+      return '<button type="button" role="tab" aria-selected="' + !!on + '" class="pps-termtab' + (on ? ' on' : '') + '" data-term="' + esc(t.key) + '">' + esc(t.label) + '</button>';
     }).join('') + '</div>';
   }
   // Summer sessions (from the course catalog export) and their labels.
@@ -103,7 +117,7 @@
     injectStyle();
   }
 
-  function buttonLabel(term) { return '&#128197; ' + esc(term) + ' Registration <span class="pps-beta">Beta</span>'; }
+  function buttonLabel(term) { return '&#128197; ' + esc(termLabel()) + ' Registration <span class="pps-beta">Beta</span>'; }
   function studentName() { var st = B.getAuditStudent ? B.getAuditStudent() : null; return st && st.name ? st.name : ''; }
 
   // ---------- open / build ----------
@@ -117,9 +131,16 @@
     state.auditKey = key;
   }
   function ensureData(cb) {
-    if (state.index && state.index.term === state.term.term) { cb(); return; }
+    var want = state.tab && state.tab.key || state.term.term;
+    if (state.index && state.index.term === state.term.term && state.indexKey === want) { cb(); return; }
     fetchJSON(BASE + state.term.file + '?v=' + encodeURIComponent(state.term.built || VER), function (err, data) {
       if (err) { cb(err); return; }
+      // Summer I / Summer II tab: keep that session's sections only.
+      if (state.tab && state.tab.sessions) {
+        var si = data.fields.indexOf('session'), keep = state.tab.sessions;
+        data = Object.assign({}, data, { sections: data.sections.filter(function (r) { return keep.indexOf(r[si]) !== -1; }) });
+      }
+      state.indexKey = want;
       // Department corrections (optional file): courses listed there are treated as not offered.
       fetchJSON(BASE + 'data/overrides.json?v=' + Date.now(), function (e2, ov) {
         state.index = E.prepare(data, e2 ? null : ov);
@@ -280,11 +301,11 @@
     var scroll = main.scrollTop;
     var r = state.result;
     if (!r.ok) {
-      main.innerHTML = '<div class="pps-msg"><h3>No ' + esc(state.index.term) + ' semester in your plan</h3><p>Paw Plan did not place any courses in ' + esc(state.index.term) +
+      main.innerHTML = '<div class="pps-msg"><h3>No ' + esc(termLabel()) + ' semester in your plan</h3><p>Paw Plan did not place any courses in ' + esc(termLabel()) +
         '. If you are graduating or on leave that term, there is nothing to schedule. Otherwise, check the planning start term you confirmed when you uploaded your audit.</p></div>';
       return;
     }
-    var h = '<p class="pps-source">Times from the ' + esc(state.index.term) + ' Schedule of Classes. ' + esc(staleNote().replace(/ If a section is full.*$/, '')) +
+    var h = '<p class="pps-source">Times from the ' + esc(termLabel()) + ' Schedule of Classes. ' + esc(staleNote().replace(/ If a section is full.*$/, '')) +
       ' Built from the current Paw Plan: after moving courses between semesters, reopen this window to rebuild.</p>';
     var severe = r.notes.filter(function (n) { return n.severe; }), mild = r.notes.filter(function (n) { return !n.severe; });
     if (ADVISOR && r.plans.length) h += advisorPanel(r, r.plans[state.pi] || r.plans[0]);
@@ -443,7 +464,7 @@
     var pa = state.result.pullAhead(plan, it).slice(0, 4), ph = '';
     if (pa.length) {
       ph = '<details class="pps-backups pps-pull"><summary>If every section fills: ' + pa.length + ' later course' + (pa.length === 1 ? '' : 's') + ' you could take now</summary>' +
-        '<p class="pps-muted">These are in a later semester of ' + (ADVISOR ? 'the student\'s' : 'your') + ' plan, are offered this term, fit the rest of this schedule, and ' + (ADVISOR ? 'the student has' : 'you have') + ' the prerequisites. To switch, move one into ' + esc(state.index.term) + ' in Paw Plan, move ' + esc(it.code) + ' to a later semester, and reopen this window.</p><ol>' +
+        '<p class="pps-muted">These are in a later semester of ' + (ADVISOR ? 'the student\'s' : 'your') + ' plan, are offered this term, fit the rest of this schedule, and ' + (ADVISOR ? 'the student has' : 'you have') + ' the prerequisites. To switch, move one into ' + esc(termLabel()) + ' in Paw Plan, move ' + esc(it.code) + ' to a later semester, and reopen this window.</p><ol>' +
         pa.map(function (c) {
           return '<li><div class="pps-bk-main"><strong>' + esc(c.code) + '</strong> ' + esc(c.title) + ' <span class="pps-muted">Planned for ' + esc(c.fromTerm) + (c.label !== c.code ? ' (' + esc(c.label) + ')' : '') + ' \u00b7 ' + c.sectionsFit + ' section' + (c.sectionsFit === 1 ? '' : 's') + ' fit</span>' + secLines(c.group.rep) + '</div></li>';
         }).join('') + '</ol></details>';
@@ -648,7 +669,7 @@
     o.setAttribute('aria-labelledby', 'pps-title');
     var name = studentName();
     o.innerHTML = '<div class="pps-top"><div class="pps-top-in"><div><div class="pps-kicker">Paw Plan' + (name ? ' · ' + esc(name) : '') + '</div>' +
-      '<h2 id="pps-title">' + esc(state.term.term) + ' Registration <span class="pps-beta">Beta</span></h2>' + termTabs() + '</div>' +
+      '<h2 id="pps-title">' + esc(termLabel()) + ' Registration <span class="pps-beta">Beta</span></h2>' + termTabs() + '</div>' +
       '<div class="pps-topbtns"><button type="button" class="pps-back" data-av="plan">Four-year plan</button><button type="button" class="pps-x" aria-label="Close">&times;</button></div></div></div>' +
       '<div class="pps-body pps-avbody"><main class="pps-main pps-avmain"></main><aside class="pps-avside" aria-label="Your spring schedule"></aside></div>';
     document.body.appendChild(o);
@@ -661,7 +682,7 @@
     o.querySelector('.pps-x').focus();
     var main = o.querySelector('.pps-avmain');
     if (!B.isUploaded()) { main.innerHTML = '<div class="pps-msg"><h3>Upload your degree audit first</h3><p>Close this window and click <strong>Upload New Degree Audit</strong>. Your audit opens here after it loads.</p></div>'; return; }
-    main.innerHTML = '<div class="pps-msg"><h3>Loading ' + esc(state.term.term) + ' classes...</h3></div>';
+    main.innerHTML = '<div class="pps-msg"><h3>Loading ' + esc(termLabel()) + ' classes...</h3></div>';
     ensureData(function (err) {
       if (err) { main.innerHTML = '<div class="pps-msg"><h3>Could not load the class schedule</h3><p>Check your connection and try again.</p></div>'; return; }
       av.expanded = null; av.queries = {}; av.all = {};
@@ -743,6 +764,8 @@
           var met = T.satisfiedBy(c);
           if (met) { rows.push({ sec: secOf(c), status: 'done', c: c, term: s.term, metBy: met }); return; }
           var planned = s.term === term && c.sched && c.sched.term === term;
+          var otherSession = planned && state.tab && state.tab.session && c.sched.session && c.sched.session !== state.tab.session;
+          if (otherSession) { rows.push({ sec: secOf(c), status: 'inprog', c: c, term: (SUMMER_TABS.filter(function (x) { return x[0] === c.sched.session; })[0] || [0, s.term])[1], pickedEarlier: true }); return; }
           rows.push({ sec: secOf(c), status: planned ? 'planned' : 'need', c: c, term: s.term, suggested: s.term === term && !planned, units: planned ? pickedUnits(T, c) : [] });
         }
       });
@@ -758,7 +781,7 @@
     var used = {};
     rows.forEach(function (r) {
       if (r === row) return;
-      if (r.status === 'planned') (r.c.sched.codes || []).forEach(function (x) { used[x] = 1; });
+      if (r.status === 'planned' || r.pickedEarlier) ((r.c.sched && r.c.sched.codes) || []).forEach(function (x) { used[x] = 1; });
       if (r.status === 'need' || r.status === 'planned') {
         // Core requirements keep their own courses: EC 301 fills EC/ARE 301, not an ARE elective.
         var sl = T.slotOf(r.c);
@@ -783,7 +806,7 @@
     var total = cr(now) + cr(later);
     if (total > 21) return '';
     var names = later.map(function (r) { return r.c.schedOrigCode || r.c.code; }).join(', ');
-    return '<p class="pps-finish">' + (ADVISOR ? 'The student could' : 'You could') + ' finish in ' + esc(term) + '. Paw Plan left ' + cr(later) + ' credit' + (cr(later) === 1 ? '' : 's') + ' for a later term (' + esc(names) + '). Choosing ' + (later.length === 1 ? 'it' : 'them') + ' for ' + esc(term) + ' makes ' + total + ' credits' +
+    return '<p class="pps-finish">' + (ADVISOR ? 'The student could' : 'You could') + ' finish in ' + esc(termLabel()) + '. Paw Plan left ' + cr(later) + ' credit' + (cr(later) === 1 ? '' : 's') + ' for a later term (' + esc(names) + '). Choosing ' + (later.length === 1 ? 'it' : 'them') + ' for ' + esc(termLabel()) + ' makes ' + total + ' credits' +
       (total > 18 ? ', which needs an overload approval.' : '.') + '</p>';
   }
   function lastThree() {
@@ -811,7 +834,7 @@
     var scroll = main.scrollTop;
     var plan = B.getPlan(), term = state.index.term;
     if (!plan.some(function (s) { return s.term === term; })) {
-      main.innerHTML = '<div class="pps-msg"><h3>No ' + esc(term) + ' semester in this plan</h3><p>Paw Plan did not place any courses in ' + esc(term) + '. Check the planning start term you confirmed when you uploaded the audit.</p></div>';
+      main.innerHTML = '<div class="pps-msg"><h3>No ' + esc(termLabel()) + ' semester in this plan</h3><p>Paw Plan did not place any courses in ' + esc(termLabel()) + '. Check the planning start term you confirmed when you uploaded the audit.</p></div>';
       side.innerHTML = ''; return;
     }
     var T = av.T = E.toolkit(state.index, plan, B.lists, engPrefs(), engInput());
@@ -819,8 +842,8 @@
     rows.forEach(function (r) { r.ready = readyNow(r, rows, T); });
     var n = { done: 0, inprog: 0, planned: 0, need: 0, transfer: 0 };
     rows.forEach(function (r) { if (!(r.c.schedExtra && r.status === 'need')) n[r.status]++; });
-    var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(term) + ' planning built in. Click <strong>Choose for ' + esc(term) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
-      '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(term) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(term) + '</span></div></div>';
+    var h = '<div class="pps-avhead"><p class="pps-source">This is ' + (ADVISOR ? 'the student\'s' : 'your') + ' degree audit with ' + esc(termLabel()) + ' planning built in. Click <strong>Choose for ' + esc(termLabel()) + '</strong> on any red X to see every course that fills it, with times that fit ' + (ADVISOR ? 'their' : 'your') + ' other picks. Picks are saved to Paw Plan.</p><p class="pps-stale">' + esc(staleNote()) + '</p>' +
+      '<div class="pps-counts"><span class="st-done">&#10003; ' + n.done + ' complete</span><span class="st-inprog">&#9670; ' + n.inprog + ' in progress</span><span class="st-planned">&#9733; ' + n.planned + ' planned for ' + esc(termLabel()) + '</span>' + (n.transfer ? '<span class="st-transfer">&#8644; ' + n.transfer + ' planned at another school</span>' : '') + '<span class="st-need">&#10007; ' + n.need + ' still needed after ' + esc(termLabel()) + '</span></div></div>';
     h += finishNote(rows, term);
     SECTION_NAMES.forEach(function (sec) {
       var list = rows.filter(function (r) { return r.sec === sec[0]; });
@@ -834,7 +857,7 @@
       gep.forEach(function (g) {
         var gk = 'gep-' + g.id, open = av.expanded === gk;
         h += '<div class="pps-avrow st-row-' + g.status + (open ? ' on' : '') + '" role="row"><span class="pps-ic st-' + g.status + '">' + { done: '&#10003;', planned: '&#9733;', need: '&#10007;' }[g.status] + '</span><div class="pps-avcls"><strong>' + esc(g.label) + '</strong> <span class="pps-muted">' + esc(g.text) + '</span></div>' +
-          (g.status === 'need' ? '<div class="pps-avact"><button type="button" class="pps-btn pps-btn-sm" data-choose="' + gk + '" aria-expanded="' + open + '">' + (open ? 'Close' : 'Choose for ' + esc(term)) + '</button></div>' : '') + '</div>';
+          (g.status === 'need' ? '<div class="pps-avact"><button type="button" class="pps-btn pps-btn-sm" data-choose="' + gk + '" aria-expanded="' + open + '">' + (open ? 'Close' : 'Choose for ' + esc(termLabel())) + '</button></div>' : '') + '</div>';
         if (open && g.status === 'need') h += gepPanel(g, rows, T);
       });
       h += '</div></section>';
@@ -873,7 +896,7 @@
     });
     av.lists[key] = list;
     var h = '<div class="pps-choose" role="region" aria-label="Courses for ' + esc(g.label) + '">';
-    if (!list.length) return h + '<p class="pps-muted">No course that counts for ' + esc(g.label) + ' fits one of your open requirements in ' + esc(state.index.term) + '. Ask your advisor, or use "+ Add another class" to take one beyond your requirements.</p></div>';
+    if (!list.length) return h + '<p class="pps-muted">No course that counts for ' + esc(g.label) + ' fits one of your open requirements in ' + esc(termLabel()) + '. Ask your advisor, or use "+ Add another class" to take one beyond your requirements.</p></div>';
     var shown = av.all[key] ? list : list.slice(0, 10);
     h += '<p class="pps-muted">Each course below counts for ' + esc(g.label) + ' and fills the requirement shown.</p><ol class="pps-entries">' + shown.map(function (e, ei) { return entryHtml(e, ei, key); }).join('') + '</ol>';
     if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
@@ -908,7 +931,7 @@
   function rowHtml(r, rows, T) {
     var c = r.c, key = rowKey(c), term = state.index.term;
     var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;', transfer: '&#8644;' }[r.status];
-    var label = r.status === 'planned' ? c.code : c.schedExtra ? 'Extra class' : dispCode(c.schedOrigCode || c.code);
+    var label = r.status === 'planned' || r.pickedEarlier ? c.code : c.schedExtra ? 'Extra class' : dispCode(c.schedOrigCode || c.code);
     var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : c.schedExtra ? 'Any course, beyond your requirements' : (c.tag || ''));
     var right = '';
     if (r.metBy) right = '<span class="pps-avterm">Met by ' + esc(r.metBy) + '</span>';
@@ -920,13 +943,13 @@
     }
     else if (r.status === 'need') {
       var lock = are490Lock(r);
-      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(term) + '</span>' : '<span class="pps-avterm">In your plan for ' + esc(r.term) + '</span>' +
-        (r.ready ? '<span class="pps-badge good">Open to you in ' + esc(term) + '</span>' : '')) +
-        (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(term)) + '</button>') +
+      right = (r.suggested ? '<span class="pps-badge good">Suggested for ' + esc(termLabel()) + '</span>' : '<span class="pps-avterm">In your plan for ' + esc(r.term) + '</span>' +
+        (r.ready ? '<span class="pps-badge good">Open to you in ' + esc(termLabel()) + '</span>' : '')) +
+        (lock ? '<span class="pps-muted">' + esc(lock) + '</span>' : '<button type="button" class="pps-btn pps-btn-sm" data-choose="' + key + '" aria-expanded="' + (av.expanded === key) + '">' + (av.expanded === key ? 'Close' : 'Choose for ' + esc(termLabel())) + '</button>') +
         (r.suggested ? '<button type="button" class="pps-link" data-skip="' + key + '">Not this term</button>' : '') +
         (aREOnly(c) ? '' : '<button type="button" class="pps-link" data-elsewhere="' + key + '">Taking it at another school</button>');
     } else {
-      right = '<span class="pps-badge">Planned ' + esc(term) + '</span><button type="button" class="pps-link" data-choose="' + key + '">' + (av.expanded === key ? 'Close' : 'Change') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
+      right = '<span class="pps-badge">Planned ' + esc(termLabel()) + '</span><button type="button" class="pps-link" data-choose="' + key + '">' + (av.expanded === key ? 'Close' : 'Change') + '</button><button type="button" class="pps-link" data-remove="' + key + '">Remove</button>';
     }
     var h = '<div class="pps-avrow st-row-' + r.status + (av.expanded === key ? ' on' : '') + '" role="row"><span class="pps-ic st-' + r.status + '">' + icon + '</span>' +
       '<div class="pps-avcls"><strong>' + esc(label) + '</strong>' + (title ? ' <span>' + esc(title) + '</span>' : '') + ' <span class="pps-muted">' + esc(String(c.units || '')) + ' cr' +
@@ -1091,7 +1114,7 @@
     if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
     var unavailable = ch.locked.concat(ch.noFit);
     if (ch.slot.kind !== 'open') unavailable = unavailable.concat(ch.notOffered);
-    if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(term) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + hiddenHtml(e.hidden) + '</li>'; }).join('') + '</ul>' +
+    if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(termLabel()) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + hiddenHtml(e.hidden) + '</li>'; }).join('') + '</ul>' +
       (unavailable.length > 12 ? '<p class="pps-muted">' + (unavailable.length - 12) + ' more not available.</p>' : '') + '</div>';
     return h + '</div>';
   }
@@ -1109,11 +1132,11 @@
     var scr = suggested.reduce(function (t, r) { return t + (Number(r.c.units) || 0); }, 0);
     var items = [];
     planned.forEach(function (r) { r.units.forEach(function (u, i) { if (u) items.push({ code: (r.c.sched.codes[i] || r.c.code), unit: u, slot: { cat: r.c.cat } }); }); });
-    var h = '<div class="pps-avcredits"><div><strong>' + cr + '</strong> credits picked for ' + esc(term) + '</div>' +
+    var h = '<div class="pps-avcredits"><div><strong>' + cr + '</strong> credits picked for ' + esc(termLabel()) + '</div>' +
       (scr ? '<div class="pps-muted">' + scr + ' more credits suggested and not picked yet</div>' : '') +
       (isSummer() ? summerSplit(planned) : cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
       (av.msg ? '<div class="pps-flag' + (/Not filled|No other|Nothing to fill/.test(av.msg) ? ' warn' : ' good') + '" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
-    if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Choose times for me</button><p class="pps-muted pps-small">Picks a section that fits for each course marked "Suggested for ' + esc(term) + '." Electives you choose yourself. You can change any pick.</p>';
+    if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Choose times for me</button><p class="pps-muted pps-small">Picks a section that fits for each course marked "Suggested for ' + esc(termLabel()) + '." Electives you choose yourself. You can change any pick.</p>';
     h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="addx">+ Add another class</button>';
     h += calendar({ items: items, open: [] });
     if (planned.length) {
@@ -1246,6 +1269,7 @@
         c.units = time.units.reduce(function (t, u) { return t + (parseFloat(u.units) || 0); }, 0) || c.units;
       }
       c.sched = { term: term, codes: entry.option.slice(), nbrs: time.units.map(function (u) { return T.unitKey(u); }) };
+      if (state.tab && state.tab.session) c.sched.session = state.tab.session;
     });
   }
   // A class beyond the degree requirements (to try options or reach full time). It is a Free Elective
@@ -1323,7 +1347,7 @@
     var picked = n ? 'Picked times for ' + n + ' course' + (n === 1 ? '' : 's') + '. ' : '';
     if (skipped.length) return picked + 'Not filled: ' + skipped.join('; ') + '. Change the conflicting pick, then try again.';
     var notAuto = left.filter(function (x) { return !Object.keys(bySlot).some(function (k) { return dispCode(bySlot[k].slot.label) === x; }); });
-    if (!n) return 'Nothing to fill automatically. ' + (notAuto.length ? 'Choose these yourself with "Choose for ' + state.index.term + '": ' + notAuto.join(', ') + '.' : 'Every suggested course already has a time.');
+    if (!n) return 'Nothing to fill automatically. ' + (notAuto.length ? 'Choose these yourself with "Choose for ' + termLabel() + '": ' + notAuto.join(', ') + '.' : 'Every suggested course already has a time.');
     return picked + (notAuto.length ? 'Choose these yourself: ' + notAuto.join(', ') + '.' : '');
   }
 
@@ -1410,7 +1434,7 @@
         if (act === 'auto') { av.msg = autoPick(); renderAudit(); var sp = o.querySelector('.pps-avside'); if (sp) sp.scrollTop = 0; return; }
         if (act === 'addx') { addExtra(); renderAudit(); var x = o.querySelector('.pps-avrow.on'); if (x && x.scrollIntoView) x.scrollIntoView({ block: 'center' }); return; }
         if (act === 'copy') {
-          var txt = state.index.term + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
+          var txt = termLabel() + ' class numbers (Paw Plan)' + (studentName() ? ' for ' + studentName() : '') + '\n' + (av.lines || []).map(function (l, i) {
             return (i + 1) + '. ' + l.code + '  ' + l.u.sections.map(function (s) { return s.comp + ' ' + s.sec + ': ' + s.nbr; }).join(' + ') + (l.bk.length ? '   backups: ' + l.bk.slice(0, 3).map(function (x) { return x.unit.sections.map(function (y) { return y.nbr; }).join('+'); }).join(', ') : '');
           }).join('\n');
           var done = function () { var m = o.querySelector('.pps-avpack .pps-actmsg'); if (m) m.textContent = 'Copied.'; };
