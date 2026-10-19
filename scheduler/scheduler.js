@@ -836,7 +836,7 @@
         list.push(Object.assign({}, e, { rowKey: rowKey(r.c), fills: r.c.schedExtra ? 'an extra class' : (r.c.schedOrigCode || r.c.code) }));
       });
     });
-    list.sort(function (a, b) { return ((a.restrictedOnly ? 1 : 0) - (b.restrictedOnly ? 1 : 0)) || ((a.warn ? 1 : 0) - (b.warn ? 1 : 0)) || (a.code < b.code ? -1 : 1); });
+    list.sort(function (a, b) { return ((a.studyAbroad ? 2 : a.restrictedOnly ? 1 : 0) - (b.studyAbroad ? 2 : b.restrictedOnly ? 1 : 0)) || ((a.warn ? 1 : 0) - (b.warn ? 1 : 0)) || (a.code < b.code ? -1 : 1); });
     // Courses that count but fill none of the student's open requirements: offered as an extra class.
     var occAll = meetingsOf(rows, null), usedAll = usedFor(rows, null, T);
     T.search('', occAll, usedAll, 400, function (x) { return g.set[x] && !seen[x]; }).forEach(function (e) {
