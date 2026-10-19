@@ -24,7 +24,7 @@ if (!pdf || !out) { console.error('usage: node tools/dump_plan.js audit.pdf plan
     }));
   }
   await page.route(/fonts\.(googleapis|gstatic)\.com|gc\.zgo\.at/, r => r.abort());
-  await page.goto((base || 'http://127.0.0.1:8765') + '/index.html');
+  await page.goto((base || 'http://127.0.0.1:8765') + '/index.html' + (process.env.QUERY || ''));
   await page.waitForTimeout(700);
   await page.evaluate(() => document.getElementById('transcript-btn').click());
   await page.waitForTimeout(300);
@@ -36,8 +36,10 @@ if (!pdf || !out) { console.error('usage: node tools/dump_plan.js audit.pdf plan
   await page.waitForTimeout(1500);
   const plan = await page.evaluate(() => window.PawPlanBridge.getPlan().map(s => ({
     term: s.term,
-    courses: s.courses.map(c => ({ code: c.code, units: c.schedOrigUnits || c.units, schedOrigCode: c.schedOrigCode || '', schedExtra: !!c.schedExtra, transferPlan: !!c.transferPlan }))
+    courses: s.courses.map(c => ({ code: c.code, name: c.name, units: c.schedOrigUnits || c.units, schedOrigCode: c.schedOrigCode || '', schedExtra: !!c.schedExtra, transferPlan: !!c.transferPlan }))
   })));
+  const unrecognized = await page.evaluate(() => window.pawPlanUnrecognizedAuditLines || []);
+  if (unrecognized.length) plan.push({ term: '__unrecognized', courses: unrecognized.map(u => ({ code: u })) });
   fs.writeFileSync(out, JSON.stringify(plan, null, 1));
   if (errors.length) console.error('page errors: ' + JSON.stringify(errors));
   await browser.close();

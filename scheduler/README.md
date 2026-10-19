@@ -119,3 +119,13 @@ without Paw Plan's parser. Run it before each change. Keep the audit PDFs outsid
 they hold student names and IDs. When a new requirement description shows up, add it to `REQS` in
 `check_audit_plan.py`.
 
+## Audit-first import (testing)
+
+`index.html?auditfirst=1` builds the future plan straight from the audit's unmet lines: each line
+becomes slots with the count and credits the audit reports, and the standard four-year template
+only decides the starting semester (required courses first, then electives, never in the current
+in-progress term, spilling past 17 credits). Audit lines Paw Plan cannot map become a visible
+"Not recognized by Paw Plan" slot instead of being dropped. It is off by default; `?auditfirst=0`
+forces the current import. To compare both on a folder of audits:
+`QUERY='?auditfirst=1' tools/check_audits.sh /path/to/audits`.
+

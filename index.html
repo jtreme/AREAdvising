@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="gep-lists-v1">
+<meta name="paw-plan-build-id" content="audit-first-test-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -2737,6 +2737,85 @@ if(ids.indexOf(s.courses[ci].id)!==-1) s.courses.splice(ci,1);
 });
 return satisfied;
 }
+// AUDIT-FIRST IMPORT (being tested; on with ?auditfirst=1).
+// The future plan is built from the audit's unmet lines: each line becomes slots carrying the
+// count and credits the audit reports. The standard four-year template only decides which
+// semester each slot starts in (the semester the template gives that slot). Nothing is
+// subtracted, so nothing the audit did not ask for can be left behind.
+function pawPlanAuditFirst(){
+try{if(/[?&]auditfirst=0\b/.test(location.search))return false;if(/[?&]auditfirst=1\b/.test(location.search))return true;}catch(e){}
+return !!window.PAW_PLAN_AUDIT_FIRST;
+}
+var AUDIT_FIRST_ALIASES={NATSCI_REQ1:['NATSCI1','MEA'],NATSCI_REQ2:['MEA','NATSCI1']};
+function buildFutureFromAudit(sections,requirementCatalog,planningAnchor){
+var templatePos={},pending=[];
+plan.forEach(function(s,si){
+if(!isSchedulableSemester(s))return;
+s.courses.forEach(function(c){var k=c.slotId||c.id;if(templatePos[k]===undefined)templatePos[k]=si;});
+s.courses=[];
+});
+var unrecognized=[];
+(sections.futureRequirements||[]).forEach(function(item){
+var units=Number(item.units)||0;
+if(units<=0)return; // verify-only lines (Global Knowledge, American Democracy) and stray text
+var kind=item.requirementKind||'Requirement Group';
+var slots=[];
+if(kind!=='Requirement Group'){
+slots=requirementGroupToPlanSlots(item).filter(function(sl){return sl.slotId!=='REQ';});
+}
+if(!slots.length){
+var info=getSlotInfoForImportedItem(item,requirementCatalog);
+if(info.slotId&&findDefaultSlot(info.slotId))slots=[{slotId:info.slotId,units:units}];
+}
+if(!slots.length){
+var desc=String(item.raw||item.code||kind).replace(/\s+/g,' ').replace(/^\d+\s+/,'').replace(/\s+\d+\.\d{3}.*$/,'').trim();
+unrecognized.push(desc+' ('+units+' cr)');
+slots=[{slotId:'AUDITLINE'+unrecognized.length,id:'AUDITLINE'+unrecognized.length,code:desc||'Audit requirement',name:'Not recognized by Paw Plan: check the audit',units:units,cat:categoryFromSection(item.section),picker:'',tag:'Audit requirement',advisorReviewFlag:true,reviewReason:'Paw Plan does not recognize this audit line.',classification:'unmet_requirement'}];
+}
+slots.forEach(function(sl){
+var base=findDefaultSlot(sl.slotId);
+var c=base?JSON.parse(JSON.stringify(base)):JSON.parse(JSON.stringify(sl));
+c.slotId=sl.slotId;
+c.units=Number(sl.units)||units;
+c.classification='unmet_requirement';c.placementStatus='placed';
+c.auditSection=String(item.section||'');c.rawAuditLine=item.raw||'';
+var keys=[sl.slotId].concat(AUDIT_FIRST_ALIASES[sl.slotId]||[]),target;
+for(var k=0;k<keys.length&&target===undefined;k++)target=templatePos[keys[k]];
+pending.push({c:c,target:target});
+});
+});
+// Place: never before the planning term; template order first, foundation courses (prerequisites
+// for later core) ahead of others in the same semester; spill to the next regular semester past
+// 17 credits. The later prerequisite-aware reflow still runs on top of this.
+var regular=[];
+plan.forEach(function(s,i){if(isSchedulableSemester(s)&&!isSummerTerm(s.term))regular.push(i);});
+var anchorIdx=-1;plan.forEach(function(s,i){if(s.term===planningAnchor&&anchorIdx===-1)anchorIdx=i;});
+// Terms holding in-progress courses from the audit are the student's current schedule: start after them.
+var busyTerms={};(sections.plannedCurrent||[]).forEach(function(it){if(it.term)busyTerms[it.term]=1;});
+var lastBusy=-1;plan.forEach(function(s,i){if(busyTerms[s.term])lastBusy=Math.max(lastBusy,i);});
+var startPos=regular.filter(function(i){return (anchorIdx===-1||i>=anchorIdx)&&i>lastBusy;});
+if(!startPos.length)startPos=regular.slice();
+function rankOf(i){var r=startPos.indexOf(i);if(r!==-1)return r;for(var q=0;q<startPos.length;q++)if(startPos[q]>i)return q;return startPos.length-1;}
+var FOUNDATION=['MA121','ARE201','ENG101','COM110','ALS103','EC202','EC301','MATH2','ST311','ACC210'];
+pending.forEach(function(d){d.rank=d.target===undefined?99:rankOf(d.target);var f=FOUNDATION.indexOf(d.c.slotId||d.c.id);d.f=f===-1?99:f;});
+// Required courses claim their semesters first; electives and GEP slots fill the room left.
+var ELECTIVE_SLOT=/^(ARE3[AB]|ARE4[AB]|RSTD|FREE|GEPHUMANITIES|HUMGEP|SOCSCI|GEPELEC|IDS201|HESF|NATSCI)/;
+pending.forEach(function(d){d.elective=ELECTIVE_SLOT.test(d.c.slotId||d.c.id||'')?1:0;});
+pending.sort(function(a,b){return a.elective-b.elective||a.rank-b.rank||a.f-b.f;});
+function load(i){return plan[i].courses.reduce(function(t,c){return t+(Number(c.units)||0);},0);}
+pending.forEach(function(d){
+var c=d.c,idx;
+if(d.rank===99){idx=suggestedRequirementGroupTargetIndex(c.units);}
+else{
+var r=Math.min(d.rank,startPos.length-1);
+while(r<startPos.length-1&&load(startPos[r])+(Number(c.units)||0)>17)r++;
+idx=startPos[r];
+}
+ensureSemesterExists(idx);
+plan[idx].courses.push(c);
+});
+window.pawPlanUnrecognizedAuditLines=unrecognized;
+}
 function filterFuturePlanToAuditRequirements(sections,requirementCatalog){
 var allowed={};
 (sections.futureRequirements||[]).forEach(function(item){
@@ -2820,8 +2899,10 @@ c.reviewType=item.classification==='non_degree'?'Non-Degree':(item.grade==='TIP'
 c.reviewReason=item.reviewReason||item.statusNote||'Needs advisor review.';
 if(c.classification==='non_degree')nonDegreeCourses.push(c);else advisorReviewCourses.push(c);
 });
-filterFuturePlanToAuditRequirements(sections,requirementCatalog);
-var satisfiedSlotIds=removeSatisfiedFutureSlots(sections,requirementCatalog)||{};
+var AUDIT_FIRST=pawPlanAuditFirst();
+if(AUDIT_FIRST){buildFutureFromAudit(sections,requirementCatalog,planningAnchor);}
+else filterFuturePlanToAuditRequirements(sections,requirementCatalog);
+var satisfiedSlotIds=AUDIT_FIRST?{}:(removeSatisfiedFutureSlots(sections,requirementCatalog)||{});
 // Place planned/current items into their actual audit term inside the future grid (rule: planned/current is a status, not a display section).
 sections.plannedCurrent.forEach(function(item){
 var slotInfo=getSlotInfoForImportedItem(item,requirementCatalog);
@@ -2890,7 +2971,7 @@ plan[target].courses.push(d.slot);
 var futureGroups=sections.futureRequirements||[];
 var seenGroups={};
 futureGroups.forEach(function(item){seenGroups[item.requirementKind]=true;});
-futureGroups.forEach(function(item){
+if(!AUDIT_FIRST)futureGroups.forEach(function(item){
 if(item.requirementKind==='Requirement Group')return;
 var slots=requirementGroupToPlanSlots(item);
 slots.forEach(function(slot){
@@ -2909,7 +2990,7 @@ plan[target].courses.push(slot);
 // Template slots kept for a requirement group carry the template's 3 credits. When the audit
 // reports a remainder (for example 5 credits of Dept/Tech electives = 3 + 2), set each
 // unpicked slot to the credits the audit asks for.
-futureGroups.forEach(function(item){
+if(!AUDIT_FIRST)futureGroups.forEach(function(item){
 if(item.requirementKind==='Requirement Group')return;
 requirementGroupToPlanSlots(item).forEach(function(slot){
 plan.forEach(function(s){if(!isSchedulableSemester(s))return;s.courses.forEach(function(c){
@@ -2919,7 +3000,7 @@ if((c.slotId||c.id)===slot.slotId&&/^Click to/.test(c.name||'')&&slot.units&&c.u
 });
 // Slot matching alone can incorrectly treat two 3-credit electives as satisfying
 // the 7-credit non-biology science component. Reconcile against the full 11 credits.
-reconcileNaturalScienceCredits();
+if(!AUDIT_FIRST)reconcileNaturalScienceCredits();
 // FINAL POST-PLACEMENT REFLOW
 // Any future semester containing audit-planned/current courses is treated as student-scheduled.
 // Sweep out every course that is NOT audit-planned and reinsert it elsewhere via the picker.
