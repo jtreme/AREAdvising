@@ -74,6 +74,23 @@
     if (note === 'Marked full') return 'You marked this section full in MyPack.';
     return note;
   }
+  // GEP Humanities: at most 3 units from each official group. A course listed in several groups can
+  // count in any of them, so two courses clash only when both sit in the same single group.
+  function humGroups(lists) {
+    if (lists.__humG) return lists.__humG;
+    var m = {};
+    (lists.HUM_COURSES || []).forEach(function (g) { (g.courses || []).forEach(function (c) { (m[c.c] = m[c.c] || []); if (m[c.c].indexOf(g.g) === -1) m[c.c].push(g.g); }); });
+    try { Object.defineProperty(lists, '__humG', { value: m, enumerable: false }); } catch (e) {}
+    return m;
+  }
+  function humClash(lists, a, b) {
+    var G = humGroups(lists), ga = G[a], gb = G[b];
+    return ga && gb && ga.length === 1 && gb.length === 1 && ga[0] === gb[0] ? ga[0] : '';
+  }
+  // Courses already filling a Humanities slot (on record or picked), other than the slot in question.
+  function humOthers(ctx, exceptObj, extra) {
+    return ctx.humCourses.filter(function (h) { return h.obj !== exceptObj; }).map(function (h) { return h.code; }).concat(extra || []);
+  }
   function isSubOption(opt, subs) {
     var all = {};
     Object.keys(subs || {}).forEach(function (k) { (subs[k] || []).forEach(function (x) { all[x] = 1; }); });
@@ -376,7 +393,7 @@
     input = input || {};
     var si = -1;
     plan.forEach(function (s, i) { if (s.term === index.term) si = i; });
-    var taken = {}, priorCredits = 0, allCodes = {};
+    var taken = {}, priorCredits = 0, allCodes = {}, humCourses = [];
     var target = termRank(index.term);
     plan.forEach(function (s) {
       // Anything finished or underway before the target term counts as taken
@@ -386,6 +403,8 @@
       s.courses.forEach(function (c) {
         var codes = String(c.code || '').split('+').map(function (x) { return x.trim(); }).filter(function (x) { return CODE_RE.test(x); });
         codes.forEach(function (x) { allCodes[x] = 1; if (prior) taken[x] = 1; });
+        // Humanities slots (picked or planned) and audit courses counted under Humanities.
+        if ((c.picker === 'hum' || /^Humanities/.test(c.tag || '')) && codes.length) humCourses.push({ code: codes[0], obj: c });
         if (prior) priorCredits += Number(c.units) || 0;
       });
     });
@@ -394,7 +413,7 @@
     var ad = (lists.VERIFY_AMER_DEMOCRACY || []).some(function (c) { return allCodes[c]; });
     var autoStanding = standingFromCredits(priorCredits);
     return {
-      si: si, taken: taken, allCodes: allCodes, priorCredits: priorCredits,
+      si: si, taken: taken, allCodes: allCodes, priorCredits: priorCredits, humCourses: humCourses,
       student: { standing: input.standing || autoStanding, autoStanding: autoStanding, gpa: input.gpa != null ? input.gpa : null },
       needGK: !gk, needAD: !ad,
       gkSet: toSet(lists.VERIFY_GLOBAL_KNOWLEDGE), adSet: toSet(lists.VERIFY_AMER_DEMOCRACY)
@@ -676,7 +695,7 @@
       });
       p.open.forEach(function (o) {
         var oc = occupiedExcept(p, null, o);
-        o.candidates = o.slot.isFree ? [] : openCandidates(o.slot, oc.occ, oc.used);
+        o.candidates = o.slot.isFree ? [] : openCandidates(o.slot, oc.occ, oc.used, humPicksExcept(p, o));
       });
       p.credits = creditsOf(p.items);
       return p;
@@ -688,16 +707,20 @@
       p.open.forEach(function (o) {
         if (o.slot.isFree || !SUGGEST_PICKERS[o.slot.picker]) return;
         var oc = occupiedExcept(p, null, o);
-        var cands = openCandidates(o.slot, oc.occ, oc.used);
+        var cands = openCandidates(o.slot, oc.occ, oc.used, humPicksExcept(p, o));
         for (var i = 0; i < cands.length; i++) if (!cands[i].viol && !cands[i].prereq) { o.pick = cands[i]; o.suggested = true; break; }
       });
       refresh(p);
     });
 
-    function openCandidates(s, occupied, usedCodes) {
-      var out = [];
+    function humPicksExcept(p, o) {
+      return p.open.filter(function (x) { return x !== o && x.pick && x.slot.picker === 'hum'; }).map(function (x) { return x.pick.option[0]; });
+    }
+    function openCandidates(s, occupied, usedCodes, humPicks) {
+      var out = [], hum = s.picker === 'hum' ? humOthers(ctx, (plan[s.si] || { courses: [] }).courses[s.ci], humPicks) : [];
       s.pool.options.forEach(function (opt) {
         if (opt.some(function (c) { return ctx.allCodes[c] || usedCodes[c]; })) return;
+        if (hum.length && hum.some(function (h) { return humClash(lists, h, opt[0]); })) return;
         var c = candidateFor(opt, occupied);
         if (c) out.push(c);
       });
@@ -894,6 +917,10 @@
         });
         var lock = lockReason(slot.label, opt[0]);
         if (lock) { entry.why = lock; out.locked.push(entry); return; }
+        if (slot.picker === 'hum') {
+          var clashWith = humOthers(ctx, c).filter(function (h) { return humClash(lists, h, opt[0]); })[0];
+          if (clashWith) { entry.why = 'Humanities takes one course per group, and ' + clashWith + ' already fills the ' + humClash(lists, clashWith, opt[0]) + ' group'; out.locked.push(entry); return; }
+        }
         var notOff = opt.filter(function (x) { return !index.courses[x]; });
         if (notOff.length) { entry.why = notOff.join(', ') + ' is not offered in ' + index.term; out.notOffered.push(entry); return; }
         var noElig = opt.filter(function (x) { return !groupsFor(x).groups.length && !(groupsFor(x).restrictedGroups || []).length; });
