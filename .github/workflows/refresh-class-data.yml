@@ -10,6 +10,7 @@ on:
     paths:
       - 'class-schedule-upload/**.csv'
       - 'class-schedule-upload/**.CSV'
+      - 'class-schedule-upload/**.xlsx'
   workflow_dispatch:
 
 permissions:
@@ -30,13 +31,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      - run: pip install openpyxl
+
       - name: Convert each uploaded CSV
         id: convert
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob nocaseglob
-          files=(class-schedule-upload/*.csv)
+          files=(class-schedule-upload/*.csv class-schedule-upload/*.xlsx)
           if [ ${#files[@]} -eq 0 ]; then echo "No CSV to convert."; echo "done=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           as_of=$(TZ=America/New_York date +%F)
           summary=""
@@ -47,7 +50,10 @@ jobs:
               echo "::error file=$f::Could not tell the term from the file name. Name it like Spring_2027_Schedule_of_Classes.csv."
               exit 1
             fi
-            out=$(python3 tools/build_schedule_data.py "$term" "$f" --as-of "$as_of")
+            case "$f" in
+              *.xlsx|*.XLSX) out=$(python3 tools/build_coursecat_xlsx.py "$term" "$f" --as-of "$as_of") ;;
+              *) out=$(python3 tools/build_schedule_data.py "$term" "$f" --as-of "$as_of") ;;
+            esac
             echo "$out"
             summary="$summary $out;"
             git rm -q "$f"

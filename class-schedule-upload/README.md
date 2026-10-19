@@ -1,6 +1,8 @@
 # Refreshing class data
 
-1. Download the Schedule of Classes CSV for the term.
+1. Download the Schedule of Classes CSV for the term, or a workbook pulled from NC State's public
+   course catalog (like NC_State_Summer_2027_Classes.xlsx, with Classes, Courses and Section
+   details sheets).
 2. Name it with the term, for example `Spring_2027_Schedule_of_Classes.csv`.
 3. On github.com, open this folder, choose **Add file > Upload files**, drop in the CSV, and click
    **Commit changes**.

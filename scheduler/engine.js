@@ -202,10 +202,10 @@
     var gpa = low.match(/gpa\s*(?:>|>=|of|above)?\s*(\d\.\d+)/);
     // Strip what we understand; whatever is left is a restriction we cannot verify.
     // ABM students are CALS undergraduates, so "Undergraduate Students CALS" is open to them.
-    var rest = low.replace(/^[rpx]\s*:/, '').replace(/11agbusbs|agri ?business|abm/g, '')
+    var rest = low.replace(/^[rpx]\s*:/, '').replace(/11agbusbs|agri ?business|abm|agricultural business management/g, '')
       .replace(/college of agriculture (and|&) life sciences|\bcals\b|undergrad(uate)?s?|\bstu\b/g, '')
       .replace(/juniors?|seniors?|sophomores?|freshm[ae]n|\b(so|jr|sr)\b|standing|or above|and up|\(i.*$/g, '')
-      .replace(/gpa\s*[>=]*\s*\d\.\d+/g, '').replace(/\b(only|and|or|students?|class)\b/g, '').replace(/[^a-z0-9]/g, '');
+      .replace(/gpa\s*[>=]*\s*\d\.\d+/g, '').replace(/\b(only|and|or|students?|class|majors?)\b/g, '').replace(/[^a-z0-9]/g, '');
     if (rest) return { ok: false, note: 'Restricted: ' + t };
     if (minStand && STANDING_ORDER[student.standing] < STANDING_ORDER[minStand]) return { ok: false, note: 'Requires ' + { SO: 'sophomore', JR: 'junior', SR: 'senior' }[minStand] + ' standing' };
     if (gpa && student.gpa != null && student.gpa <= parseFloat(gpa[1])) return { ok: false, note: 'Requires GPA above ' + gpa[1] };
@@ -399,8 +399,12 @@
       // Anything finished or underway before the target term counts as taken
       // (completed, transfer, in-progress buckets, and earlier named terms such as "Fall 2026").
       var r = termRank(s.term);
-      var prior = /^(Completed NC State|Prior NC State|Transfer|In Progress)/.test(s.term) || (r !== null && target !== null && r < target);
+      var named = /^(Completed NC State|Prior NC State|Transfer|In Progress)/.test(s.term);
+      var priorTerm = named || (r !== null && target !== null && r < target);
       s.courses.forEach(function (c) {
+        // An earlier plan term counts only for courses on the audit (in progress) or picked for that term;
+        // an unpicked plan slot there (planning summer after spring) is still to be taken.
+        var prior = priorTerm && (named || !!c.sched || c.importedFromAudit || c.classification === 'planned_current' || c.auditStatus === 'planned_current' || !!c.transferPlan);
         var codes = String(c.code || '').split('+').map(function (x) { return x.trim(); }).filter(function (x) { return CODE_RE.test(x); });
         codes.forEach(function (x) { allCodes[x] = 1; if (prior) taken[x] = 1; });
         // Humanities slots (picked or planned) and audit courses counted under Humanities.

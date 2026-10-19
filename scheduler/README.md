@@ -129,3 +129,13 @@ in-progress term, spilling past 17 credits). Audit lines Paw Plan cannot map bec
 forces the current import. To compare both on a folder of audits:
 `QUERY='?auditfirst=1' tools/check_audits.sh /path/to/audits`.
 
+## Summer
+
+`data/summer-2027.json` comes from a workbook pulled from NC State's public course catalog
+(`tools/build_coursecat_xlsx.py "Summer 2027" NC_State_Summer_2027_Classes.xlsx`). Sections carry
+their session (Summer I, Summer II, 10-week, Maymester) and dates; most have no set meeting time.
+The catalog gives no Assoc Class numbers, so a lecture pairs with labs from the same session.
+When a student's plan has more than one listed term, the audit view shows term tabs (Spring 2027 |
+Summer 2027). Planning summer after spring: spring slots not yet picked stay choosable, and spring
+picks count as taken. Summer shows credits per session instead of full-time/overload notes.
+

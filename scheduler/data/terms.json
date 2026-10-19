@@ -6,6 +6,13 @@
    "built": "2026-10-17",
    "asOf": "2026-10-13",
    "source": "Spring_2027_Schedule_of_Classes.csv"
+  },
+  {
+   "term": "Summer 2027",
+   "file": "data/summer-2027.json",
+   "built": "2026-10-19",
+   "asOf": "2026-10-19",
+   "source": "NC_State_Summer_2027_Classes.xlsx"
   }
  ]
 }
