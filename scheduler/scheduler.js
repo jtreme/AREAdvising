@@ -137,7 +137,10 @@
       if (err) { cb(err); return; }
       // Summer I / Summer II tab: keep that session's sections only.
       if (state.tab && state.tab.sessions) {
-        var si = data.fields.indexOf('session'), keep = state.tab.sessions;
+        var si = data.fields.indexOf('session'), keep = state.tab.sessions, ci = data.fields.indexOf('code');
+        // Which summer session(s) each course is in, to say "offered in Summer II" on the Summer I tab.
+        state.sessionsOf = {};
+        data.sections.forEach(function (r) { var o = state.sessionsOf[r[ci]] = state.sessionsOf[r[ci]] || {}; o[r[si]] = 1; });
         data = Object.assign({}, data, { sections: data.sections.filter(function (r) { return keep.indexOf(r[si]) !== -1; }) });
       }
       state.indexKey = want;
@@ -782,8 +785,17 @@
     rows.forEach(function (r) {
       if (r === row) return;
       if (r.status === 'planned' || r.pickedEarlier) ((r.c.sched && r.c.sched.codes) || []).forEach(function (x) { used[x] = 1; });
-      if (r.status === 'need' || r.status === 'planned') {
-        // Core requirements keep their own courses: EC 301 fills EC/ARE 301, not an ARE elective.
+      // Planned at another school: its NC State equivalent and the requirement's other courses are spoken for.
+      if (r.status === 'transfer' && r.c.transferPlan) {
+        var te = r.c.transferPlan.kind === 'nccc' ? ccEntry(r.c.transferPlan.course) : null;
+        (te ? te.ncsu : []).forEach(function (x) { used[x] = 1; });
+        var tsl = T.slotOf(Object.assign({}, r.c, { transferPlan: null }));
+        if (tsl.kind === 'fixed' || tsl.kind === 'choice') tsl.options.forEach(function (o) { o.forEach(function (x) { used[x] = 1; }); });
+      }
+      // A core requirement not chosen yet keeps all of its courses: the audit counts the first
+      // ARE 303 or 304 a student takes toward the core line. Once the core row has its pick
+      // (or is already met), the other course is free to be an ARE elective.
+      if (r.status === 'need') {
         var sl = T.slotOf(r.c);
         if (sl.kind === 'fixed' || sl.kind === 'choice') sl.options.forEach(function (o) { o.forEach(function (x) { used[x] = 1; }); });
       }
@@ -1068,6 +1080,14 @@
       return Object.assign({}, e, { times: ft, sectionsFit: n, restrictedFit: ft.reduce(function (t, x) { return t + (x.restricted ? x.count : 0); }, 0), restrictedOnly: !n });
     }).filter(Boolean);
   }
+  // On a summer tab, a course "not offered" here may run in the other session.
+  function otherSessionWhy(e) {
+    if (!state.tab || !state.tab.sessions || !state.sessionsOf || e.option.length !== 1) return e;
+    var ses = state.sessionsOf[e.option[0]];
+    if (!ses) return e;
+    var other = SUMMER_TABS.filter(function (x) { return x[0] !== state.tab.session && x[2].some(function (k) { return ses[k]; }); })[0];
+    return other ? Object.assign({}, e, { why: 'Offered in ' + other[1] + ', not ' + state.tab.label.replace(/ \d{4}$/, '') + '. Switch to the ' + other[1] + ' tab to pick it.' }) : e;
+  }
   function choosePanel(r, rows, T) {
     var key = rowKey(r.c), occ = meetingsOf(rows, r), used = usedFor(rows, r, T);
     var ch = T.choices(r.c, occ, used), term = state.index.term;
@@ -1108,12 +1128,25 @@
       if (ch.free) h += '<p class="pps-muted">' + (q.length >= 2 || anyChip ? 'Nothing that fits your other picks with those filters. Try another filter or search.' : 'Almost any course counts as a free elective. Search for one, or turn on a filter to browse.') + '</p>';
       else h += '<p class="pps-muted">' + (q || anyChip ? 'Nothing that fits with those filters.' : 'No course for this requirement fits ' + term + ' right now.') + '</p>';
     }
+    // ARE 303 or 304 (and the other core choices) wait for their core row; say so on elective rows.
+    if (ch.slot.kind === 'open' && ch.slot.pool) {
+      var inPool = {}, heldReqs = [];
+      ch.slot.pool.options.forEach(function (o) { if (o.length === 1) inPool[o[0]] = 1; });
+      rows.forEach(function (o) {
+        if (o === r || o.status !== 'need') return;
+        var sl = T.slotOf(o.c);
+        if (sl.kind !== 'choice') return;
+        var lbl = dispCode(o.c.schedOrigCode || o.c.code);
+        if (heldReqs.indexOf(lbl) === -1 && sl.options.some(function (x) { return x.length === 1 && inPool[x[0]] && !T.ctx.taken[x[0]]; })) heldReqs.push(lbl);
+      });
+      if (heldReqs.length) h += '<p class="pps-muted">Courses that fill a core choice (' + esc(heldReqs.join(', ')) + ') count toward that core row first. Once you choose one there, another course from that requirement can count as an elective here.</p>';
+    }
     av.lists[key] = list;
     var shown = av.all[key] ? list : list.slice(0, 10);
     if (shown.length) h += '<ol class="pps-entries">' + shown.map(function (e, ei) { return entryHtml(e, ei, key); }).join('') + '</ol>';
     if (list.length > shown.length) h += '<button type="button" class="pps-link" data-allfor="' + key + '">Show all ' + list.length + '</button>';
     var unavailable = ch.locked.concat(ch.noFit);
-    if (ch.slot.kind !== 'open') unavailable = unavailable.concat(ch.notOffered);
+    if (ch.slot.kind !== 'open') unavailable = unavailable.concat(ch.notOffered.map(otherSessionWhy));
     if (unavailable.length) h += '<div class="pps-unavail"><div class="pps-flabel">Not available for ' + esc(termLabel()) + '</div><ul>' + unavailable.slice(0, 12).map(function (e) { return '<li><strong>' + esc(e.code) + '</strong> ' + esc(e.why) + hiddenHtml(e.hidden) + '</li>'; }).join('') + '</ul>' +
       (unavailable.length > 12 ? '<p class="pps-muted">' + (unavailable.length - 12) + ' more not available.</p>' : '') + '</div>';
     return h + '</div>';
@@ -1189,9 +1222,46 @@
     if (opts.some(function (o) { return o.some(function (x) { return /^ARE /.test(x); }); })) return [];
     return ((state.cc || {}).courses || []).filter(function (e) { return ccFills(e, opts); });
   }
+  // Audit lines where any one course fills the requirement; a second one does not count for it again.
+  var SAME_REQ = [['ACC 200', 'ACC 210'], ['MA 121', 'MA 131', 'MA 141'], ['MA 114', 'MA 231', 'MA 241'], ['ST 311', 'ST 350', 'BUS 350'],
+    ['COM 112', 'COM 211', 'COM 226', 'ENG 332'], ['AEE 226', 'CSC 200', 'ARE 255'], ['ARE 301', 'EC 301'], ['ARE 303', 'ARE 304'],
+    ['ARE 306', 'ARE 309'], ['ARE 311', 'ARE 312'], ['ARE 321', 'ARE 323', 'BUS 320'], ['BIO 105', 'BIO 181', 'PB 200']];
+  // Courses the student already has, has picked, or plans at another school, other than on course `skip`.
+  function haveCourses(skip) {
+    var have = {}, set = function (x, where) { if (!have[x]) have[x] = where; };
+    (B.getTransferred() || []).forEach(function (t) { if (t && t.code) set(normCode(t.code), 'already on your record as transfer credit'); });
+    B.getPlan().forEach(function (sem) {
+      var named = /^(Completed NC State|Prior NC State|Transfer|In Progress)/.test(sem.term);
+      sem.courses.forEach(function (x) {
+        if (x === skip || (skip && x.id && x.id === skip.id)) return;
+        var codes = String(x.code || '').split('+').map(function (y) { return normCode(y); }).filter(function (y) { return /^[A-Z]{1,4} \d{3}[A-Z]?$/.test(y); });
+        if (x.transferPlan) {
+          var te = x.transferPlan.kind === 'nccc' ? ccEntry(x.transferPlan.course) : null;
+          (te ? te.ncsu : []).forEach(function (y) { set(y, 'planned at ' + (x.transferPlan.school || 'another school') + ' (' + x.transferPlan.course + ')'); });
+          return;
+        }
+        if (named || x.importedFromAudit || x.classification === 'planned_current' || x.auditStatus === 'planned_current') codes.forEach(function (y) { set(y, 'already on your record (taken or in progress)'); });
+        else if (x.sched) (x.sched.codes || codes).forEach(function (y) { set(y, 'picked for ' + sem.term); });
+      });
+    });
+    return have;
+  }
+  function ccDuplicate(c, e) {
+    var have = haveCourses(c);
+    var same = e.ncsu.filter(function (x) { return have[x]; })[0];
+    if (same) return e.cc + ' transfers as ' + e.as + ', and ' + same + ' is ' + have[same] + '. NC State does not give credit twice for the same course.';
+    for (var i = 0; i < SAME_REQ.length; i++) {
+      var g = SAME_REQ[i], mine = e.ncsu.filter(function (x) { return g.indexOf(x) !== -1; })[0];
+      var other = mine && g.filter(function (x) { return x !== mine && have[x]; })[0];
+      if (other) return e.cc + ' transfers as ' + mine + '. ' + mine + ' and ' + other + ' fill the same requirement, and ' + other + ' is ' + have[other] + ', so ' + mine + ' would not count for that requirement again.';
+    }
+    return '';
+  }
   function ccCheck(c, tp) {
     if (!tp || tp.kind !== 'nccc' || !tp.course) return null;
     var e = ccEntry(tp.course), label = c.schedOrigCode || c.code;
+    var dup = e && ccDuplicate(c, e);
+    if (dup) return { level: 'stop', text: dup };
     if (!e) return { level: 'warn', text: tp.course + ' is not in the ABM transfer guide. Check the NC State transfer database before enrolling.' };
     if (ccFills(e, reqOptions(c))) return { level: 'ok', text: 'In the ABM transfer guide: ' + e.cc + ' transfers as ' + e.as + '.' };
     return { level: 'stop', text: e.cc + ' transfers as ' + e.as + ', which does not fill ' + label + '.' };
@@ -1395,6 +1465,12 @@
         if (!r) return;
         var v = function (k) { return (box.querySelector('[data-ew="' + k + '"]').value || '').trim(); };
         var kind = v('kind'), course = kind === 'nccc' ? normCode(v('course')) : v('course').toUpperCase();
+        var dup = kind === 'nccc' && ccEntry(course) && ccDuplicate(r.c, ccEntry(course));
+        if (dup) {
+          var w = box.querySelector('.pps-ewdup') || box.insertBefore(document.createElement('div'), box.querySelector('.pps-actions'));
+          w.className = 'pps-flag warn pps-ewdup'; w.setAttribute('role', 'alert'); w.textContent = dup + ' Pick a different course.';
+          return;
+        }
         planElsewhere(r.c, { kind: kind, school: v('school') || (kind === 'nccc' ? 'NC community college' : ''), course: course, term: v('term') });
         av.elsewhere = null; renderAudit();
       });
