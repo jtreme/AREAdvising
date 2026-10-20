@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="planned-check-v1">
+<meta name="paw-plan-build-id" content="planned-audit-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -823,7 +823,7 @@ Save your plan as a file. Load it later or email it to your advisor.
 <div class="wc-step">Step 1</div>
 <div style="font-weight:700;font-size:1.12rem;margin:0.1rem 0 0.45rem;color:#3D1F04">Turn off planned courses before you save your audit</div>
 In MyPack, open your Degree Audit. At the top of the page, uncheck <span class="wc-check"><span class="wc-box" aria-hidden="true"></span>Include Planned Courses</span>, then save the page as a PDF.
-<div style="margin-top:0.45rem;font-size:0.82rem">If that box is checked, Paw Plan reads your planned courses as classes you are already enrolled in.</div>
+<div style="margin-top:0.45rem;font-size:0.82rem">If you forget, Paw Plan treats your planned courses as still to take, but the audit is easiest to read with the box unchecked.</div>
 </div>
 <div class="wc-up"><div class="wc-step wc-step2">Step 2</div>
 <button id="welcome-upload-btn" style="background:#CC0000;color:#fff;border:none;border-radius:8px;padding:0.55rem 1.25rem;font-family:'Inter',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer">&#128196; Upload your audit PDF</button></div>
@@ -2413,7 +2413,7 @@ reader.onload=function(ev){
 var typedArray=new Uint8Array(ev.target.result);
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 pdfjsLib.getDocument({data:typedArray,isOffscreenCanvasSupported:false}).promise.then(function(pdf){
-var allText='',iconPages=[];
+var allText='',pageData=[];
 var pages=[];
 for(var i=1;i<=pdf.numPages;i++){pages.push(i);}
 var chain=Promise.resolve();
@@ -2423,25 +2423,41 @@ return pdf.getPage(pg).then(function(page){
 return page.getTextContent().then(function(tc){
 // Status icons (Completed, Enrolled, Planned...) are pictures, not text. Read them to catch an
 // audit saved with "Include Planned Courses" checked. Never blocks the upload if it fails.
-return auditIconRows(page,tc).catch(function(){return null;}).then(function(ic){if(ic)iconPages.push(ic);return tc;});
-}).then(function(tc){
-// Preserve line structure from PDF
-var lastY=null;
-tc.items.forEach(function(it){
-if(lastY!==null&&Math.abs(it.transform[5]-lastY)>2){
-allText+='\n';
-}
-allText+=it.str+' ';
-lastY=it.transform[5];
-});
-allText+='\n';
+return auditIconRows(page,tc).catch(function(){return null;}).then(function(ic){pageData.push({tc:tc,ic:ic});});
 });
 });
 });
 });
 chain.then(function(){
-var planned=plannedAuditRows(iconPages);
-if(planned.length&&!window.PAW_PLAN_IGNORE_PLANNED){showPlannedCoursesNotice(planned,function(){finishPdf();});return;}
+var sig=plannedIconSig(pageData.map(function(p){return p.ic;}).filter(Boolean)),plannedLines=[];
+pageData.forEach(function(pd){
+// Preserve line structure from PDF
+var plannedY=sig&&pd.ic?pd.ic.icons.filter(function(ic){return ic.sig===sig;}).map(function(ic){return ic.y;}):[];
+var line='',lineY=null,out=[],seenKey={};
+var flush=function(){
+if(lineY===null)return;
+var wasPlanned=false;
+if(plannedY.some(function(y){return Math.abs(lineY-y)<6;})){var u=unplanAuditLine(line);if(u!==line){plannedLines.push(line.replace(/\s+/g,' ').trim());line=u;wasPlanned=true;}}
+// MyPack splits one requirement into several planned rows (Technical Electives 3 + 3 + 3).
+// Join them back into one unmet line with the total, as the audit shows without planned courses.
+var key=wasPlanned?line.replace(/\d+\.\d{3}/,'#').replace(/\s+/g,' ').trim():null;
+if(/^\s*\d+\s*-\s/.test(line))seenKey={};
+var prev=key?seenKey[key]:null;
+var um=line.match(/(\d+\.\d{3})/);
+if(key&&um&&prev){prev.units+=parseFloat(um[1]);prev.text=prev.text.replace(/\d+\.\d{3}/,prev.units.toFixed(3));}
+else{var o={text:line,key:key,units:um?parseFloat(um[1]):0};out.push(o);if(key)seenKey[key]=o;}
+line='';
+};
+pd.tc.items.forEach(function(it){
+if(lineY!==null&&Math.abs(it.transform[5]-lineY)>2)flush();
+line+=it.str+' ';
+lineY=it.transform[5];
+});
+flush();
+allText+=out.map(function(o){return o.text;}).join('\n')+'\n\n';
+});
+window.pawPlanPlannedAuditLines=plannedLines;
+if(plannedLines.length)setTimeout(function(){showToast('Your audit included planned courses. Paw Plan treats them as still to take.');},400);
 finishPdf();
 }).catch(function(err){
 showToast('Error processing PDF: '+err.message);
@@ -2494,47 +2510,24 @@ icons.push({sig:img.width+'x'+img.height+':'+[r/n>>3,g/n>>3,b/n>>3].join(','),x:
 return {icons:icons,items:tc.items.map(function(it){return {s:it.str,x:it.transform[4],y:it.transform[5]};})};
 });
 }
-// Rows whose status icon matches the legend's "Planned" picture: [{line, codes}].
-function plannedAuditRows(pages){
-var plannedSig=null;
-pages.forEach(function(pg){
-if(plannedSig)return;
+// The picture the legend labels "Planned" (the icon just left of that word).
+function plannedIconSig(pages){
+for(var p=0;p<pages.length;p++){
+var pg=pages[p];
 var lab=pg.items.filter(function(it){return /^\s*Planned\s*$/.test(it.s);})[0];
-if(!lab)return;
+if(!lab)continue;
 var near=pg.icons.filter(function(ic){return Math.abs(ic.y-lab.y)<10&&ic.x<lab.x;}).sort(function(a,b){return b.x-a.x;});
-if(near.length)plannedSig=near[0].sig;
-});
-if(!plannedSig)return [];
-var out=[],seen={};
-pages.forEach(function(pg){
-pg.icons.forEach(function(ic){
-if(ic.sig!==plannedSig)return;
-var line=pg.items.filter(function(it){return Math.abs(it.y-ic.y)<10&&it.x>ic.x;}).sort(function(a,b){return a.x-b.x;}).map(function(it){return it.s;}).join(' ').replace(/\s+/g,' ').trim();
-if(!line||/Planned\s+Unmet|Enrolled/.test(line))return; // the legend itself
-var codes=(line.match(/\b[A-Z]{1,4}\s?\d{3}[A-Z]?\b/g)||[]).map(function(c){return c.replace(/^([A-Z]+)\s?/,'$1 ');});
-var key=line;if(seen[key])return;seen[key]=1;
-out.push({line:line,codes:codes});
-});
-});
-return out;
+if(near.length)return near[0].sig;
 }
-function showPlannedCoursesNotice(rows,proceed){
-var list=rows.map(function(r){return r.codes[0]||r.line;}).filter(function(x,i,a){return a.indexOf(x)===i;});
-document.getElementById('modal-title').textContent='Your audit includes planned courses';
-document.getElementById('modal-search-input').style.display='none';
-document.getElementById('modal-search-input').parentNode.style.display='none';
-var body=document.getElementById('modal-body');
-body.innerHTML='<div style="padding:1.25rem 1.5rem;font-size:0.92rem;line-height:1.6;color:var(--text)">'+
-'<p style="margin:0 0 0.75rem">This audit was saved with <strong>Include Planned Courses</strong> checked. Paw Plan would read these as classes you are enrolled in:</p>'+
-'<p style="margin:0 0 0.75rem;font-weight:700">'+list.map(escapeHtmlPlanned).join(', ')+'</p>'+
-'<p style="margin:0 0 1rem">In MyPack, open your Degree Audit, uncheck <strong>Include Planned Courses</strong> at the top, save it as a PDF again, and upload that file.</p>'+
-'<div style="display:flex;gap:0.6rem;flex-wrap:wrap"><button type="button" id="planned-reupload" style="background:#CC0000;color:#fff;border:none;padding:0.6rem 1.1rem;font-weight:700;cursor:pointer;min-height:44px">Upload a new audit</button>'+
-'<button type="button" id="planned-continue" style="background:#fff;color:#333;border:1px solid #999;padding:0.6rem 1.1rem;cursor:pointer;min-height:44px">Use this audit anyway</button></div></div>';
-document.getElementById('modal-overlay').classList.add('open');
-document.getElementById('planned-reupload').onclick=function(){closeModal();document.getElementById('transcript-file').click();};
-document.getElementById('planned-continue').onclick=function(){closeModal();proceed();};
+return null;
 }
-function escapeHtmlPlanned(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+// A planned row reads as the unmet requirement it fills: drop the planned term and MyPack's
+// planner placeholders (ELECT 1, GEP 210), and the row's action becomes Waive as on an unmet line.
+function unplanAuditLine(t){
+return t.replace(/\b(Fall|Spring|Sum1|Sum2|Summer)\s+'?\d{2,4}\b/,' ')
+.replace(/\bELECT\s+\d+\b/g,' ').replace(/\bGEP\s+\d{3}\b/g,' ')
+.replace(/\bMove\b/,'Waive');
+}
 
 // Courses a student cannot take both of (credit for only one). Returns the one already in `codes`.
 var CREDIT_ONLY_ONE=[['ARE 321','BUS 320']];
