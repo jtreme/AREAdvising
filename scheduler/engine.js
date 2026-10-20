@@ -352,6 +352,8 @@
       if (c.transferPlan) { base.kind = 'transfer'; base.transferPlan = c.transferPlan; slots.push(base); return; }
       // A course the student picked in the audit view stays exactly as picked (no substitutions or alternatives).
       if (c.sched && c.sched.codes && c.sched.codes.length) { base.kind = 'fixed'; base.options = [c.sched.codes.slice()]; slots.push(base); return; }
+      // The plan's accounting slot is named ACC 210, but the audit line is "ACC 200 or ACC 210".
+      if (code === 'ACC 210' && c.cat === 'dept' && !c.schedExtra) code = 'ACC 200 or ACC 210';
       var opt = optionFromLabel(code);
       if (opt) {
         base.options = withSubs([opt], subs);
@@ -911,7 +913,7 @@
       return g.hard.length ? 'Needs ' + g.hard.join(' and ') + ' first' : '';
     }
     function slotOf(c) {
-      var probe = { code: c.schedOrigCode || c.code, picker: c.picker, units: c.units, cat: c.cat, name: c.name, tag: c.tag, transferPlan: c.transferPlan };
+      var probe = { code: c.schedOrigCode || c.code, picker: c.picker, units: c.units, cat: c.cat, name: c.name, tag: c.tag, transferPlan: c.transferPlan, schedExtra: c.schedExtra };
       return classifySlots({ courses: [probe] }, 0, lists, index.subs)[0];
     }
     function unitKey(u) { return u.sections.map(function (x) { return x.nbr; }).join('+'); }

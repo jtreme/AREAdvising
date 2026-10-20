@@ -933,6 +933,8 @@
 
   // How a requirement reads on the audit view (department rules: ARE 301, never EC 301).
   function dispCode(code) { return code === 'EC/ARE 301' ? 'ARE 301' : code; }
+  // Name of a requirement still to take (the plan's ACC 210 slot is the audit's "ACC 200 or ACC 210").
+  function reqName(c) { var x = c.schedOrigCode || c.code; return x === 'ACC 210' && c.cat === 'dept' && !c.schedExtra ? 'ACC 200 or ACC 210' : dispCode(x); }
   // Department substitutions that fill this requirement (ARE 255 for AEE 226), named on the row.
   function subNote(r, T) {
     if (r.status !== 'need') return '';
@@ -943,7 +945,7 @@
   function rowHtml(r, rows, T) {
     var c = r.c, key = rowKey(c), term = state.index.term;
     var icon = { done: '&#10003;', inprog: '&#9670;', planned: '&#9733;', need: '&#10007;', transfer: '&#8644;' }[r.status];
-    var label = r.status === 'planned' || r.pickedEarlier ? c.code : c.schedExtra ? 'Extra class' : dispCode(c.schedOrigCode || c.code);
+    var label = r.status === 'planned' || r.pickedEarlier ? c.code : c.schedExtra ? 'Extra class' : r.status === 'need' || r.status === 'transfer' ? reqName(c) : dispCode(c.schedOrigCode || c.code);
     var title = r.metBy ? '' : r.status === 'done' || r.status === 'inprog' ? courseTitle(c.code) : (r.status === 'planned' ? courseTitle(c.code) : c.schedExtra ? 'Any course, beyond your requirements' : (c.tag || ''));
     var right = '';
     if (r.metBy) right = '<span class="pps-avterm">Met by ' + esc(r.metBy) + '</span>';
@@ -1104,7 +1106,7 @@
       var excl = {};
       (B.lists.FREE_EXCLUDED || []).forEach(function (x) { excl[x] = 1; });
       var okFree = function (code) { return !excl[code] && (!chips.are || /^ARE /.test(code)); };
-      if (chips.are && q.length < 2) h += '<p class="pps-muted">Any course counts as a free elective except the ones on the excluded list. Showing ARE courses to start. Search, or turn off the ARE filter, to see others.</p>';
+      if (chips.are && q.length < 2) h += '<p class="pps-freenote">Any course counts as a free elective except the ones on the excluded list. Showing ARE courses to start. Search, or turn off the ARE filter, to see others.</p>';
       if (q.length >= 2) list = T.search(q, occ, used, 60, okFree);
       else if (anyChip) list = T.search('', occ, used, chips.are ? 80 : 400, okFree);
       else list = [];
@@ -1322,7 +1324,7 @@
     plan.forEach(function (s) { var x = E.termRank(s.term); if (x !== null && x >= tr) terms.push(s.term); });
     terms.sort(function (a, b) { return E.termRank(a) - E.termRank(b); });
     return '<div class="pps-choose pps-elsewhere" role="region" aria-label="Taking this course at another school">' +
-      '<p><strong>Plan to take ' + esc(dispCode(r.c.schedOrigCode || r.c.code)) + ' at another school.</strong> Fill in the school, course, and term, then click the button. The requirement moves to that term in your plan and is marked "At another school." You still enroll at that school yourself and send the transcript to NC State.</p>' +
+      '<p><strong>Plan to take ' + esc(reqName(r.c)) + ' at another school.</strong> Fill in the school, course, and term, then click the button. The requirement moves to that term in your plan and is marked "At another school." You still enroll at that school yourself and send the transcript to NC State.</p>' +
       ccHint(r) +
       '<div class="pps-elsef"><label>Type of school<select data-ew="kind"><option value="nccc">NC community college</option><option value="other">Other college or university</option></select></label>' +
       '<label>School<input type="text" data-ew="school" placeholder="e.g. Wake Tech"></label>' +
@@ -1822,7 +1824,7 @@
       '.pps-avside .pps-cal{grid-template-columns:2.4rem repeat(var(--cols),minmax(52px,1fr));min-width:0}.pps-avside .pps-cal-head{font-size:.62rem;padding:.35rem .1rem}.pps-avside .pps-ev{font-size:.58rem}.pps-avside .pps-ev strong{font-size:.62rem}',
       '.pps-avhead{margin-bottom:.75rem}',
       '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
-      '.pps-gpa{margin:.6rem 0;padding:.5rem .6rem;border:1px solid #c9d6e3;background:#f5f8fb;font-size:.82rem}.pps-gpalist{margin:.35rem 0 .2rem;padding-left:1.1rem}.pps-gpalist li{margin:.15rem 0}.pps-elleft{margin:.6rem 0}.pps-elleft table{width:100%;border-collapse:collapse;font-size:.8rem}.pps-elleft th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ddd;padding:.2rem .3rem}.pps-elleft td{padding:.2rem .3rem;border-bottom:1px solid #eee}.pps-elleft td+td,.pps-elleft th+th{text-align:right}' +
+      '.pps-freenote{margin:.5rem 0 .6rem;font-size:.95rem;font-weight:700;line-height:1.45;color:#1a1a1a}.pps-gpa{margin:.6rem 0;padding:.5rem .6rem;border:1px solid #c9d6e3;background:#f5f8fb;font-size:.82rem}.pps-gpalist{margin:.35rem 0 .2rem;padding-left:1.1rem}.pps-gpalist li{margin:.15rem 0}.pps-elleft{margin:.6rem 0}.pps-elleft table{width:100%;border-collapse:collapse;font-size:.8rem}.pps-elleft th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ddd;padding:.2rem .3rem}.pps-elleft td{padding:.2rem .3rem;border-bottom:1px solid #eee}.pps-elleft td+td,.pps-elleft th+th{text-align:right}' +
     '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
       '.st-row-transfer{background:#F5F3FF}',
       '.pps-flag.good{background:#DCFCE7;color:#14532D}',
