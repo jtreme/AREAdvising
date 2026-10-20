@@ -14,6 +14,18 @@
   var CHOICE_MAX = 6; // either/or lists longer than this are interest-driven electives -> pass 2
   var OPEN_PICKERS = { hum: 1, socsci: 1, gepelec: 1, ids: 1, tech: 1, depttech: 1, free: 1, are3xx: 1, are4xx: 1, hesf1: 1, hesf2: 1, natsci3: 1, natsci4: 1 };
   var CODE_RE = /^[A-Z]{1,4} \d{3}[A-Z]?$/;
+  // Courses a student cannot take both of (credit for only one). lists.CREDIT_ONLY_ONE can replace this.
+  var CREDIT_ONLY_ONE = [['ARE 321', 'BUS 320']];
+  // The course from a credit-only-one pair the student already has (taken) or has picked (used).
+  function onlyOneClash(lists, code, taken, used) {
+    var pairs = (lists && lists.CREDIT_ONLY_ONE) || CREDIT_ONLY_ONE;
+    for (var i = 0; i < pairs.length; i++) {
+      if (pairs[i].indexOf(code) === -1) continue;
+      var other = pairs[i].filter(function (x) { return x !== code && ((taken && taken[x]) || (used && used[x])); })[0];
+      if (other) return other;
+    }
+    return '';
+  }
   // Department rule: never suggest a Poole College course over an ARE course for the same
   // requirement (EC 301 is never offered in place of ARE 301; BUS 320 never over ARE 321/323).
   var POOLE = { EC: 1, BUS: 1, ACC: 1, MIE: 1, MBA: 1 };
@@ -729,7 +741,7 @@
     function openCandidates(s, occupied, usedCodes, humPicks) {
       var out = [], hum = s.picker === 'hum' ? humOthers(ctx, (plan[s.si] || { courses: [] }).courses[s.ci], humPicks) : [];
       s.pool.options.forEach(function (opt) {
-        if (opt.some(function (c) { return ctx.allCodes[c] || usedCodes[c]; })) return;
+        if (opt.some(function (c) { return ctx.allCodes[c] || usedCodes[c] || onlyOneClash(lists, c, ctx.allCodes, usedCodes); })) return;
         if (hum.length && hum.some(function (h) { return humClash(lists, h, opt[0]); })) return;
         var c = candidateFor(opt, occupied);
         if (c) out.push(c);
@@ -775,7 +787,7 @@
       for (var i = 0; i < codes.length && out.length < (limit || 40); i++) {
         var code = codes[i], info = index.courses[code].info || {};
         if ((code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) continue;
-        if (ctx.allCodes[code] || oc.used[code]) continue;
+        if (ctx.allCodes[code] || oc.used[code] || onlyOneClash(lists, code, ctx.allCodes, oc.used)) continue;
         var c = candidateFor([code], oc.occ);
         if (c) out.push(c);
       }
@@ -926,6 +938,8 @@
           if (ctx.needAD && ctx.adSet[x] && entry.alsoCounts.indexOf('American Democracy') === -1) entry.alsoCounts.push('American Democracy');
         });
         var lock = lockReason(slot.label, opt[0]);
+        var once = onlyOneClash(lists, opt[0], ctx.taken, used);
+        if (!lock && once) lock = 'Credit is allowed for only one of ' + opt[0] + ' and ' + once + ', and you have ' + once;
         if (lock) { entry.why = lock; out.locked.push(entry); return; }
         if (slot.picker === 'hum') {
           var clashWith = humOthers(ctx, c).filter(function (h) { return humClash(lists, h, opt[0]); })[0];
@@ -1014,7 +1028,7 @@
         var info = index.courses[code].info || {};
         if (q.length >= 2 && (code + ' ' + (info.lt || '') + ' ' + (info.t || '')).toUpperCase().indexOf(q) === -1) return;
         if (keep && !keep(code)) return;
-        if (ctx.taken[code] || (used && used[code])) return;
+        if (ctx.taken[code] || (used && used[code]) || onlyOneClash(lists, code, ctx.taken, used)) return;
         var times = allGroups(code).filter(function (g) { return !unitConflicts(g.rep, occ); }).map(timeOf);
         if (!times.length) return;
         times.sort(function (a, b) { return ((a.units[0].studyAbroad ? 2 : a.restricted ? 1 : 0) - (b.units[0].studyAbroad ? 2 : b.restricted ? 1 : 0)); });

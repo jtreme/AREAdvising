@@ -1158,6 +1158,24 @@
     var keys = Object.keys(by);
     return keys.length ? '<div class="pps-muted">' + keys.map(function (k) { return esc(k) + ': ' + by[k] + ' cr'; }).join(' \u00b7 ') + '</div>' : '';
   }
+  // Elective credits still to take before graduating, and how many this term's picks cover.
+  var ELECTIVE_GROUPS = [['ARE electives', /^ARE 4XX|^ARE Elective/], ['Technical', /^Technical Elective/], ['Dept or Technical', /^Dept or Technical/],
+    ['Free', /^Free Elective/], ['Natural Science', /^Natural Science/], ['GEP', /^GEP |^Social Science|^Interdisc|^HES/]];
+  function electivesLeft(rows) {
+    var out = ELECTIVE_GROUPS.map(function (g) { return { label: g[0], re: g[1], left: 0, picked: 0 }; });
+    rows.forEach(function (r) {
+      if (r.c.schedExtra || (r.status !== 'need' && r.status !== 'planned')) return;
+      var lbl = String(r.c.schedOrigCode || r.c.code), cr = Number(r.c.schedOrigUnits || r.c.units) || 0;
+      var g = out.filter(function (x) { return x.re.test(lbl); })[0];
+      if (!g || !cr) return;
+      g.left += cr;
+      if (r.status === 'planned') g.picked += cr;
+    });
+    out = out.filter(function (g) { return g.left; });
+    if (!out.length) return '';
+    return '<div class="pps-elleft"><div class="pps-flabel">Electives left to graduate</div><table><thead><tr><th>Elective</th><th>Credits left</th><th>Picked this term</th></tr></thead><tbody>' +
+      out.map(function (g) { return '<tr><td>' + esc(g.label) + '</td><td>' + g.left + '</td><td>' + (g.picked || '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }
   function sideHtml(rows, T) {
     var term = state.index.term, planned = rows.filter(function (r) { return r.status === 'planned'; });
     var suggested = rows.filter(function (r) { return r.status === 'need' && r.suggested; });
@@ -1169,6 +1187,7 @@
       (scr ? '<div class="pps-muted">' + scr + ' more credits suggested and not picked yet</div>' : '') +
       (isSummer() ? summerSplit(planned) : cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
       (av.msg ? '<div class="pps-flag' + (/Not filled|No other|Nothing to fill/.test(av.msg) ? ' warn' : ' good') + '" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
+    h += electivesLeft(rows);
     if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Choose times for me</button><p class="pps-muted pps-small">Picks a section that fits for each course marked "Suggested for ' + esc(termLabel()) + '." Electives you choose yourself. You can change any pick.</p>';
     h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="addx">+ Add another class</button>';
     h += calendar({ items: items, open: [] });
@@ -1772,7 +1791,8 @@
       '.pps-avside .pps-cal{grid-template-columns:2.4rem repeat(var(--cols),minmax(52px,1fr));min-width:0}.pps-avside .pps-cal-head{font-size:.62rem;padding:.35rem .1rem}.pps-avside .pps-ev{font-size:.58rem}.pps-avside .pps-ev strong{font-size:.62rem}',
       '.pps-avhead{margin-bottom:.75rem}',
       '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
-      '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
+      '.pps-elleft{margin:.6rem 0}.pps-elleft table{width:100%;border-collapse:collapse;font-size:.8rem}.pps-elleft th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ddd;padding:.2rem .3rem}.pps-elleft td{padding:.2rem .3rem;border-bottom:1px solid #eee}.pps-elleft td+td,.pps-elleft th+th{text-align:right}' +
+    '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
       '.st-row-transfer{background:#F5F3FF}',
       '.pps-flag.good{background:#DCFCE7;color:#14532D}',
       '.pps-dblink{color:#1D4ED8;font-weight:600;text-decoration:underline}',
