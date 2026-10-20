@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="paw-plan-build" content="August 18 2026 upper-division audit fixes">
-<meta name="paw-plan-build-id" content="planned-audit-v1">
+<meta name="paw-plan-build-id" content="gpa-targets-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paw Plan — Agribusiness Management BS | NC State CALS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Roboto+Slab:wght@500;700&display=swap" rel="stylesheet">
@@ -2536,6 +2536,20 @@ for(var i=0;i<CREDIT_ONLY_ONE.length;i++){var g=CREDIT_ONLY_ONE[i];if(g.indexOf(
 var o=g.filter(function(x){return x!==code&&codes.indexOf(x)!==-1;})[0];if(o)return o;}
 return '';
 }
+var GPA_POINTS={'A+':4.333,'A':4,'A-':3.667,'B+':3.333,'B':3,'B-':2.667,'C+':2.333,'C':2,'C-':1.667,'D+':1.333,'D':1,'D-':0.667,'F':0};
+function auditGradeBase(text,stated){
+if(typeof stated!=='number')return null;
+var lines=String(text||'').split(/\r?\n/),pts=0,hrs=0,seen={};
+for(var i=0;i<lines.length;i++){
+var m=lines[i].match(/\b([A-Z]{1,4} \d{3}[A-Z]?)\s+((?:Fall|Spring|Sum1|Sum2|Summer)\s+'?\d{2,4})\s+([A-DF][+-]?)\s+(\d+\.\d{3})/);
+if(!m||!(m[3] in GPA_POINTS))continue;
+if(/Grade Excluded/.test(lines[i+1]||'')||/Grade Excluded/.test(lines[i]))continue;
+var k=m[1]+'|'+m[2];if(seen[k])continue;seen[k]=1;
+var u=parseFloat(m[4]);pts+=GPA_POINTS[m[3]]*u;hrs+=u;
+}
+if(!hrs||Math.abs(pts/hrs-stated)>0.0015)return null;
+return {hours:hrs,points:pts};
+}
 // Global course credits lookup
 var COURSE_CREDITS={'ENG 101':4,'MEA 100':4,'MEA 135':1,'CH 102':1,'PY 212':1,
 'USC 101':1,'USC 102':1,'E 115':1,'E 101':1,'E 102':2,'ALS 103':1,'ALS 303':1,'ARE 490':1,
@@ -3365,6 +3379,9 @@ window.pawPlanImportAuditTextForTest=function(text,planningSettings){return proc
 function processDegreeAudit(text,returnSummaryOnly,planningSettings){
 if(window.PawPlanAuditCore&&window.PawPlanAuditCore.normalizeFluidAuditText)text=window.PawPlanAuditCore.normalizeFluidAuditText(text);
 try{var gpaM=String(text).match(/Cum GPA:?\s+(\d\.\d{2,3})/);window.pawPlanAuditGpa=gpaM?parseFloat(gpaM[1]):null;}catch(err){}
+// Letter-graded NC State courses on the audit, for the advisor's GPA targets. Kept only when they
+// reproduce the audit's Cum GPA; otherwise null (for example a grade posted after the GPA was).
+try{window.pawPlanGradeBase=auditGradeBase(text,window.pawPlanAuditGpa);}catch(err){window.pawPlanGradeBase=null;}
 // Student name and audit date for the advisor view. The student ID is never kept.
 try{
 var _t=String(text),_nm=_t.match(/^\s*([A-Z][A-Za-z'.\- ]{1,60}?)\s+Student Id:/m)||_t.match(/\bID\s+\d{5,}\s+([A-Z][A-Za-z'.\- ]{1,60}?)\s*$/m);
@@ -6676,7 +6693,7 @@ getPlan:function(){return plan;},
 getTransferred:function(){return transferredCourses;},
 lists:{HUM_COURSES:HUM_COURSES,SOCSCI_COURSES:SOCSCI_COURSES,GEP_ELEC_COURSES:GEP_ELEC_COURSES,IDS_COURSES:IDS_COURSES,TECH_ELECTIVE_LIST:TECH_ELECTIVE_LIST,SLASH_COURSES:SLASH_COURSES,DEPT_VALID_CODES:DEPT_VALID_CODES,TECH_PREFIXES:TECH_PREFIXES,VERIFY_GLOBAL_KNOWLEDGE:VERIFY_GLOBAL_KNOWLEDGE,VERIFY_AMER_DEMOCRACY:VERIFY_AMER_DEMOCRACY,PREREQS:PREREQS,SOFT_PREREQS:SOFT_PREREQS,FREE_EXCLUDED:FREE_EXCLUDED,CREDIT_ONLY_ONE:CREDIT_ONLY_ONE},
 getCourseCredits:getCourseCredits,
-getAuditGpa:function(){return typeof window.pawPlanAuditGpa==='number'?window.pawPlanAuditGpa:null;},
+getAuditGpa:function(){return typeof window.pawPlanAuditGpa==='number'?window.pawPlanAuditGpa:null;},getGradeBase:function(){return window.pawPlanGradeBase||null;},
 getAuditStudent:function(){return window.pawPlanAuditStudent||null;},
 openAuditUpload:function(){var b=document.getElementById('transcript-btn');if(b)b.click();},
 categories:CATEGORIES,

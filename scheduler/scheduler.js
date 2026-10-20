@@ -1176,6 +1176,35 @@
     return '<div class="pps-elleft"><div class="pps-flabel">Electives left to graduate</div><table><thead><tr><th>Elective</th><th>Credits left</th><th>Picked this term</th></tr></thead><tbody>' +
       out.map(function (g) { return '<tr><td>' + esc(g.label) + '</td><td>' + g.left + '</td><td>' + (g.picked || '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
   }
+  // Advisor only: the term GPA a student needs this term to reach (or stay above) 2.0, 2.5, 3.0, 3.5.
+  function gpaTargets(rows) {
+    var gpa = B.getAuditGpa ? B.getAuditGpa() : null;
+    if (typeof gpa !== 'number') return '';
+    var base = B.getGradeBase ? B.getGradeBase() : null;
+    var h = '<div class="pps-gpa"><div class="pps-flabel">GPA targets (advisor view)</div><div>Cumulative GPA on the audit: <strong>' + gpa.toFixed(3) + '</strong></div>';
+    if (!base) return h + '<p class="pps-muted pps-small">Paw Plan cannot confirm the graded credits behind this GPA (often a grade posted after the GPA was figured), so it shows no targets.</p></div>';
+    // Credits picked this term that take a letter grade (HES courses are usually S/U).
+    var cr = rows.filter(function (r) { return r.status === 'planned'; }).reduce(function (t, r) {
+      var graded = ((r.c.sched && r.c.sched.codes) || [r.c.code]).some(function (x) { return !/^HES/.test(x); });
+      return graded ? t + (Number(r.c.units) || 0) : t;
+    }, 0);
+    if (!cr) return h + '<p class="pps-muted pps-small">Pick courses for ' + esc(termLabel()) + ' to see what grades it would take to reach 2.0, 2.5, 3.0 or 3.5.</p></div>';
+    var letter = function (g) { return g > 3.85 ? 'A' : g > 3.5 ? 'A-' : g > 3.17 ? 'B+' : g > 2.84 ? 'B' : g > 2.5 ? 'B-' : g > 2.17 ? 'C+' : g > 1.84 ? 'C' : g > 1.5 ? 'C-' : 'D'; };
+    var H = base.hours, P = base.points, out = [], above = [2, 2.5, 3, 3.5].filter(function (t) { return gpa >= t; });
+    [2, 2.5, 3, 3.5].forEach(function (t) {
+      var need = (t * (H + cr) - P) / cr, T = t.toFixed(1);
+      if (gpa >= t) {
+        if (t !== above[above.length - 1] || need <= 0) return; // only the line just below them
+        out.push('To stay at ' + T + ' or above: a term GPA of at least ' + need.toFixed(2) + ' (about ' + letter(need) + ' average).');
+      } else if (need <= 4) out.push('To reach ' + T + ': a term GPA of ' + need.toFixed(2) + ' (about ' + letter(need) + ' average).');
+      else {
+        var more = Math.ceil((t * H - P) / (4 - t));
+        out.push('To reach ' + T + ': not possible this term. It would take about ' + more + ' credits of A\'s in total.');
+      }
+    });
+    if (!out.length) return h + '</div>';
+    return h + '<ul class="pps-gpalist">' + out.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul><p class="pps-muted pps-small">Based on ' + H + ' graded credits on the audit and ' + cr + ' credits picked for ' + esc(termLabel()) + ', all taken for a letter grade.</p></div>';
+  }
   function sideHtml(rows, T) {
     var term = state.index.term, planned = rows.filter(function (r) { return r.status === 'planned'; });
     var suggested = rows.filter(function (r) { return r.status === 'need' && r.suggested; });
@@ -1188,6 +1217,7 @@
       (isSummer() ? summerSplit(planned) : cr > 18 ? '<div class="pps-flag warn">Above 18 credits needs an overload approval.</div>' : cr && cr < 12 && !scr ? '<div class="pps-flag">Below 12 credits is part-time.</div>' : '') +
       (av.msg ? '<div class="pps-flag' + (/Not filled|No other|Nothing to fill/.test(av.msg) ? ' warn' : ' good') + '" role="status">' + esc(av.msg) + '</div>' : '') + '</div>';
     h += electivesLeft(rows);
+    if (ADVISOR) h += gpaTargets(rows);
     if (suggested.length) h += '<button type="button" class="pps-btn pps-wide" data-av="auto">Choose times for me</button><p class="pps-muted pps-small">Picks a section that fits for each course marked "Suggested for ' + esc(termLabel()) + '." Electives you choose yourself. You can change any pick.</p>';
     h += '<button type="button" class="pps-btn pps-btn-ghost pps-wide" data-av="addx">+ Add another class</button>';
     h += calendar({ items: items, open: [] });
@@ -1791,7 +1821,7 @@
       '.pps-avside .pps-cal{grid-template-columns:2.4rem repeat(var(--cols),minmax(52px,1fr));min-width:0}.pps-avside .pps-cal-head{font-size:.62rem;padding:.35rem .1rem}.pps-avside .pps-ev{font-size:.58rem}.pps-avside .pps-ev strong{font-size:.62rem}',
       '.pps-avhead{margin-bottom:.75rem}',
       '.pps-counts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.84rem;font-weight:600}',
-      '.pps-elleft{margin:.6rem 0}.pps-elleft table{width:100%;border-collapse:collapse;font-size:.8rem}.pps-elleft th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ddd;padding:.2rem .3rem}.pps-elleft td{padding:.2rem .3rem;border-bottom:1px solid #eee}.pps-elleft td+td,.pps-elleft th+th{text-align:right}' +
+      '.pps-gpa{margin:.6rem 0;padding:.5rem .6rem;border:1px solid #c9d6e3;background:#f5f8fb;font-size:.82rem}.pps-gpalist{margin:.35rem 0 .2rem;padding-left:1.1rem}.pps-gpalist li{margin:.15rem 0}.pps-elleft{margin:.6rem 0}.pps-elleft table{width:100%;border-collapse:collapse;font-size:.8rem}.pps-elleft th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ddd;padding:.2rem .3rem}.pps-elleft td{padding:.2rem .3rem;border-bottom:1px solid #eee}.pps-elleft td+td,.pps-elleft th+th{text-align:right}' +
     '.st-done{color:#15803D}.st-inprog{color:#1D4ED8}.st-planned{color:#B45309}.st-need{color:#CC0000}.st-transfer{color:#6D28D9}',
       '.st-row-transfer{background:#F5F3FF}',
       '.pps-flag.good{background:#DCFCE7;color:#14532D}',
