@@ -1104,6 +1104,7 @@
       var excl = {};
       (B.lists.FREE_EXCLUDED || []).forEach(function (x) { excl[x] = 1; });
       var okFree = function (code) { return !excl[code] && (!chips.are || /^ARE /.test(code)); };
+      if (chips.are && q.length < 2) h += '<p class="pps-muted">Any course counts as a free elective except the ones on the excluded list. Showing ARE courses to start. Search, or turn off the ARE filter, to see others.</p>';
       if (q.length >= 2) list = T.search(q, occ, used, 60, okFree);
       else if (anyChip) list = T.search('', occ, used, chips.are ? 80 : 400, okFree);
       else list = [];
